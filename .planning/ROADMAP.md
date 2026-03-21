@@ -11,7 +11,7 @@
 
 - [x] **Phase 1: Foundation** - Project scaffold, PostgreSQL schema, async DB patterns, Docker Compose deployment (completed 2026-03-21)
 - [x] **Phase 2: Node Protocol Engine** - Full GSD wire protocol, node gateway, command dispatch, instance lifecycle, reconciliation, health monitoring (completed 2026-03-21)
-- [ ] **Phase 3: Auth and Teams** - JWT user authentication, team multi-tenancy, ownership enforcement on all endpoints
+- [x] **Phase 3: Auth and Teams** - JWT user authentication, team multi-tenancy, ownership enforcement on all endpoints (completed 2026-03-21)
 - [ ] **Phase 4: Dashboard and Streaming** - Frontend WebSocket gateway, React dashboard, live stream output
 - [ ] **Phase 5: Voice and Audit** - Whisper voice transcription, audit trail logging
 
@@ -81,13 +81,13 @@ Plans:
 4. Execute and kill commands are rejected if the requesting user's team does not own the target node
 5. A frontend WebSocket connection authenticates via a short-lived JWT ticket issued from a REST endpoint (ticket as query param)
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 03-01-PLAN.md — Data layer: ORM models (RefreshToken, WsTicket, NodeTeam), Alembic migration, schemas, config, get_current_user dependency
 - [x] 03-02-PLAN.md — Auth service and routes: register (with personal team), login, refresh, logout, ws-ticket
 - [x] 03-03-PLAN.md — Team service and routes: team CRUD, member management, node assignment
-- [ ] 03-04-PLAN.md — Multi-tenancy enforcement: node service, command dispatch auth, health auth, frontend WebSocket ticket endpoint
+- [x] 03-04-PLAN.md — Multi-tenancy enforcement: node service, command dispatch auth, health auth, frontend WebSocket ticket endpoint
 
 ---
 
@@ -134,7 +134,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete   | 2026-03-21 |
 | 2. Node Protocol Engine | 4/4 | Complete   | 2026-03-21 |
-| 3. Auth and Teams | 3/4 | In Progress|  |
+| 3. Auth and Teams | 4/4 | Complete   | 2026-03-21 |
 | 4. Dashboard and Streaming | 0/? | Not started | - |
 | 5. Voice and Audit | 0/? | Not started | - |
 
