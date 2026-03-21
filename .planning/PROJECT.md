@@ -14,7 +14,8 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+- [x] PostgreSQL persistence for node/instance/user/team state — Validated in Phase 1: Foundation (schema created, all 6 tables)
+- [x] Docker Compose deployment — Validated in Phase 1: Foundation (single-command startup)
 
 ### Active
 
@@ -89,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-20 after initialization*
+*Last updated: 2026-03-21 after Phase 1: Foundation completion*
