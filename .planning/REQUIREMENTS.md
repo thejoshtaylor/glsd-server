@@ -1,0 +1,219 @@
+# Requirements: GLSD Server
+
+**Defined:** 2026-03-20
+**Core Value:** Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and stream results back to users in real time
+
+## v1 Requirements
+
+Requirements for initial release. Each maps to roadmap phases.
+
+### Node Connection
+
+- [ ] **NODE-01**: Server accepts inbound WebSocket connections from nodes at `wss://server/ws/node`
+- [ ] **NODE-02**: Server validates Bearer token during HTTP upgrade handshake (401/403 on failure)
+- [ ] **NODE-03**: Server expects `node_register` as the first frame after WebSocket upgrade
+- [ ] **NODE-04**: Server tracks node state: `connected`, `stale`, `disconnected`
+- [ ] **NODE-05**: Server handles node reconnection gracefully (same `node_id`, new connection)
+- [ ] **NODE-06**: Server responds to WebSocket pings with pongs (standard protocol behavior)
+- [ ] **NODE-07**: Server tracks `last_heartbeat` per node, marks stale after >90s no ping
+- [ ] **NODE-08**: Server handles `node_disconnect` frame and marks node as disconnected
+- [ ] **NODE-09**: Server marks all instances as errored when node drops unexpectedly
+
+### State Reconciliation
+
+- [ ] **RECON-01**: On reconnect, server compares node's `running_instances` with tracked instances
+- [ ] **RECON-02**: Instances in server but not in node's list are marked as errored/lost
+- [ ] **RECON-03**: Instances in node's list but not in server are added as running
+- [ ] **RECON-04**: Instances in both are updated (session_id if changed, confirm running)
+- [ ] **RECON-05**: Per-node locking prevents concurrent reconnect races from corrupting state
+
+### Command Dispatch
+
+- [ ] **CMD-01**: Server can send `execute` command with server-generated `instance_id` (UUID)
+- [ ] **CMD-02**: Server can send `kill` command to terminate a running instance
+- [ ] **CMD-03**: Server can send `status_request` to query current node state
+- [ ] **CMD-04**: Server validates project exists on target node before dispatching execute
+- [ ] **CMD-05**: Server validates target node is connected before dispatching commands
+
+### Instance Lifecycle
+
+- [ ] **INST-01**: Server tracks instance status: `pending`, `running`, `finished`, `errored`
+- [ ] **INST-02**: Server processes `ack` and marks instance as running
+- [ ] **INST-03**: Server processes `instance_started` and captures `session_id`
+- [ ] **INST-04**: Server forwards `stream_event` data to subscribed frontend clients
+- [ ] **INST-05**: Server processes `instance_finished` with exit code
+- [ ] **INST-06**: Server processes `instance_error` with error message
+- [ ] **INST-07**: Server correctly handles rate-limited execute (immediate `instance_error`, no ack)
+
+### Stream Processing
+
+- [ ] **STRM-01**: Server parses `stream_event.data` as double-encoded JSON (NDJSON line)
+- [ ] **STRM-02**: Server forwards parsed stream events to frontend WebSocket subscribers
+- [ ] **STRM-03**: Frontend renders structured NDJSON (text responses, tool use, system events)
+- [ ] **STRM-04**: Stream output panel auto-scrolls with user override
+- [ ] **STRM-05**: Stream events are persisted for instance history/replay
+
+### Authentication
+
+- [ ] **AUTH-01**: User can register with email and password
+- [ ] **AUTH-02**: User can log in and receive JWT access + refresh tokens
+- [ ] **AUTH-03**: User can refresh expired access token using refresh token
+- [ ] **AUTH-04**: Unauthenticated requests are rejected with 401
+- [ ] **AUTH-05**: Frontend WebSocket connections use JWT ticket auth (REST-issued short-lived ticket as query param)
+
+### Teams
+
+- [ ] **TEAM-01**: Every user has a personal team created on registration
+- [ ] **TEAM-02**: User can create additional teams
+- [ ] **TEAM-03**: User can invite other users to their teams
+- [ ] **TEAM-04**: Nodes are assigned to teams
+- [ ] **TEAM-05**: Users can only see and manage nodes belonging to their teams
+- [ ] **TEAM-06**: Execute/kill commands enforce team ownership validation
+- [ ] **TEAM-07**: A node can be shared across multiple teams
+
+### Token Management
+
+- [ ] **TOKN-01**: Server supports rotating `SERVER_TOKEN` without disconnecting live nodes
+- [ ] **TOKN-02**: During rotation, both old and new tokens are accepted in a grace period
+- [ ] **TOKN-03**: Admin can revoke old token after grace period
+
+### Dashboard
+
+- [ ] **DASH-01**: User sees a list of all nodes in their teams with live status indicators
+- [ ] **DASH-02**: User can view per-node instance list with lifecycle state
+- [ ] **DASH-03**: User can dispatch an execute command (select node, project, enter prompt)
+- [ ] **DASH-04**: User can kill a running instance from the dashboard
+- [ ] **DASH-05**: User sees live streaming output as Claude CLI produces it
+- [ ] **DASH-06**: User sees health staleness warning when node hasn't pinged in >90s
+- [ ] **DASH-07**: User is alerted when a previously-unseen `node_id` connects
+- [ ] **DASH-08**: User sees clear error messages when instances fail (including rate limit)
+- [ ] **DASH-09**: User can resume a previous Claude session via `session_id`
+- [ ] **DASH-10**: User can browse past completed instances and their full output
+
+### Voice Input
+
+- [ ] **VOICE-01**: User can record audio in the browser using MediaRecorder API
+- [ ] **VOICE-02**: Audio is sent to server REST endpoint (`POST /api/transcribe`)
+- [ ] **VOICE-03**: Server transcribes audio via OpenAI Whisper API (`whisper-1` model)
+- [ ] **VOICE-04**: Transcribed text populates the prompt field for execute dispatch
+- [ ] **VOICE-05**: Server enforces 25MB file size limit for audio uploads
+
+### Audit Trail
+
+- [ ] **AUDIT-01**: All commands dispatched are logged (node_id, instance_id, user_id, type, timestamp)
+- [ ] **AUDIT-02**: All events received are logged (node_id, instance_id, type, timestamp, error details)
+- [ ] **AUDIT-03**: Audit log is append-only and queryable
+
+### Deployment
+
+- [ ] **DEPLOY-01**: Server runs via Docker Compose (FastAPI + PostgreSQL + React frontend)
+- [ ] **DEPLOY-02**: Single-worker Uvicorn configuration (in-memory connection registry constraint)
+- [ ] **DEPLOY-03**: Environment variable configuration for all secrets (SERVER_TOKEN, OPENAI_API_KEY, DB credentials, JWT secret)
+
+## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Enhancements
+
+- **ENH-01**: OAuth/SSO login (Google, GitHub)
+- **ENH-02**: Per-project cost dashboards (parse Claude CLI cost fields from NDJSON)
+- **ENH-03**: Output search/filter within stream panel
+- **ENH-04**: Real-time collaboration (multiple users watching same instance)
+- **ENH-05**: Kubernetes deployment
+- **ENH-06**: Horizontal server scaling (Redis pub/sub for cross-worker WebSocket state)
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Mobile app | Web dashboard covers all use cases; responsive design for tablets |
+| Node-side changes | Nodes are already deployed at v1.2.0; server consumes protocol as-is |
+| xterm.js terminal emulation | Claude CLI output is NDJSON, not PTY; structured renderer is appropriate |
+| In-browser audio editing | Voice input is transcribe-and-dispatch, not a recording studio |
+| User-editable node configuration | Nodes configured via environment variables on the host |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| NODE-01 | — | Pending |
+| NODE-02 | — | Pending |
+| NODE-03 | — | Pending |
+| NODE-04 | — | Pending |
+| NODE-05 | — | Pending |
+| NODE-06 | — | Pending |
+| NODE-07 | — | Pending |
+| NODE-08 | — | Pending |
+| NODE-09 | — | Pending |
+| RECON-01 | — | Pending |
+| RECON-02 | — | Pending |
+| RECON-03 | — | Pending |
+| RECON-04 | — | Pending |
+| RECON-05 | — | Pending |
+| CMD-01 | — | Pending |
+| CMD-02 | — | Pending |
+| CMD-03 | — | Pending |
+| CMD-04 | — | Pending |
+| CMD-05 | — | Pending |
+| INST-01 | — | Pending |
+| INST-02 | — | Pending |
+| INST-03 | — | Pending |
+| INST-04 | — | Pending |
+| INST-05 | — | Pending |
+| INST-06 | — | Pending |
+| INST-07 | — | Pending |
+| STRM-01 | — | Pending |
+| STRM-02 | — | Pending |
+| STRM-03 | — | Pending |
+| STRM-04 | — | Pending |
+| STRM-05 | — | Pending |
+| AUTH-01 | — | Pending |
+| AUTH-02 | — | Pending |
+| AUTH-03 | — | Pending |
+| AUTH-04 | — | Pending |
+| AUTH-05 | — | Pending |
+| TEAM-01 | — | Pending |
+| TEAM-02 | — | Pending |
+| TEAM-03 | — | Pending |
+| TEAM-04 | — | Pending |
+| TEAM-05 | — | Pending |
+| TEAM-06 | — | Pending |
+| TEAM-07 | — | Pending |
+| TOKN-01 | — | Pending |
+| TOKN-02 | — | Pending |
+| TOKN-03 | — | Pending |
+| DASH-01 | — | Pending |
+| DASH-02 | — | Pending |
+| DASH-03 | — | Pending |
+| DASH-04 | — | Pending |
+| DASH-05 | — | Pending |
+| DASH-06 | — | Pending |
+| DASH-07 | — | Pending |
+| DASH-08 | — | Pending |
+| DASH-09 | — | Pending |
+| DASH-10 | — | Pending |
+| VOICE-01 | — | Pending |
+| VOICE-02 | — | Pending |
+| VOICE-03 | — | Pending |
+| VOICE-04 | — | Pending |
+| VOICE-05 | — | Pending |
+| AUDIT-01 | — | Pending |
+| AUDIT-02 | — | Pending |
+| AUDIT-03 | — | Pending |
+| DEPLOY-01 | — | Pending |
+| DEPLOY-02 | — | Pending |
+| DEPLOY-03 | — | Pending |
+
+**Coverage:**
+- v1 requirements: 58 total
+- Mapped to phases: 0
+- Unmapped: 58 ⚠️
+
+---
+*Requirements defined: 2026-03-20*
+*Last updated: 2026-03-20 after initial definition*
