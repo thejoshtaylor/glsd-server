@@ -15,7 +15,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **NODE-04**: Server tracks node state: `connected`, `stale`, `disconnected`
 - [x] **NODE-05**: Server handles node reconnection gracefully (same `node_id`, new connection)
 - [x] **NODE-06**: Server responds to WebSocket pings with pongs (standard protocol behavior)
-- [ ] **NODE-07**: Server tracks `last_heartbeat` per node, marks stale after >90s no ping
+- [x] **NODE-07**: Server tracks `last_heartbeat` per node, marks stale after >90s no ping
 - [x] **NODE-08**: Server handles `node_disconnect` frame and marks node as disconnected
 - [x] **NODE-09**: Server marks all instances as errored when node drops unexpectedly
 
@@ -58,8 +58,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AUTH-01**: User can register with email and password
 - [ ] **AUTH-02**: User can log in and receive JWT access + refresh tokens
 - [ ] **AUTH-03**: User can refresh expired access token using refresh token
-- [ ] **AUTH-04**: Unauthenticated requests are rejected with 401
-- [ ] **AUTH-05**: Frontend WebSocket connections use JWT ticket auth (REST-issued short-lived ticket as query param)
+- [x] **AUTH-04**: Unauthenticated requests are rejected with 401
+- [x] **AUTH-05**: Frontend WebSocket connections use JWT ticket auth (REST-issued short-lived ticket as query param)
 
 ### Teams
 
@@ -69,7 +69,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **TEAM-04**: Nodes are assigned to teams
 - [ ] **TEAM-05**: Users can only see and manage nodes belonging to their teams
 - [ ] **TEAM-06**: Execute/kill commands enforce team ownership validation
-- [ ] **TEAM-07**: A node can be shared across multiple teams
+- [x] **TEAM-07**: A node can be shared across multiple teams
 
 ### Token Management
 
@@ -147,7 +147,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NODE-04 | Phase 2 | Complete |
 | NODE-05 | Phase 2 | Complete |
 | NODE-06 | Phase 2 | Complete |
-| NODE-07 | Phase 2 | Pending |
+| NODE-07 | Phase 2 | Complete |
 | NODE-08 | Phase 2 | Complete |
 | NODE-09 | Phase 2 | Complete |
 | RECON-01 | Phase 2 | Complete |
@@ -175,15 +175,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 3 | Pending |
 | AUTH-02 | Phase 3 | Pending |
 | AUTH-03 | Phase 3 | Pending |
-| AUTH-04 | Phase 3 | Pending |
-| AUTH-05 | Phase 3 | Pending |
+| AUTH-04 | Phase 3 | Complete |
+| AUTH-05 | Phase 3 | Complete |
 | TEAM-01 | Phase 3 | Pending |
 | TEAM-02 | Phase 3 | Pending |
 | TEAM-03 | Phase 3 | Pending |
 | TEAM-04 | Phase 3 | Pending |
 | TEAM-05 | Phase 3 | Pending |
 | TEAM-06 | Phase 3 | Pending |
-| TEAM-07 | Phase 3 | Pending |
+| TEAM-07 | Phase 3 | Complete |
 | TOKN-01 | Phase 2 | Complete |
 | TOKN-02 | Phase 2 | Complete |
 | TOKN-03 | Phase 2 | Complete |
