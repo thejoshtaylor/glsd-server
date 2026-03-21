@@ -56,11 +56,11 @@ Plans:
 4. A node that has not sent a ping in >90 seconds is marked as stale; its running instances are marked errored
 5. Rotating the SERVER_TOKEN allows both old and new tokens to be accepted during a grace period, with no connected nodes disconnected
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 02-01-PLAN.md — Protocol contracts: Pydantic models, ConnectionManager, token rotation config, StreamEvent model + migration
-- [ ] 02-02-PLAN.md — WebSocket endpoint: /ws/node auth, message dispatch loop, all handlers, reconciliation, disconnect handling
+- [x] 02-02-PLAN.md — WebSocket endpoint: /ws/node auth, message dispatch loop, all handlers, reconciliation, disconnect handling
 - [x] 02-03-PLAN.md — Command dispatch: execute, kill, status_request functions as reusable service layer
 - [ ] 02-04-PLAN.md — Health monitor: stale node scanner background task with lifespan wiring
 
@@ -127,7 +127,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete   | 2026-03-21 |
-| 2. Node Protocol Engine | 2/4 | In Progress|  |
+| 2. Node Protocol Engine | 3/4 | In Progress|  |
 | 3. Auth and Teams | 0/? | Not started | - |
 | 4. Dashboard and Streaming | 0/? | Not started | - |
 | 5. Voice and Audit | 0/? | Not started | - |

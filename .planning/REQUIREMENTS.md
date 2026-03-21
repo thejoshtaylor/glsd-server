@@ -9,23 +9,23 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Node Connection
 
-- [ ] **NODE-01**: Server accepts inbound WebSocket connections from nodes at `wss://server/ws/node`
-- [ ] **NODE-02**: Server validates Bearer token during HTTP upgrade handshake (401/403 on failure)
-- [ ] **NODE-03**: Server expects `node_register` as the first frame after WebSocket upgrade
+- [x] **NODE-01**: Server accepts inbound WebSocket connections from nodes at `wss://server/ws/node`
+- [x] **NODE-02**: Server validates Bearer token during HTTP upgrade handshake (401/403 on failure)
+- [x] **NODE-03**: Server expects `node_register` as the first frame after WebSocket upgrade
 - [x] **NODE-04**: Server tracks node state: `connected`, `stale`, `disconnected`
-- [ ] **NODE-05**: Server handles node reconnection gracefully (same `node_id`, new connection)
+- [x] **NODE-05**: Server handles node reconnection gracefully (same `node_id`, new connection)
 - [x] **NODE-06**: Server responds to WebSocket pings with pongs (standard protocol behavior)
 - [ ] **NODE-07**: Server tracks `last_heartbeat` per node, marks stale after >90s no ping
-- [ ] **NODE-08**: Server handles `node_disconnect` frame and marks node as disconnected
-- [ ] **NODE-09**: Server marks all instances as errored when node drops unexpectedly
+- [x] **NODE-08**: Server handles `node_disconnect` frame and marks node as disconnected
+- [x] **NODE-09**: Server marks all instances as errored when node drops unexpectedly
 
 ### State Reconciliation
 
-- [ ] **RECON-01**: On reconnect, server compares node's `running_instances` with tracked instances
-- [ ] **RECON-02**: Instances in server but not in node's list are marked as errored/lost
-- [ ] **RECON-03**: Instances in node's list but not in server are added as running
-- [ ] **RECON-04**: Instances in both are updated (session_id if changed, confirm running)
-- [ ] **RECON-05**: Per-node locking prevents concurrent reconnect races from corrupting state
+- [x] **RECON-01**: On reconnect, server compares node's `running_instances` with tracked instances
+- [x] **RECON-02**: Instances in server but not in node's list are marked as errored/lost
+- [x] **RECON-03**: Instances in node's list but not in server are added as running
+- [x] **RECON-04**: Instances in both are updated (session_id if changed, confirm running)
+- [x] **RECON-05**: Per-node locking prevents concurrent reconnect races from corrupting state
 
 ### Command Dispatch
 
@@ -38,12 +38,12 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Instance Lifecycle
 
 - [x] **INST-01**: Server tracks instance status: `pending`, `running`, `finished`, `errored`
-- [ ] **INST-02**: Server processes `ack` and marks instance as running
-- [ ] **INST-03**: Server processes `instance_started` and captures `session_id`
-- [ ] **INST-04**: Server forwards `stream_event` data to subscribed frontend clients
-- [ ] **INST-05**: Server processes `instance_finished` with exit code
-- [ ] **INST-06**: Server processes `instance_error` with error message
-- [ ] **INST-07**: Server correctly handles rate-limited execute (immediate `instance_error`, no ack)
+- [x] **INST-02**: Server processes `ack` and marks instance as running
+- [x] **INST-03**: Server processes `instance_started` and captures `session_id`
+- [x] **INST-04**: Server forwards `stream_event` data to subscribed frontend clients
+- [x] **INST-05**: Server processes `instance_finished` with exit code
+- [x] **INST-06**: Server processes `instance_error` with error message
+- [x] **INST-07**: Server correctly handles rate-limited execute (immediate `instance_error`, no ack)
 
 ### Stream Processing
 
@@ -141,32 +141,32 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NODE-01 | Phase 2 | Pending |
-| NODE-02 | Phase 2 | Pending |
-| NODE-03 | Phase 2 | Pending |
+| NODE-01 | Phase 2 | Complete |
+| NODE-02 | Phase 2 | Complete |
+| NODE-03 | Phase 2 | Complete |
 | NODE-04 | Phase 2 | Complete |
-| NODE-05 | Phase 2 | Pending |
+| NODE-05 | Phase 2 | Complete |
 | NODE-06 | Phase 2 | Complete |
 | NODE-07 | Phase 2 | Pending |
-| NODE-08 | Phase 2 | Pending |
-| NODE-09 | Phase 2 | Pending |
-| RECON-01 | Phase 2 | Pending |
-| RECON-02 | Phase 2 | Pending |
-| RECON-03 | Phase 2 | Pending |
-| RECON-04 | Phase 2 | Pending |
-| RECON-05 | Phase 2 | Pending |
+| NODE-08 | Phase 2 | Complete |
+| NODE-09 | Phase 2 | Complete |
+| RECON-01 | Phase 2 | Complete |
+| RECON-02 | Phase 2 | Complete |
+| RECON-03 | Phase 2 | Complete |
+| RECON-04 | Phase 2 | Complete |
+| RECON-05 | Phase 2 | Complete |
 | CMD-01 | Phase 2 | Complete |
 | CMD-02 | Phase 2 | Complete |
 | CMD-03 | Phase 2 | Complete |
 | CMD-04 | Phase 2 | Complete |
 | CMD-05 | Phase 2 | Complete |
 | INST-01 | Phase 2 | Complete |
-| INST-02 | Phase 2 | Pending |
-| INST-03 | Phase 2 | Pending |
-| INST-04 | Phase 2 | Pending |
-| INST-05 | Phase 2 | Pending |
-| INST-06 | Phase 2 | Pending |
-| INST-07 | Phase 2 | Pending |
+| INST-02 | Phase 2 | Complete |
+| INST-03 | Phase 2 | Complete |
+| INST-04 | Phase 2 | Complete |
+| INST-05 | Phase 2 | Complete |
+| INST-06 | Phase 2 | Complete |
+| INST-07 | Phase 2 | Complete |
 | STRM-01 | Phase 4 | Pending |
 | STRM-02 | Phase 4 | Pending |
 | STRM-03 | Phase 4 | Pending |
