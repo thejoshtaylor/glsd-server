@@ -55,18 +55,18 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can register with email and password
-- [ ] **AUTH-02**: User can log in and receive JWT access + refresh tokens
-- [ ] **AUTH-03**: User can refresh expired access token using refresh token
+- [x] **AUTH-01**: User can register with email and password
+- [x] **AUTH-02**: User can log in and receive JWT access + refresh tokens
+- [x] **AUTH-03**: User can refresh expired access token using refresh token
 - [x] **AUTH-04**: Unauthenticated requests are rejected with 401
 - [x] **AUTH-05**: Frontend WebSocket connections use JWT ticket auth (REST-issued short-lived ticket as query param)
 
 ### Teams
 
-- [ ] **TEAM-01**: Every user has a personal team created on registration
-- [ ] **TEAM-02**: User can create additional teams
-- [ ] **TEAM-03**: User can invite other users to their teams
-- [ ] **TEAM-04**: Nodes are assigned to teams
+- [x] **TEAM-01**: Every user has a personal team created on registration
+- [x] **TEAM-02**: User can create additional teams
+- [x] **TEAM-03**: User can invite other users to their teams
+- [x] **TEAM-04**: Nodes are assigned to teams
 - [ ] **TEAM-05**: Users can only see and manage nodes belonging to their teams
 - [ ] **TEAM-06**: Execute/kill commands enforce team ownership validation
 - [x] **TEAM-07**: A node can be shared across multiple teams
@@ -172,15 +172,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STRM-03 | Phase 4 | Pending |
 | STRM-04 | Phase 4 | Pending |
 | STRM-05 | Phase 4 | Pending |
-| AUTH-01 | Phase 3 | Pending |
-| AUTH-02 | Phase 3 | Pending |
-| AUTH-03 | Phase 3 | Pending |
+| AUTH-01 | Phase 3 | Complete |
+| AUTH-02 | Phase 3 | Complete |
+| AUTH-03 | Phase 3 | Complete |
 | AUTH-04 | Phase 3 | Complete |
 | AUTH-05 | Phase 3 | Complete |
-| TEAM-01 | Phase 3 | Pending |
-| TEAM-02 | Phase 3 | Pending |
-| TEAM-03 | Phase 3 | Pending |
-| TEAM-04 | Phase 3 | Pending |
+| TEAM-01 | Phase 3 | Complete |
+| TEAM-02 | Phase 3 | Complete |
+| TEAM-03 | Phase 3 | Complete |
+| TEAM-04 | Phase 3 | Complete |
 | TEAM-05 | Phase 3 | Pending |
 | TEAM-06 | Phase 3 | Pending |
 | TEAM-07 | Phase 3 | Complete |
