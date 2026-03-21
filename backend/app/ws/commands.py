@@ -7,8 +7,11 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.database import get_session_maker
 from app.models.instance import Instance, InstanceStatus
+from app.services.node_service import user_can_access_node
 from app.ws.manager import connection_manager
 from app.ws.protocol import ExecutePayload, KillPayload, StatusRequestPayload
 
@@ -20,33 +23,40 @@ async def dispatch_execute(
     project: str,
     work_dir: str,
     prompt: str,
+    user_id: str,
+    db: AsyncSession,
     session_id: str | None = None,
 ) -> str:
     """Dispatch an execute command to a connected node.
 
-    Validates node connectivity and project availability, creates a pending
-    Instance record in the DB (before sending), then sends the execute
-    envelope. Returns the generated instance_id.
+    Validates team ownership, node connectivity, and project availability,
+    creates a pending Instance record in the DB (before sending), then sends
+    the execute envelope. Returns the generated instance_id.
 
+    Raises PermissionError if the user does not have team access to the node.
     Raises ValueError if the node is not connected, the project is not
     available on the node, or the node disconnects during dispatch.
     """
-    # (a) Validate node is connected
+    # (a) Validate team ownership — user must belong to a team that owns this node
+    if not await user_can_access_node(user_id, node_id, db):
+        raise PermissionError(f"User {user_id} does not have access to node {node_id}")
+
+    # (b) Validate node is connected
     conn = connection_manager.get(node_id)
     if conn is None:
         raise ValueError(f"Node {node_id} is not connected")
 
-    # (b) Validate project exists on node (CMD-04)
+    # (c) Validate project exists on node (CMD-04)
     if project not in conn.projects:
         raise ValueError(
             f"Project {project!r} not found on node {node_id}. "
             f"Available: {conn.projects}"
         )
 
-    # (c) Generate instance_id (server-assigned)
+    # (d) Generate instance_id (server-assigned)
     instance_id = str(uuid.uuid4())
 
-    # (d) Persist pending Instance BEFORE sending to node
+    # (e) Persist pending Instance BEFORE sending to node
     async with get_session_maker()() as session:
         try:
             session.add(
@@ -64,7 +74,7 @@ async def dispatch_execute(
             await session.rollback()
             raise
 
-    # (e) Send execute envelope to node
+    # (f) Send execute envelope to node
     payload = ExecutePayload(
         instance_id=instance_id,
         project=project,
@@ -88,7 +98,7 @@ async def dispatch_execute(
                 raise
         raise ValueError(f"Node {node_id} disconnected during dispatch")
 
-    # (f) Log and return
+    # (g) Log and return
     logger.info(
         "Dispatched execute to node %s: instance=%s project=%s",
         node_id,
@@ -98,31 +108,36 @@ async def dispatch_execute(
     return instance_id
 
 
-async def dispatch_kill(node_id: str, instance_id: str) -> bool:
+async def dispatch_kill(node_id: str, instance_id: str, user_id: str, db: AsyncSession) -> bool:
     """Dispatch a kill command to a connected node.
 
-    Validates node connectivity then sends the kill envelope. Does NOT mark
-    the instance status here — the server waits for the terminal event
-    (instance_finished or instance_error) from the node per server-spec
+    Validates team ownership and node connectivity then sends the kill envelope.
+    Does NOT mark the instance status here — the server waits for the terminal
+    event (instance_finished or instance_error) from the node per server-spec
     Section 4 kill behavior.
 
+    Raises PermissionError if the user does not have team access to the node.
     Returns True if sent successfully.
     Raises ValueError if the node is not connected or the send fails.
     """
-    # (a) Validate node connected
+    # (a) Validate team ownership — user must belong to a team that owns this node
+    if not await user_can_access_node(user_id, node_id, db):
+        raise PermissionError(f"User {user_id} does not have access to node {node_id}")
+
+    # (b) Validate node connected
     conn = connection_manager.get(node_id)
     if conn is None:
         raise ValueError(f"Node {node_id} is not connected")
 
-    # (b) Send kill envelope
+    # (c) Send kill envelope
     payload = KillPayload(instance_id=instance_id)
     sent = await connection_manager.send_to_node(node_id, "kill", payload)
     if not sent:
         raise ValueError(f"Failed to send kill to node {node_id}")
 
-    # (c) Do NOT mark instance as killed — wait for terminal event from node
+    # (d) Do NOT mark instance as killed — wait for terminal event from node
 
-    # (d) Log
+    # (e) Log
     logger.info("Dispatched kill to node %s: instance=%s", node_id, instance_id)
     return True
 
