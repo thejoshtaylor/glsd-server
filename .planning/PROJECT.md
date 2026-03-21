@@ -16,21 +16,21 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 
 - [x] PostgreSQL persistence for node/instance/user/team state — Validated in Phase 1: Foundation (schema created, all 6 tables)
 - [x] Docker Compose deployment — Validated in Phase 1: Foundation (single-command startup)
+- [x] WebSocket server accepting node connections with Bearer token auth — Validated in Phase 2: Node Protocol Engine
+- [x] Full GSD wire protocol implementation (all 10 message types) — Validated in Phase 2: Node Protocol Engine
+- [x] Node state tracking (connected, stale, disconnected) — Validated in Phase 2: Node Protocol Engine
+- [x] Instance lifecycle management (pending, running, finished, errored) — Validated in Phase 2: Node Protocol Engine
+- [x] State reconciliation on node reconnect — Validated in Phase 2: Node Protocol Engine
+- [x] Node health monitoring via WebSocket ping/pong heartbeats — Validated in Phase 2: Node Protocol Engine
+- [x] Command dispatch: execute, kill, status_request — Validated in Phase 2: Node Protocol Engine
+- [x] Team-based multi-tenancy (nodes belong to teams, users belong to teams, personal team by default) — Validated in Phase 3: Auth and Teams
+- [x] JWT authentication for frontend users — Validated in Phase 3: Auth and Teams
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] WebSocket server accepting node connections with Bearer token auth
-- [ ] Full GSD wire protocol implementation (all 10 message types)
-- [ ] Node state tracking (connected, stale, disconnected)
-- [ ] Instance lifecycle management (pending, running, finished, errored)
-- [ ] State reconciliation on node reconnect
-- [ ] Node health monitoring via WebSocket ping/pong heartbeats
-- [ ] Command dispatch: execute, kill, status_request
 - [ ] Stream event forwarding to frontend in real time
-- [ ] Team-based multi-tenancy (nodes belong to teams, users belong to teams, personal team by default)
-- [ ] JWT authentication for frontend users
 - [ ] Full web dashboard: node list, instance management, live streaming output
 - [ ] OpenAI Whisper voice transcription (v1 must-have)
 - [ ] PostgreSQL persistence for node/instance/user/team state
@@ -90,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-21 after Phase 1: Foundation completion*
+*Last updated: 2026-03-21 after Phase 3: Auth and Teams completion*
