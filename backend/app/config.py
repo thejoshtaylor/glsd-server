@@ -29,6 +29,15 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    @property
+    def valid_tokens(self) -> frozenset[str]:
+        """Parse comma-separated SERVER_TOKEN into a set of valid tokens.
+
+        Supports token rotation: SERVER_TOKEN="new_token,old_token" accepts both
+        during grace period. Remove old token to revoke: SERVER_TOKEN="new_token".
+        """
+        return frozenset(t.strip() for t in self.server_token.split(",") if t.strip())
+
     @field_validator("database_url")
     @classmethod
     def validate_db_url(cls, v: str) -> str:
