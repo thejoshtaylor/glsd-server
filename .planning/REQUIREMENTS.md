@@ -12,9 +12,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **NODE-01**: Server accepts inbound WebSocket connections from nodes at `wss://server/ws/node`
 - [ ] **NODE-02**: Server validates Bearer token during HTTP upgrade handshake (401/403 on failure)
 - [ ] **NODE-03**: Server expects `node_register` as the first frame after WebSocket upgrade
-- [ ] **NODE-04**: Server tracks node state: `connected`, `stale`, `disconnected`
+- [x] **NODE-04**: Server tracks node state: `connected`, `stale`, `disconnected`
 - [ ] **NODE-05**: Server handles node reconnection gracefully (same `node_id`, new connection)
-- [ ] **NODE-06**: Server responds to WebSocket pings with pongs (standard protocol behavior)
+- [x] **NODE-06**: Server responds to WebSocket pings with pongs (standard protocol behavior)
 - [ ] **NODE-07**: Server tracks `last_heartbeat` per node, marks stale after >90s no ping
 - [ ] **NODE-08**: Server handles `node_disconnect` frame and marks node as disconnected
 - [ ] **NODE-09**: Server marks all instances as errored when node drops unexpectedly
@@ -37,7 +37,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Instance Lifecycle
 
-- [ ] **INST-01**: Server tracks instance status: `pending`, `running`, `finished`, `errored`
+- [x] **INST-01**: Server tracks instance status: `pending`, `running`, `finished`, `errored`
 - [ ] **INST-02**: Server processes `ack` and marks instance as running
 - [ ] **INST-03**: Server processes `instance_started` and captures `session_id`
 - [ ] **INST-04**: Server forwards `stream_event` data to subscribed frontend clients
@@ -73,9 +73,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Token Management
 
-- [ ] **TOKN-01**: Server supports rotating `SERVER_TOKEN` without disconnecting live nodes
-- [ ] **TOKN-02**: During rotation, both old and new tokens are accepted in a grace period
-- [ ] **TOKN-03**: Admin can revoke old token after grace period
+- [x] **TOKN-01**: Server supports rotating `SERVER_TOKEN` without disconnecting live nodes
+- [x] **TOKN-02**: During rotation, both old and new tokens are accepted in a grace period
+- [x] **TOKN-03**: Admin can revoke old token after grace period
 
 ### Dashboard
 
@@ -144,9 +144,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NODE-01 | Phase 2 | Pending |
 | NODE-02 | Phase 2 | Pending |
 | NODE-03 | Phase 2 | Pending |
-| NODE-04 | Phase 2 | Pending |
+| NODE-04 | Phase 2 | Complete |
 | NODE-05 | Phase 2 | Pending |
-| NODE-06 | Phase 2 | Pending |
+| NODE-06 | Phase 2 | Complete |
 | NODE-07 | Phase 2 | Pending |
 | NODE-08 | Phase 2 | Pending |
 | NODE-09 | Phase 2 | Pending |
@@ -160,7 +160,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CMD-03 | Phase 2 | Pending |
 | CMD-04 | Phase 2 | Pending |
 | CMD-05 | Phase 2 | Pending |
-| INST-01 | Phase 2 | Pending |
+| INST-01 | Phase 2 | Complete |
 | INST-02 | Phase 2 | Pending |
 | INST-03 | Phase 2 | Pending |
 | INST-04 | Phase 2 | Pending |
@@ -184,9 +184,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEAM-05 | Phase 3 | Pending |
 | TEAM-06 | Phase 3 | Pending |
 | TEAM-07 | Phase 3 | Pending |
-| TOKN-01 | Phase 2 | Pending |
-| TOKN-02 | Phase 2 | Pending |
-| TOKN-03 | Phase 2 | Pending |
+| TOKN-01 | Phase 2 | Complete |
+| TOKN-02 | Phase 2 | Complete |
+| TOKN-03 | Phase 2 | Complete |
 | DASH-01 | Phase 4 | Pending |
 | DASH-02 | Phase 4 | Pending |
 | DASH-03 | Phase 4 | Pending |
