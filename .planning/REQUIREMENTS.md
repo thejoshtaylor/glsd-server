@@ -29,11 +29,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Command Dispatch
 
-- [ ] **CMD-01**: Server can send `execute` command with server-generated `instance_id` (UUID)
-- [ ] **CMD-02**: Server can send `kill` command to terminate a running instance
-- [ ] **CMD-03**: Server can send `status_request` to query current node state
-- [ ] **CMD-04**: Server validates project exists on target node before dispatching execute
-- [ ] **CMD-05**: Server validates target node is connected before dispatching commands
+- [x] **CMD-01**: Server can send `execute` command with server-generated `instance_id` (UUID)
+- [x] **CMD-02**: Server can send `kill` command to terminate a running instance
+- [x] **CMD-03**: Server can send `status_request` to query current node state
+- [x] **CMD-04**: Server validates project exists on target node before dispatching execute
+- [x] **CMD-05**: Server validates target node is connected before dispatching commands
 
 ### Instance Lifecycle
 
@@ -155,11 +155,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RECON-03 | Phase 2 | Pending |
 | RECON-04 | Phase 2 | Pending |
 | RECON-05 | Phase 2 | Pending |
-| CMD-01 | Phase 2 | Pending |
-| CMD-02 | Phase 2 | Pending |
-| CMD-03 | Phase 2 | Pending |
-| CMD-04 | Phase 2 | Pending |
-| CMD-05 | Phase 2 | Pending |
+| CMD-01 | Phase 2 | Complete |
+| CMD-02 | Phase 2 | Complete |
+| CMD-03 | Phase 2 | Complete |
+| CMD-04 | Phase 2 | Complete |
+| CMD-05 | Phase 2 | Complete |
 | INST-01 | Phase 2 | Complete |
 | INST-02 | Phase 2 | Pending |
 | INST-03 | Phase 2 | Pending |
