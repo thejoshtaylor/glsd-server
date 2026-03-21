@@ -106,8 +106,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Deployment
 
-- [ ] **DEPLOY-01**: Server runs via Docker Compose (FastAPI + PostgreSQL + React frontend)
-- [ ] **DEPLOY-02**: Single-worker Uvicorn configuration (in-memory connection registry constraint)
+- [x] **DEPLOY-01**: Server runs via Docker Compose (FastAPI + PostgreSQL + React frontend)
+- [x] **DEPLOY-02**: Single-worker Uvicorn configuration (in-memory connection registry constraint)
 - [x] **DEPLOY-03**: Environment variable configuration for all secrets (SERVER_TOKEN, OPENAI_API_KEY, DB credentials, JWT secret)
 
 ## v2 Requirements
@@ -205,8 +205,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUDIT-01 | Phase 5 | Pending |
 | AUDIT-02 | Phase 5 | Pending |
 | AUDIT-03 | Phase 5 | Pending |
-| DEPLOY-01 | Phase 1 | Pending |
-| DEPLOY-02 | Phase 1 | Pending |
+| DEPLOY-01 | Phase 1 | Complete |
+| DEPLOY-02 | Phase 1 | Complete |
 | DEPLOY-03 | Phase 1 | Complete |
 
 **Coverage:**

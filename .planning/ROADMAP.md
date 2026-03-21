@@ -9,7 +9,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Foundation** - Project scaffold, PostgreSQL schema, async DB patterns, Docker Compose deployment
+- [x] **Phase 1: Foundation** - Project scaffold, PostgreSQL schema, async DB patterns, Docker Compose deployment (completed 2026-03-21)
 - [ ] **Phase 2: Node Protocol Engine** - Full GSD wire protocol, node gateway, command dispatch, instance lifecycle, reconciliation, health monitoring
 - [ ] **Phase 3: Auth and Teams** - JWT user authentication, team multi-tenancy, ownership enforcement on all endpoints
 - [ ] **Phase 4: Dashboard and Streaming** - Frontend WebSocket gateway, React dashboard, live stream output
@@ -33,11 +33,11 @@
 3. All secrets (SERVER_TOKEN, OPENAI_API_KEY, DB credentials, JWT secret) are consumed from environment variables with no hardcoded values
 4. Connecting a second Uvicorn worker is blocked at the configuration level (single-worker constraint enforced in compose)
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 01-01-PLAN.md — Backend scaffold: FastAPI app, config, database, models, Alembic, health endpoint
-- [ ] 01-02-PLAN.md — Docker infrastructure: Dockerfile, entrypoint, docker-compose, env config, migration generation
+- [x] 01-02-PLAN.md — Docker infrastructure: Dockerfile, entrypoint, docker-compose, env config, migration generation
 
 ---
 
@@ -120,7 +120,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/2 | In Progress|  |
+| 1. Foundation | 2/2 | Complete   | 2026-03-21 |
 | 2. Node Protocol Engine | 0/? | Not started | - |
 | 3. Auth and Teams | 0/? | Not started | - |
 | 4. Dashboard and Streaming | 0/? | Not started | - |

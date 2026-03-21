@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-21T05:14:32.494Z"
+last_updated: "2026-03-21T06:25:56.075Z"
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # STATE: GLSD Server
@@ -27,8 +27,8 @@ progress:
 
 ## Current Position
 
-Phase: 01 (foundation) — EXECUTING
-Plan: 2 of 2
+Phase: 01 (foundation) — COMPLETE (ready for verification)
+Plan: 2 of 2 (all plans complete)
 
 ## Performance Metrics
 
@@ -49,6 +49,8 @@ Plan: 2 of 2
 - **Stream events not persisted to DB** — only terminal state transitions written to PostgreSQL; stream events forwarded to frontend via asyncio queues only (STRM-05 resolved as frontend-side buffer)
 - **PyJWT 2.x + pwdlib** — python-jose and passlib are abandoned; do not use them
 - **EventRouter asyncio queue pattern** — per-connection asyncio queues with dedicated writer coroutines; never direct `websocket.send_text()` from EventRouter
+- **alembic.ini static URL placeholder** — `sqlalchemy.url = %(DATABASE_URL)s` fails at configparser interpolation before env.py runs; use static placeholder, env.py overrides at runtime
+- **Alembic enum lifecycle** — do NOT call `enum.create()` explicitly before `op.create_table()`; Alembic transactional DDL fires `_on_table_create` regardless of `create_type=False`, causing DuplicateObjectError; let `op.create_table()` create enums via column definition
 
 ### Architecture Notes
 
@@ -82,8 +84,8 @@ Plan: 2 of 2
 
 ## Session Continuity
 
-**Last session:** 2026-03-21T05:14:32.490Z
-**Handoff note:** Roadmap finalized. Ready to plan Phase 1. Run `/gsd:plan-phase 1` to begin.
+**Last session:** 2026-03-21T07:24:49Z
+**Stopped at:** Completed 01-foundation/01-02-PLAN.md — Phase 01 all plans complete, ready for verification
 
 ---
-*Last updated: 2026-03-20 after roadmap creation*
+*Last updated: 2026-03-21 after 01-02 execution*
