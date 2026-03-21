@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-auth-and-teams/03-01-PLAN.md
-last_updated: "2026-03-21T18:07:02.227Z"
+stopped_at: Completed 03-auth-and-teams/03-03-PLAN.md
+last_updated: "2026-03-21T18:11:51.715Z"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 10
-  completed_plans: 7
+  completed_plans: 9
 ---
 
 # STATE: GLSD Server
@@ -29,7 +29,7 @@ progress:
 ## Current Position
 
 Phase: 03 (auth-and-teams) — EXECUTING
-Plan: 2 of 4
+Plan: 4 of 4
 
 ## Performance Metrics
 
@@ -52,6 +52,9 @@ Plan: 2 of 4
 - **EventRouter asyncio queue pattern** — per-connection asyncio queues with dedicated writer coroutines; never direct `websocket.send_text()` from EventRouter
 - **alembic.ini static URL placeholder** — `sqlalchemy.url = %(DATABASE_URL)s` fails at configparser interpolation before env.py runs; use static placeholder, env.py overrides at runtime
 - **Alembic enum lifecycle** — do NOT call `enum.create()` explicitly before `op.create_table()`; Alembic transactional DDL fires `_on_table_create` regardless of `create_type=False`, causing DuplicateObjectError; let `op.create_table()` create enums via column definition
+- **Atomic registration (03-02)** — User + Team + TeamMember created in single `db.flush()` within `register_user`; satisfies TEAM-01; session commit happens in get_db dependency
+- **WS ticket atomic consumption (03-02)** — `validate_ws_ticket` uses raw SQL `UPDATE...WHERE...RETURNING` to prevent replay race; do not use read-then-write pattern
+- **No refresh token rotation v1 (03-02)** — refresh endpoint returns same refresh token, issues new access token only; rotation is a v2 enhancement
 
 ### Architecture Notes
 
@@ -85,8 +88,8 @@ Plan: 2 of 4
 
 ## Session Continuity
 
-**Last session:** 2026-03-21T18:07:02.223Z
-**Stopped at:** Completed 03-auth-and-teams/03-01-PLAN.md
+**Last session:** 2026-03-21T18:11:51.710Z
+**Stopped at:** Completed 03-auth-and-teams/03-03-PLAN.md
 
 ---
 *Last updated: 2026-03-21 after 01-02 execution*
