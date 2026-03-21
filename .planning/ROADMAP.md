@@ -33,10 +33,10 @@
 3. All secrets (SERVER_TOKEN, OPENAI_API_KEY, DB credentials, JWT secret) are consumed from environment variables with no hardcoded values
 4. Connecting a second Uvicorn worker is blocked at the configuration level (single-worker constraint enforced in compose)
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 01-01-PLAN.md — Backend scaffold: FastAPI app, config, database, models, Alembic, health endpoint
+- [x] 01-01-PLAN.md — Backend scaffold: FastAPI app, config, database, models, Alembic, health endpoint
 - [ ] 01-02-PLAN.md — Docker infrastructure: Dockerfile, entrypoint, docker-compose, env config, migration generation
 
 ---
@@ -120,7 +120,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/2 | Planning complete | - |
+| 1. Foundation | 1/2 | In Progress|  |
 | 2. Node Protocol Engine | 0/? | Not started | - |
 | 3. Auth and Teams | 0/? | Not started | - |
 | 4. Dashboard and Streaming | 0/? | Not started | - |
