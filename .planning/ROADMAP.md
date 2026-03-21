@@ -106,7 +106,14 @@ Plans:
 4. The stream output panel renders structured NDJSON (assistant text, tool use, system events) distinctly rather than as raw JSON, and auto-scrolls with a user override
 5. User sees a staleness warning when a node has not pinged in >90s; user is alerted when an unrecognized `node_id` connects for the first time; past completed instances and their output are browsable
 
-**Plans:** TBD
+**Plans:** 5 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Backend streaming: FrontendConnectionManager, WS fan-out, handler integration, REST endpoints for nodes/instances/stream/execute/kill
+- [ ] 04-02-PLAN.md — Frontend scaffold: Vite + React + TanStack Router + shadcn/ui + Tailwind v4, types, API client, auth flow, login page
+- [ ] 04-03-PLAN.md — Node dashboard: WebSocket store, live status badges, node grid, per-node instance list
+- [ ] 04-04-PLAN.md — Execute and stream: Execute form, kill button, NDJSON stream panel with typed renderers, auto-scroll
+- [ ] 04-05-PLAN.md — History and alerts: Instance history browser, session resume, stale warnings, new node alerts, error display
 
 ---
 
@@ -135,7 +142,7 @@ Plans:
 | 1. Foundation | 2/2 | Complete   | 2026-03-21 |
 | 2. Node Protocol Engine | 4/4 | Complete   | 2026-03-21 |
 | 3. Auth and Teams | 4/4 | Complete   | 2026-03-21 |
-| 4. Dashboard and Streaming | 0/? | Not started | - |
+| 4. Dashboard and Streaming | 0/5 | Planned | - |
 | 5. Voice and Audit | 0/? | Not started | - |
 
 ---
@@ -156,4 +163,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-21 after Phase 3 planning*
+*Last updated: 2026-03-21 after Phase 4 planning*
