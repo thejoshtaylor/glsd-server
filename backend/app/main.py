@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.database import get_engine
-from app.routers import health
+from app.routers import auth, health
 from app.ws.health import stale_node_scanner
 from app.ws.router import router as ws_router
 
@@ -27,4 +27,5 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="GLSD Server", lifespan=lifespan)
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(ws_router)
