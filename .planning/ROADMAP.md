@@ -131,10 +131,10 @@ Plans:
 3. Every execute and kill command dispatched is recorded in the audit log with node_id, instance_id, user_id, type, and timestamp
 4. Every terminal instance event received (instance_finished, instance_error) is recorded in the audit log; the log is queryable and append-only
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 05-01-PLAN.md — Audit backend: Alembic migration, audit service helper, audit inserts in commands/handlers, GET /api/audit endpoint
+- [x] 05-01-PLAN.md — Audit backend: Alembic migration, audit service helper, audit inserts in commands/handlers, GET /api/audit endpoint
 - [ ] 05-02-PLAN.md — Voice backend: POST /api/transcribe endpoint with Whisper integration and 25MB limit
 - [ ] 05-03-PLAN.md — Voice frontend: MediaRecorder hook, VoiceButton component, ExecuteForm integration with spinner overlay
 
@@ -148,7 +148,7 @@ Plans:
 | 2. Node Protocol Engine | 4/4 | Complete   | 2026-03-21 |
 | 3. Auth and Teams | 4/4 | Complete   | 2026-03-21 |
 | 4. Dashboard and Streaming | 5/5 | Complete   | 2026-03-23 |
-| 5. Voice and Audit | 0/3 | Not started | - |
+| 5. Voice and Audit | 1/3 | In Progress|  |
 
 ---
 

@@ -100,9 +100,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Audit Trail
 
-- [ ] **AUDIT-01**: All commands dispatched are logged (node_id, instance_id, user_id, type, timestamp)
-- [ ] **AUDIT-02**: All events received are logged (node_id, instance_id, type, timestamp, error details)
-- [ ] **AUDIT-03**: Audit log is append-only and queryable
+- [x] **AUDIT-01**: All commands dispatched are logged (node_id, instance_id, user_id, type, timestamp)
+- [x] **AUDIT-02**: All events received are logged (node_id, instance_id, type, timestamp, error details)
+- [x] **AUDIT-03**: Audit log is append-only and queryable
 
 ### Deployment
 
@@ -202,9 +202,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOICE-03 | Phase 5 | Pending |
 | VOICE-04 | Phase 5 | Pending |
 | VOICE-05 | Phase 5 | Pending |
-| AUDIT-01 | Phase 5 | Pending |
-| AUDIT-02 | Phase 5 | Pending |
-| AUDIT-03 | Phase 5 | Pending |
+| AUDIT-01 | Phase 5 | Complete |
+| AUDIT-02 | Phase 5 | Complete |
+| AUDIT-03 | Phase 5 | Complete |
 | DEPLOY-01 | Phase 1 | Complete |
 | DEPLOY-02 | Phase 1 | Complete |
 | DEPLOY-03 | Phase 1 | Complete |
