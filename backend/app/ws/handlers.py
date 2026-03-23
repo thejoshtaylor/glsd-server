@@ -221,13 +221,17 @@ async def handle_instance_started(payload: InstanceStartedPayload) -> None:
             await session.rollback()
             raise
 
+    await frontend_manager.broadcast_instance_status(payload.instance_id, "running")
+
 
 async def handle_instance_finished(payload: InstanceFinishedPayload) -> None:
     """Handle instance_finished: mark instance finished with exit_code."""
+    node_id = None
     async with get_session_maker()() as session:
         try:
             instance = await session.get(Instance, payload.instance_id)
             if instance is not None:
+                node_id = instance.node_id
                 instance.status = InstanceStatus.finished
                 instance.exit_code = payload.exit_code
                 instance.finished_at = datetime.now(timezone.utc)
@@ -242,7 +246,7 @@ async def handle_instance_finished(payload: InstanceFinishedPayload) -> None:
     await frontend_manager.broadcast_instance_status(payload.instance_id, "finished")
     await write_audit_log(
         event_type="instance_finished",
-        node_id=None,  # node_id not in payload; instance_id sufficient for correlation
+        node_id=node_id,
         instance_id=payload.instance_id,
         details={"exit_code": payload.exit_code},
     )
@@ -254,10 +258,12 @@ async def handle_instance_error(payload: InstanceErrorPayload) -> None:
     Works from BOTH pending AND running status — rate-limit case sends
     instance_error directly from pending without ACK or instance_started.
     """
+    node_id = None
     async with get_session_maker()() as session:
         try:
             instance = await session.get(Instance, payload.instance_id)
             if instance is not None:
+                node_id = instance.node_id
                 # Must work from both pending (rate-limit case) and running.
                 instance.status = InstanceStatus.errored
                 instance.error = payload.error
@@ -273,6 +279,7 @@ async def handle_instance_error(payload: InstanceErrorPayload) -> None:
     await frontend_manager.broadcast_instance_status(payload.instance_id, "errored")
     await write_audit_log(
         event_type="instance_error",
+        node_id=node_id,
         instance_id=payload.instance_id,
         details={"error": payload.error},
     )
