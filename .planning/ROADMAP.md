@@ -13,7 +13,7 @@
 - [x] **Phase 2: Node Protocol Engine** - Full GSD wire protocol, node gateway, command dispatch, instance lifecycle, reconciliation, health monitoring (completed 2026-03-21)
 - [x] **Phase 3: Auth and Teams** - JWT user authentication, team multi-tenancy, ownership enforcement on all endpoints (completed 2026-03-21)
 - [x] **Phase 4: Dashboard and Streaming** - Frontend WebSocket gateway, React dashboard, live stream output (completed 2026-03-23)
-- [ ] **Phase 5: Voice and Audit** - Whisper voice transcription, audit trail logging
+- [x] **Phase 5: Voice and Audit** - Whisper voice transcription, audit trail logging (completed 2026-03-23)
 - [ ] **Phase 6: Frontend Production Deployment** - Nginx frontend service in Docker Compose, serving built React assets with API proxy
 - [ ] **Phase 7: Audit UI & Dashboard Auth Guard** - Audit trail dashboard page, dashboard route auth guards
 
@@ -186,7 +186,7 @@ Plans:
 | 2. Node Protocol Engine | 4/4 | Complete   | 2026-03-21 |
 | 3. Auth and Teams | 4/4 | Complete   | 2026-03-21 |
 | 4. Dashboard and Streaming | 5/5 | Complete   | 2026-03-23 |
-| 5. Voice and Audit | 2/3 | In Progress|  |
+| 5. Voice and Audit | 3/3 | Complete   | 2026-03-23 |
 | 6. Frontend Production Deployment | 0/0 | Not Started |  |
 | 7. Audit UI & Dashboard Auth Guard | 0/0 | Not Started |  |
 
