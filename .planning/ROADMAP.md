@@ -14,7 +14,7 @@
 - [x] **Phase 3: Auth and Teams** - JWT user authentication, team multi-tenancy, ownership enforcement on all endpoints (completed 2026-03-21)
 - [x] **Phase 4: Dashboard and Streaming** - Frontend WebSocket gateway, React dashboard, live stream output (completed 2026-03-23)
 - [x] **Phase 5: Voice and Audit** - Whisper voice transcription, audit trail logging (completed 2026-03-23)
-- [ ] **Phase 6: Frontend Production Deployment** - Nginx frontend service in Docker Compose, serving built React assets with API proxy
+- [x] **Phase 6: Frontend Production Deployment** - Nginx frontend service in Docker Compose, serving built React assets with API proxy (completed 2026-03-23)
 - [ ] **Phase 7: Audit UI & Dashboard Auth Guard** - Audit trail dashboard page, dashboard route auth guards
 
 ---
@@ -158,10 +158,10 @@ Plans:
 3. Frontend assets are built during Docker image build (multi-stage Dockerfile)
 4. SPA client-side routing works (all non-API paths serve index.html)
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 06-01-PLAN.md — Nginx frontend service: multi-stage Dockerfile, nginx.conf with API/WS proxy, docker-compose integration
+- [x] 06-01-PLAN.md — Nginx frontend service: multi-stage Dockerfile, nginx.conf with API/WS proxy, docker-compose integration
 
 ---
 
@@ -192,7 +192,7 @@ Plans:
 | 3. Auth and Teams | 4/4 | Complete   | 2026-03-21 |
 | 4. Dashboard and Streaming | 5/5 | Complete   | 2026-03-23 |
 | 5. Voice and Audit | 3/3 | Complete   | 2026-03-23 |
-| 6. Frontend Production Deployment | 0/1 | Not Started |  |
+| 6. Frontend Production Deployment | 1/1 | Complete   | 2026-03-23 |
 | 7. Audit UI & Dashboard Auth Guard | 0/0 | Not Started |  |
 
 ---
