@@ -35,6 +35,12 @@ function RootLayout() {
               >
                 Dashboard
               </Link>
+              <Link
+                to="/dashboard/audit"
+                className="block px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-800 hover:text-white [&.active]:bg-gray-800 [&.active]:text-white"
+              >
+                Audit Log
+              </Link>
             </nav>
             <div className="p-3 border-t border-gray-800">
               <Button variant="ghost" size="sm" className="w-full justify-start text-gray-400" onClick={handleLogout}>
