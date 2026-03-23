@@ -150,13 +150,18 @@ Plans:
 
 **Requirements:** DEPLOY-01
 
-**Gap Closure:** Closes gaps from v1.0 audit (DEPLOY-01 partial, frontend→docker integration, production deployment flow)
+**Gap Closure:** Closes gaps from v1.0 audit (DEPLOY-01 partial, frontend->docker integration, production deployment flow)
 
 **Success Criteria** (what must be TRUE):
 1. `docker-compose up` serves the React SPA at the root URL via Nginx
 2. Nginx proxies `/api/` and `/ws/` requests to the FastAPI backend
 3. Frontend assets are built during Docker image build (multi-stage Dockerfile)
 4. SPA client-side routing works (all non-API paths serve index.html)
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 06-01-PLAN.md — Nginx frontend service: multi-stage Dockerfile, nginx.conf with API/WS proxy, docker-compose integration
 
 ---
 
@@ -187,7 +192,7 @@ Plans:
 | 3. Auth and Teams | 4/4 | Complete   | 2026-03-21 |
 | 4. Dashboard and Streaming | 5/5 | Complete   | 2026-03-23 |
 | 5. Voice and Audit | 3/3 | Complete   | 2026-03-23 |
-| 6. Frontend Production Deployment | 0/0 | Not Started |  |
+| 6. Frontend Production Deployment | 0/1 | Not Started |  |
 | 7. Audit UI & Dashboard Auth Guard | 0/0 | Not Started |  |
 
 ---
@@ -210,4 +215,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-23 after gap closure phases 6-7 added*
+*Last updated: 2026-03-23 after phase 6 planning*
