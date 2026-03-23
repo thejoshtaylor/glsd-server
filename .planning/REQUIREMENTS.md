@@ -92,10 +92,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Voice Input
 
-- [ ] **VOICE-01**: User can record audio in the browser using MediaRecorder API
+- [x] **VOICE-01**: User can record audio in the browser using MediaRecorder API
 - [x] **VOICE-02**: Audio is sent to server REST endpoint (`POST /api/transcribe`)
 - [x] **VOICE-03**: Server transcribes audio via OpenAI Whisper API (`whisper-1` model)
-- [ ] **VOICE-04**: Transcribed text populates the prompt field for execute dispatch
+- [x] **VOICE-04**: Transcribed text populates the prompt field for execute dispatch
 - [x] **VOICE-05**: Server enforces 25MB file size limit for audio uploads
 
 ### Audit Trail
@@ -197,10 +197,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-08 | Phase 4 | Complete |
 | DASH-09 | Phase 4 | Complete |
 | DASH-10 | Phase 4 | Complete |
-| VOICE-01 | Phase 5 | Pending |
+| VOICE-01 | Phase 5 | Complete |
 | VOICE-02 | Phase 5 | Complete |
 | VOICE-03 | Phase 5 | Complete |
-| VOICE-04 | Phase 5 | Pending |
+| VOICE-04 | Phase 5 | Complete |
 | VOICE-05 | Phase 5 | Complete |
 | AUDIT-01 | Phase 5 | Complete |
 | AUDIT-02 | Phase 5 | Complete |

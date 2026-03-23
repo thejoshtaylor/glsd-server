@@ -136,7 +136,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md — Audit backend: Alembic migration, audit service helper, audit inserts in commands/handlers, GET /api/audit endpoint
 - [x] 05-02-PLAN.md — Voice backend: POST /api/transcribe endpoint with Whisper integration and 25MB limit
-- [ ] 05-03-PLAN.md — Voice frontend: MediaRecorder hook, VoiceButton component, ExecuteForm integration with spinner overlay
+- [x] 05-03-PLAN.md — Voice frontend: MediaRecorder hook, VoiceButton component, ExecuteForm integration with spinner overlay
 
 ---
 
