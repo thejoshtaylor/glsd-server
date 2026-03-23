@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useWsStore } from '@/stores/wsStore'
@@ -10,12 +10,20 @@ import type { WsOutgoingMessage } from '@/types/protocol'
 interface ExecuteFormProps {
   node: NodeResponse
   onInstanceCreated: (instanceId: string) => void
+  defaultSessionId?: string
 }
 
-export function ExecuteForm({ node, onInstanceCreated }: ExecuteFormProps) {
+export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: ExecuteFormProps) {
   const [project, setProject] = useState(node.projects?.[0] ?? '')
   const [prompt, setPrompt] = useState('')
   const [sessionId, setSessionId] = useState('')
+
+  // Sync sessionId when defaultSessionId changes (resume session flow)
+  useEffect(() => {
+    if (defaultSessionId) {
+      setSessionId(defaultSessionId)
+    }
+  }, [defaultSessionId])
   const [pendingInstanceId, setPendingInstanceId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const socket = useWsStore((s) => s.socket)

@@ -6,6 +6,8 @@ import { NodeStatusBadge } from '@/components/nodes/NodeStatusBadge'
 import { InstanceList } from '@/components/nodes/InstanceList'
 import { ExecuteForm } from '@/components/execute/ExecuteForm'
 import { StreamPanel } from '@/components/stream/StreamPanel'
+import { HistoryStreamPanel } from '@/components/stream/HistoryStreamPanel'
+import { StaleWarning } from '@/components/alerts/StaleWarning'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useWsStore } from '@/stores/wsStore'
@@ -24,6 +26,7 @@ function NodeDetailPage() {
 
   const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null)
   const [activeInstanceStatus, setActiveInstanceStatus] = useState<string>('pending')
+  const [resumeSessionId, setResumeSessionId] = useState<string>('')
   const socket = useWsStore((s) => s.socket)
   const instanceStatuses = useWsStore((s) => s.instanceStatuses)
 
@@ -66,6 +69,9 @@ function NodeDetailPage() {
     setActiveInstanceId(instanceId)
   }
 
+  // Determine if we should show live stream or history
+  const isLiveInstance = activeInstanceStatus === 'running' || activeInstanceStatus === 'pending'
+
   if (isLoading) return <div className="p-6 text-gray-400">Loading...</div>
   if (error || !node) return <div className="p-6 text-red-400">Node not found</div>
 
@@ -82,6 +88,8 @@ function NodeDetailPage() {
           <NodeStatusBadge status={node.status} />
         </div>
 
+        {node.status === 'stale' && <StaleWarning nodeId={node.node_id} />}
+
         <div className="grid grid-cols-3 gap-4 text-sm">
           <div><span className="text-gray-500">Platform:</span> <span className="text-gray-200">{node.platform}</span></div>
           <div><span className="text-gray-500">Version:</span> <span className="text-gray-200">{node.version}</span></div>
@@ -93,11 +101,19 @@ function NodeDetailPage() {
         <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg border border-gray-700">
           <ResizablePanel defaultSize={40} minSize={25}>
             <div className="flex flex-col h-full overflow-y-auto p-4 space-y-4">
-              <ExecuteForm node={node} onInstanceCreated={handleInstanceCreated} />
+              <ExecuteForm
+                node={node}
+                onInstanceCreated={handleInstanceCreated}
+                defaultSessionId={resumeSessionId}
+              />
 
               <div>
                 <h3 className="text-sm font-medium text-gray-300 mb-2">Instances</h3>
-                <InstanceList nodeId={nodeId} onSelectInstance={handleSelectInstance} />
+                <InstanceList
+                  nodeId={nodeId}
+                  onSelectInstance={handleSelectInstance}
+                  onResumeSession={setResumeSessionId}
+                />
               </div>
             </div>
           </ResizablePanel>
@@ -107,11 +123,15 @@ function NodeDetailPage() {
           <ResizablePanel defaultSize={60} minSize={30}>
             <div className="h-full bg-gray-900/30">
               {activeInstanceId ? (
-                <StreamPanel
-                  instanceId={activeInstanceId}
-                  nodeId={nodeId}
-                  instanceStatus={activeInstanceStatus}
-                />
+                isLiveInstance ? (
+                  <StreamPanel
+                    instanceId={activeInstanceId}
+                    nodeId={nodeId}
+                    instanceStatus={activeInstanceStatus}
+                  />
+                ) : (
+                  <HistoryStreamPanel instanceId={activeInstanceId} />
+                )
               ) : (
                 <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                   Select or create an instance to view stream output
