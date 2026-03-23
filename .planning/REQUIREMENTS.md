@@ -84,11 +84,11 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DASH-03**: User can dispatch an execute command (select node, project, enter prompt)
 - [x] **DASH-04**: User can kill a running instance from the dashboard
 - [x] **DASH-05**: User sees live streaming output as Claude CLI produces it
-- [ ] **DASH-06**: User sees health staleness warning when node hasn't pinged in >90s
-- [ ] **DASH-07**: User is alerted when a previously-unseen `node_id` connects
-- [ ] **DASH-08**: User sees clear error messages when instances fail (including rate limit)
-- [ ] **DASH-09**: User can resume a previous Claude session via `session_id`
-- [ ] **DASH-10**: User can browse past completed instances and their full output
+- [x] **DASH-06**: User sees health staleness warning when node hasn't pinged in >90s
+- [x] **DASH-07**: User is alerted when a previously-unseen `node_id` connects
+- [x] **DASH-08**: User sees clear error messages when instances fail (including rate limit)
+- [x] **DASH-09**: User can resume a previous Claude session via `session_id`
+- [x] **DASH-10**: User can browse past completed instances and their full output
 
 ### Voice Input
 
@@ -192,11 +192,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-03 | Phase 4 | Complete |
 | DASH-04 | Phase 4 | Complete |
 | DASH-05 | Phase 4 | Complete |
-| DASH-06 | Phase 4 | Pending |
-| DASH-07 | Phase 4 | Pending |
-| DASH-08 | Phase 4 | Pending |
-| DASH-09 | Phase 4 | Pending |
-| DASH-10 | Phase 4 | Pending |
+| DASH-06 | Phase 4 | Complete |
+| DASH-07 | Phase 4 | Complete |
+| DASH-08 | Phase 4 | Complete |
+| DASH-09 | Phase 4 | Complete |
+| DASH-10 | Phase 4 | Complete |
 | VOICE-01 | Phase 5 | Pending |
 | VOICE-02 | Phase 5 | Pending |
 | VOICE-03 | Phase 5 | Pending |

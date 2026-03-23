@@ -12,7 +12,7 @@
 - [x] **Phase 1: Foundation** - Project scaffold, PostgreSQL schema, async DB patterns, Docker Compose deployment (completed 2026-03-21)
 - [x] **Phase 2: Node Protocol Engine** - Full GSD wire protocol, node gateway, command dispatch, instance lifecycle, reconciliation, health monitoring (completed 2026-03-21)
 - [x] **Phase 3: Auth and Teams** - JWT user authentication, team multi-tenancy, ownership enforcement on all endpoints (completed 2026-03-21)
-- [ ] **Phase 4: Dashboard and Streaming** - Frontend WebSocket gateway, React dashboard, live stream output
+- [x] **Phase 4: Dashboard and Streaming** - Frontend WebSocket gateway, React dashboard, live stream output (completed 2026-03-23)
 - [ ] **Phase 5: Voice and Audit** - Whisper voice transcription, audit trail logging
 
 ---
@@ -106,14 +106,14 @@ Plans:
 4. The stream output panel renders structured NDJSON (assistant text, tool use, system events) distinctly rather than as raw JSON, and auto-scrolls with a user override
 5. User sees a staleness warning when a node has not pinged in >90s; user is alerted when an unrecognized `node_id` connects for the first time; past completed instances and their output are browsable
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 04-01-PLAN.md — Backend streaming: FrontendConnectionManager, WS fan-out, handler integration, REST endpoints for nodes/instances/stream/execute/kill
 - [x] 04-02-PLAN.md — Frontend scaffold: Vite + React + TanStack Router + shadcn/ui + Tailwind v4, types, API client, auth flow, login page
 - [x] 04-03-PLAN.md — Node dashboard: WebSocket store, live status badges, node grid, per-node instance list
 - [x] 04-04-PLAN.md — Execute and stream: Execute form, kill button, NDJSON stream panel with typed renderers, auto-scroll
-- [ ] 04-05-PLAN.md — History and alerts: Instance history browser, session resume, stale warnings, new node alerts, error display
+- [x] 04-05-PLAN.md — History and alerts: Instance history browser, session resume, stale warnings, new node alerts, error display
 
 ---
 
@@ -142,7 +142,7 @@ Plans:
 | 1. Foundation | 2/2 | Complete   | 2026-03-21 |
 | 2. Node Protocol Engine | 4/4 | Complete   | 2026-03-21 |
 | 3. Auth and Teams | 4/4 | Complete   | 2026-03-21 |
-| 4. Dashboard and Streaming | 4/5 | In Progress|  |
+| 4. Dashboard and Streaming | 5/5 | Complete   | 2026-03-23 |
 | 5. Voice and Audit | 0/? | Not started | - |
 
 ---
