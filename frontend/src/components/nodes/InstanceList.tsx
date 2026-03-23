@@ -10,7 +10,12 @@ const instanceStatusStyle: Record<InstanceResponse['status'], string> = {
   errored: 'bg-red-600/20 text-red-400 border-red-600/30',
 }
 
-export function InstanceList({ nodeId }: { nodeId: string }) {
+interface InstanceListProps {
+  nodeId: string
+  onSelectInstance?: (instanceId: string) => void
+}
+
+export function InstanceList({ nodeId, onSelectInstance }: InstanceListProps) {
   const { data: instances, isLoading } = useQuery({
     queryKey: ['instances', { nodeId }],
     queryFn: () => api<InstanceResponse[]>(`/api/instances?node_id=${nodeId}`),
@@ -22,7 +27,11 @@ export function InstanceList({ nodeId }: { nodeId: string }) {
   return (
     <div className="space-y-2">
       {instances.map((inst) => (
-        <div key={inst.instance_id} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-md border border-gray-700/50">
+        <div
+          key={inst.instance_id}
+          className={`flex items-center justify-between p-3 bg-gray-800/50 rounded-md border border-gray-700/50 ${onSelectInstance ? 'cursor-pointer hover:bg-gray-700/50 transition-colors' : ''}`}
+          onClick={() => onSelectInstance?.(inst.instance_id)}
+        >
           <div className="min-w-0 flex-1">
             <div className="text-sm text-gray-200 truncate">{inst.project}</div>
             <div className="text-xs text-gray-500 truncate">
