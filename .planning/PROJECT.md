@@ -27,13 +27,14 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 - [x] JWT authentication for frontend users — Validated in Phase 3: Auth and Teams
 - [x] Stream event forwarding to frontend in real time — Validated in Phase 4: Dashboard and Streaming
 - [x] Full web dashboard: node list, instance management, live streaming output — Validated in Phase 4: Dashboard and Streaming
+- [x] OpenAI Whisper voice transcription — Validated in Phase 5: Voice and Audit (human UAT pending for browser mic tests)
+- [x] Audit trail logging for commands and events — Validated in Phase 5: Voice and Audit
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] OpenAI Whisper voice transcription (v1 must-have)
-- [ ] Audit trail logging for commands and events
+(All v1 requirements complete)
 
 ### Out of Scope
 
