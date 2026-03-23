@@ -29,6 +29,7 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 - [x] Full web dashboard: node list, instance management, live streaming output — Validated in Phase 4: Dashboard and Streaming
 - [x] OpenAI Whisper voice transcription — Validated in Phase 5: Voice and Audit (human UAT pending for browser mic tests)
 - [x] Audit trail logging for commands and events — Validated in Phase 5: Voice and Audit
+- [x] Frontend production deployment via Nginx in Docker Compose — Validated in Phase 6: Frontend Production Deployment
 
 ### Active
 
@@ -89,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-21 after Phase 3: Auth and Teams completion*
+*Last updated: 2026-03-23 after Phase 6: Frontend Production Deployment completion*
