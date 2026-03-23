@@ -57,6 +57,23 @@ async def get_node_for_user(user_id: str, node_id: str, db: AsyncSession) -> Nod
     return result.scalars().unique().first()
 
 
+async def user_can_access_instance(user_id: str, instance_id: str, db: AsyncSession) -> bool:
+    """Return True if the user has team-based access to the instance.
+
+    Joins through instances -> nodes -> node_teams -> team_members to verify access.
+    Uses limit(1) for efficiency — we only need existence.
+    """
+    result = await db.execute(
+        select(TeamMember.user_id)
+        .join(NodeTeam, TeamMember.team_id == NodeTeam.team_id)
+        .join(Node, NodeTeam.node_id == Node.node_id)
+        .join(Instance, Instance.node_id == Node.node_id)
+        .where(TeamMember.user_id == user_id, Instance.instance_id == instance_id)
+        .limit(1)
+    )
+    return result.scalar() is not None
+
+
 async def list_instances_for_user(user_id: str, db: AsyncSession) -> list[Instance]:
     """Return all instances accessible to the user via their team memberships.
 
