@@ -4,6 +4,7 @@ import { queryClient } from '../lib/queryClient'
 import { getAccessToken, clearTokens } from '../lib/api'
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Toaster } from '@/components/ui/sonner'
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -47,6 +48,7 @@ function RootLayout() {
           <Outlet />
         </main>
       </div>
+      <Toaster />
     </QueryClientProvider>
   )
 }
