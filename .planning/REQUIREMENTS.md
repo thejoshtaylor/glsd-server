@@ -47,11 +47,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Stream Processing
 
-- [ ] **STRM-01**: Server parses `stream_event.data` as double-encoded JSON (NDJSON line)
-- [ ] **STRM-02**: Server forwards parsed stream events to frontend WebSocket subscribers
+- [x] **STRM-01**: Server parses `stream_event.data` as double-encoded JSON (NDJSON line)
+- [x] **STRM-02**: Server forwards parsed stream events to frontend WebSocket subscribers
 - [x] **STRM-03**: Frontend renders structured NDJSON (text responses, tool use, system events)
 - [x] **STRM-04**: Stream output panel auto-scrolls with user override
-- [ ] **STRM-05**: Stream events are persisted for instance history/replay
+- [x] **STRM-05**: Stream events are persisted for instance history/replay
 
 ### Authentication
 
@@ -79,7 +79,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Dashboard
 
-- [x] **DASH-01**: User sees a list of all nodes in their teams with live status indicators
+- [ ] **DASH-01**: User sees a list of all nodes in their teams with live status indicators
 - [x] **DASH-02**: User can view per-node instance list with lifecycle state
 - [x] **DASH-03**: User can dispatch an execute command (select node, project, enter prompt)
 - [x] **DASH-04**: User can kill a running instance from the dashboard
@@ -100,13 +100,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Audit Trail
 
-- [x] **AUDIT-01**: All commands dispatched are logged (node_id, instance_id, user_id, type, timestamp)
+- [ ] **AUDIT-01**: All commands dispatched are logged (node_id, instance_id, user_id, type, timestamp)
 - [x] **AUDIT-02**: All events received are logged (node_id, instance_id, type, timestamp, error details)
-- [x] **AUDIT-03**: Audit log is append-only and queryable
+- [ ] **AUDIT-03**: Audit log is append-only and queryable
 
 ### Deployment
 
-- [x] **DEPLOY-01**: Server runs via Docker Compose (FastAPI + PostgreSQL + React frontend)
+- [ ] **DEPLOY-01**: Server runs via Docker Compose (FastAPI + PostgreSQL + React frontend)
 - [x] **DEPLOY-02**: Single-worker Uvicorn configuration (in-memory connection registry constraint)
 - [x] **DEPLOY-03**: Environment variable configuration for all secrets (SERVER_TOKEN, OPENAI_API_KEY, DB credentials, JWT secret)
 
@@ -167,11 +167,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INST-05 | Phase 2 | Complete |
 | INST-06 | Phase 2 | Complete |
 | INST-07 | Phase 2 | Complete |
-| STRM-01 | Phase 4 | Pending |
-| STRM-02 | Phase 4 | Pending |
+| STRM-01 | Phase 4 | Complete |
+| STRM-02 | Phase 4 | Complete |
 | STRM-03 | Phase 4 | Complete |
 | STRM-04 | Phase 4 | Complete |
-| STRM-05 | Phase 4 | Pending |
+| STRM-05 | Phase 4 | Complete |
 | AUTH-01 | Phase 3 | Complete |
 | AUTH-02 | Phase 3 | Complete |
 | AUTH-03 | Phase 3 | Complete |
@@ -187,7 +187,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOKN-01 | Phase 2 | Complete |
 | TOKN-02 | Phase 2 | Complete |
 | TOKN-03 | Phase 2 | Complete |
-| DASH-01 | Phase 4 | Complete |
+| DASH-01 | Phase 7 | Pending |
 | DASH-02 | Phase 4 | Complete |
 | DASH-03 | Phase 4 | Complete |
 | DASH-04 | Phase 4 | Complete |
@@ -202,10 +202,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VOICE-03 | Phase 5 | Complete |
 | VOICE-04 | Phase 5 | Complete |
 | VOICE-05 | Phase 5 | Complete |
-| AUDIT-01 | Phase 5 | Complete |
+| AUDIT-01 | Phase 7 | Pending |
 | AUDIT-02 | Phase 5 | Complete |
-| AUDIT-03 | Phase 5 | Complete |
-| DEPLOY-01 | Phase 1 | Complete |
+| AUDIT-03 | Phase 7 | Pending |
+| DEPLOY-01 | Phase 6 | Pending |
 | DEPLOY-02 | Phase 1 | Complete |
 | DEPLOY-03 | Phase 1 | Complete |
 
@@ -216,4 +216,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after roadmap creation*
+*Last updated: 2026-03-23 after gap closure phases 6-7 added*

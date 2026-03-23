@@ -14,6 +14,8 @@
 - [x] **Phase 3: Auth and Teams** - JWT user authentication, team multi-tenancy, ownership enforcement on all endpoints (completed 2026-03-21)
 - [x] **Phase 4: Dashboard and Streaming** - Frontend WebSocket gateway, React dashboard, live stream output (completed 2026-03-23)
 - [ ] **Phase 5: Voice and Audit** - Whisper voice transcription, audit trail logging
+- [ ] **Phase 6: Frontend Production Deployment** - Nginx frontend service in Docker Compose, serving built React assets with API proxy
+- [ ] **Phase 7: Audit UI & Dashboard Auth Guard** - Audit trail dashboard page, dashboard route auth guards
 
 ---
 
@@ -140,6 +142,42 @@ Plans:
 
 ---
 
+### Phase 6: Frontend Production Deployment
+
+**Goal:** `docker-compose up` serves the full application — both the FastAPI API and the React frontend — with no separate dev server required
+
+**Depends on:** Phase 4
+
+**Requirements:** DEPLOY-01
+
+**Gap Closure:** Closes gaps from v1.0 audit (DEPLOY-01 partial, frontend→docker integration, production deployment flow)
+
+**Success Criteria** (what must be TRUE):
+1. `docker-compose up` serves the React SPA at the root URL via Nginx
+2. Nginx proxies `/api/` and `/ws/` requests to the FastAPI backend
+3. Frontend assets are built during Docker image build (multi-stage Dockerfile)
+4. SPA client-side routing works (all non-API paths serve index.html)
+
+---
+
+### Phase 7: Audit UI & Dashboard Auth Guard
+
+**Goal:** Users can view the audit trail in the dashboard, and all dashboard routes properly redirect unauthenticated users to the login page
+
+**Depends on:** Phase 5, Phase 6
+
+**Requirements:** AUDIT-01, AUDIT-03, DASH-01
+
+**Gap Closure:** Closes gaps from v1.0 audit (AUDIT-01/03 partial — no frontend, DASH-01 partial — missing auth guard)
+
+**Success Criteria** (what must be TRUE):
+1. Dashboard has an audit trail page/tab that displays audit log entries from GET /api/audit
+2. Audit log is filterable by node and paginated
+3. Navigating to /dashboard or /dashboard/$nodeId without a valid token redirects to /login
+4. Audit page link is visible in the dashboard navigation
+
+---
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -149,6 +187,8 @@ Plans:
 | 3. Auth and Teams | 4/4 | Complete   | 2026-03-21 |
 | 4. Dashboard and Streaming | 5/5 | Complete   | 2026-03-23 |
 | 5. Voice and Audit | 2/3 | In Progress|  |
+| 6. Frontend Production Deployment | 0/0 | Not Started |  |
+| 7. Audit UI & Dashboard Auth Guard | 0/0 | Not Started |  |
 
 ---
 
@@ -165,7 +205,9 @@ Plans:
 | 3 - Auth and Teams | AUTH-01-05, TEAM-01-07 |
 | 4 - Dashboard and Streaming | STRM-01-05, DASH-01-10 |
 | 5 - Voice and Audit | VOICE-01-05, AUDIT-01-03 |
+| 6 - Frontend Production Deployment | DEPLOY-01 |
+| 7 - Audit UI & Dashboard Auth Guard | AUDIT-01, AUDIT-03, DASH-01 |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-23 after Phase 5 planning*
+*Last updated: 2026-03-23 after gap closure phases 6-7 added*
