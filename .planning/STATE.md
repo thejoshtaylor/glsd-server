@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 03-auth-and-teams/03-04-PLAN.md
-last_updated: "2026-03-23T17:39:20.087Z"
+stopped_at: Completed 04-dashboard-and-streaming/04-02-PLAN.md
+last_updated: "2026-03-23T17:48:15.375Z"
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 15
-  completed_plans: 10
+  completed_plans: 12
 ---
 
 # STATE: GLSD Server
@@ -29,7 +29,7 @@ progress:
 ## Current Position
 
 Phase: 04 (dashboard-and-streaming) — EXECUTING
-Plan: 1 of 5
+Plan: 2 of 5
 
 ## Performance Metrics
 
@@ -55,6 +55,9 @@ Plan: 1 of 5
 - **Atomic registration (03-02)** — User + Team + TeamMember created in single `db.flush()` within `register_user`; satisfies TEAM-01; session commit happens in get_db dependency
 - **WS ticket atomic consumption (03-02)** — `validate_ws_ticket` uses raw SQL `UPDATE...WHERE...RETURNING` to prevent replay race; do not use read-then-write pattern
 - **No refresh token rotation v1 (03-02)** — refresh endpoint returns same refresh token, issues new access token only; rotation is a v2 enhancement
+- **Frontend CSS: index.css is shadcn target (04-02)** — shadcn init updates `src/index.css`; `src/main.css` created as copy so main.tsx imports it per plan spec; both contain Tailwind v4 `@import "tailwindcss"`
+- **TanStackRouterVite first in plugins (04-02)** — must precede react() and tailwindcss() for route tree auto-generation; vite.config.ts enforces this order
+- **tsconfig.json root needs paths for shadcn init (04-02)** — shadcn CLI reads root tsconfig.json for alias detection; both tsconfig.json and tsconfig.app.json require `paths: { "@/*": ["./src/*"] }`
 
 ### Architecture Notes
 
@@ -88,8 +91,8 @@ Plan: 1 of 5
 
 ## Session Continuity
 
-**Last session:** 2026-03-21T18:18:36.251Z
-**Stopped at:** Completed 03-auth-and-teams/03-04-PLAN.md
+**Last session:** 2026-03-23T17:48:15.370Z
+**Stopped at:** Completed 04-dashboard-and-streaming/04-02-PLAN.md
 
 ---
 *Last updated: 2026-03-21 after 01-02 execution*
