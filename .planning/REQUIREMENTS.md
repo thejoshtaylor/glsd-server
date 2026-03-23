@@ -49,8 +49,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **STRM-01**: Server parses `stream_event.data` as double-encoded JSON (NDJSON line)
 - [ ] **STRM-02**: Server forwards parsed stream events to frontend WebSocket subscribers
-- [ ] **STRM-03**: Frontend renders structured NDJSON (text responses, tool use, system events)
-- [ ] **STRM-04**: Stream output panel auto-scrolls with user override
+- [x] **STRM-03**: Frontend renders structured NDJSON (text responses, tool use, system events)
+- [x] **STRM-04**: Stream output panel auto-scrolls with user override
 - [ ] **STRM-05**: Stream events are persisted for instance history/replay
 
 ### Authentication
@@ -81,9 +81,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **DASH-01**: User sees a list of all nodes in their teams with live status indicators
 - [x] **DASH-02**: User can view per-node instance list with lifecycle state
-- [ ] **DASH-03**: User can dispatch an execute command (select node, project, enter prompt)
-- [ ] **DASH-04**: User can kill a running instance from the dashboard
-- [ ] **DASH-05**: User sees live streaming output as Claude CLI produces it
+- [x] **DASH-03**: User can dispatch an execute command (select node, project, enter prompt)
+- [x] **DASH-04**: User can kill a running instance from the dashboard
+- [x] **DASH-05**: User sees live streaming output as Claude CLI produces it
 - [ ] **DASH-06**: User sees health staleness warning when node hasn't pinged in >90s
 - [ ] **DASH-07**: User is alerted when a previously-unseen `node_id` connects
 - [ ] **DASH-08**: User sees clear error messages when instances fail (including rate limit)
@@ -169,8 +169,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INST-07 | Phase 2 | Complete |
 | STRM-01 | Phase 4 | Pending |
 | STRM-02 | Phase 4 | Pending |
-| STRM-03 | Phase 4 | Pending |
-| STRM-04 | Phase 4 | Pending |
+| STRM-03 | Phase 4 | Complete |
+| STRM-04 | Phase 4 | Complete |
 | STRM-05 | Phase 4 | Pending |
 | AUTH-01 | Phase 3 | Complete |
 | AUTH-02 | Phase 3 | Complete |
@@ -189,9 +189,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOKN-03 | Phase 2 | Complete |
 | DASH-01 | Phase 4 | Complete |
 | DASH-02 | Phase 4 | Complete |
-| DASH-03 | Phase 4 | Pending |
-| DASH-04 | Phase 4 | Pending |
-| DASH-05 | Phase 4 | Pending |
+| DASH-03 | Phase 4 | Complete |
+| DASH-04 | Phase 4 | Complete |
+| DASH-05 | Phase 4 | Complete |
 | DASH-06 | Phase 4 | Pending |
 | DASH-07 | Phase 4 | Pending |
 | DASH-08 | Phase 4 | Pending |
