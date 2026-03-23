@@ -181,6 +181,12 @@ Plans:
 3. Navigating to /dashboard or /dashboard/$nodeId without a valid token redirects to /login
 4. Audit page link is visible in the dashboard navigation
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Auth guard, 401 interceptor, login redirect support, shadcn component installs
+- [ ] 07-02-PLAN.md — Audit page: AuditFilters, AuditTable components, audit route, sidebar nav link
+
 ---
 
 ## Progress
@@ -193,7 +199,7 @@ Plans:
 | 4. Dashboard and Streaming | 5/5 | Complete   | 2026-03-23 |
 | 5. Voice and Audit | 3/3 | Complete   | 2026-03-23 |
 | 6. Frontend Production Deployment | 1/1 | Complete   | 2026-03-23 |
-| 7. Audit UI & Dashboard Auth Guard | 0/0 | Not Started |  |
+| 7. Audit UI & Dashboard Auth Guard | 0/2 | Not Started |  |
 
 ---
 
@@ -215,4 +221,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-23 after phase 6 planning*
+*Last updated: 2026-03-23 after phase 7 planning*
