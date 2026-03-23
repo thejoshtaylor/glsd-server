@@ -43,7 +43,7 @@ Standard 8-point scale. All spacing uses multiples of 4px only.
 
 **Established pattern (from `$nodeId.tsx`):** `p-6` (24px) page padding, `space-y-4` (16px) vertical rhythm, `gap-4` (16px) grid gaps.
 
-**Phase-specific:** Audit table rows use `py-3 px-4` (12px / 16px). Pagination controls use `gap-2` (8px) between buttons.
+**Phase-specific:** Audit table rows use `py-2 px-4` (8px / 16px) for a dense table row. Pagination controls use `gap-2` (8px) between buttons.
 
 ---
 
@@ -57,7 +57,7 @@ Exactly 3 sizes, exactly 2 weights. All sourced from established codebase patter
 | Body / table data | 14px (text-sm) | regular (400) | 1.5 | `text-sm text-gray-200` |
 | Meta / muted labels | 14px (text-sm) | regular (400) | 1.5 | `text-sm text-gray-500` |
 
-**Note:** `text-sm font-medium text-gray-300` (14px / 500) is used for sub-section labels (e.g., "Instances" heading in `$nodeId.tsx`). Phase 07 reuses this pattern for filter labels above the audit table.
+Filter labels above the audit table use `text-sm text-gray-300` (14px / regular 400). No third weight is introduced.
 
 ---
 
@@ -99,7 +99,7 @@ All components either already exist in the repo or are standard shadcn primitive
 | `Button` | `@/components/ui/button` | Prev/Next pagination, filter reset |
 | `Badge` | `@/components/ui/badge` | Event type badge in audit table |
 | `Skeleton` | shadcn (not yet installed — see below) | Loading skeleton rows |
-| `Link` | `@tanstack/react-router` | "Audit" nav link in sidebar |
+| `Link` | `@tanstack/react-router` | "Audit Log" nav link in sidebar |
 | `Separator` | `@/components/ui/separator` | Section dividers if needed |
 
 ### New — Install via shadcn
@@ -172,14 +172,14 @@ After login success, redirect to `search.redirect` if present, else `/dashboard`
 
 ### Sidebar Nav Addition
 
-Add "Audit" link to `__root.tsx` nav block, below "Dashboard":
+Add "Audit Log" link to `__root.tsx` nav block, below "Dashboard":
 
 ```tsx
 <Link
   to="/dashboard/audit"
   className="block px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-800 hover:text-white [&.active]:bg-gray-800 [&.active]:text-white"
 >
-  Audit
+  Audit Log
 </Link>
 ```
 
@@ -193,7 +193,7 @@ Exact same class string as the "Dashboard" link — no deviation.
 
 | State | Visual Specification |
 |-------|---------------------|
-| Loading | 8 skeleton rows. Each row: 5 cells, each `<Skeleton className="h-4 w-full" />`. Row height matches data row (py-3). |
+| Loading | 8 skeleton rows. Each row: 5 cells, each `<Skeleton className="h-4 w-full" />`. Row height matches data row (py-2). |
 | Empty (no node selected / API returns 0 rows) | Centered in table body: `text-sm text-gray-500` "No audit entries found." Single row spanning all columns. |
 | Error (API call fails) | Centered in table body: `text-sm text-red-400` "Failed to load audit log. Check your connection and try again." |
 | Data | Rows render with `hover:bg-gray-800` highlight. No row selection required. |
@@ -229,7 +229,7 @@ Use inline `className` on shadcn `Badge` with `variant="outline"` as base — ov
 
 | Element | Copy |
 |---------|------|
-| Sidebar nav link | `Audit` |
+| Sidebar nav link | `Audit Log` |
 | Page heading | `Audit Log` |
 
 ### Filter Labels
