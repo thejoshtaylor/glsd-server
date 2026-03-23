@@ -30,6 +30,8 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 - [x] OpenAI Whisper voice transcription — Validated in Phase 5: Voice and Audit (human UAT pending for browser mic tests)
 - [x] Audit trail logging for commands and events — Validated in Phase 5: Voice and Audit
 - [x] Frontend production deployment via Nginx in Docker Compose — Validated in Phase 6: Frontend Production Deployment
+- [x] Audit trail UI with filterable, paginated log — Validated in Phase 7: Audit UI & Dashboard Auth Guard
+- [x] Dashboard auth guard redirecting unauthenticated users to login — Validated in Phase 7: Audit UI & Dashboard Auth Guard
 
 ### Active
 
@@ -90,4 +92,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-23 after Phase 6: Frontend Production Deployment completion*
+*Last updated: 2026-03-23 after Phase 7: Audit UI & Dashboard Auth Guard completion — v1.0 milestone complete*
