@@ -8,12 +8,14 @@ interface WsStore {
   connected: boolean
   streamBuffers: Record<string, NdjsonEvent[]>
   instanceStatuses: Record<string, string>
+  newNodeAlerts: string[]
   setSocket: (ws: WebSocket | null) => void
   setConnected: (connected: boolean) => void
   handleMessage: (msg: WsIncomingMessage) => void
   appendStreamEvent: (instanceId: string, event: NdjsonEvent) => void
   clearStreamBuffer: (instanceId: string) => void
   setInstanceStatus: (instanceId: string, status: string) => void
+  dismissAlert: (nodeId: string) => void
 }
 
 export const useWsStore = create<WsStore>((set, get) => ({
@@ -21,6 +23,7 @@ export const useWsStore = create<WsStore>((set, get) => ({
   connected: false,
   streamBuffers: {},
   instanceStatuses: {},
+  newNodeAlerts: [],
 
   setSocket: (ws) => set({ socket: ws }),
   setConnected: (connected) => set({ connected }),
@@ -28,6 +31,12 @@ export const useWsStore = create<WsStore>((set, get) => ({
   setInstanceStatus: (instanceId, status) => {
     set((s) => ({
       instanceStatuses: { ...s.instanceStatuses, [instanceId]: status },
+    }))
+  },
+
+  dismissAlert: (nodeId) => {
+    set((s) => ({
+      newNodeAlerts: s.newNodeAlerts.filter((id) => id !== nodeId),
     }))
   },
 
@@ -50,7 +59,9 @@ export const useWsStore = create<WsStore>((set, get) => ({
         break
       case 'new_node_alert':
         queryClient.invalidateQueries({ queryKey: ['nodes'] })
-        // Store the alert for UI notification (Plan 05 will consume)
+        set((s) => ({
+          newNodeAlerts: [...s.newNodeAlerts, msg.node_id],
+        }))
         break
     }
   },
