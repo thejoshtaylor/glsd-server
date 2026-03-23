@@ -79,7 +79,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Dashboard
 
-- [ ] **DASH-01**: User sees a list of all nodes in their teams with live status indicators
+- [x] **DASH-01**: User sees a list of all nodes in their teams with live status indicators
 - [x] **DASH-02**: User can view per-node instance list with lifecycle state
 - [x] **DASH-03**: User can dispatch an execute command (select node, project, enter prompt)
 - [x] **DASH-04**: User can kill a running instance from the dashboard
@@ -187,7 +187,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOKN-01 | Phase 2 | Complete |
 | TOKN-02 | Phase 2 | Complete |
 | TOKN-03 | Phase 2 | Complete |
-| DASH-01 | Phase 7 | Pending |
+| DASH-01 | Phase 7 | Complete |
 | DASH-02 | Phase 4 | Complete |
 | DASH-03 | Phase 4 | Complete |
 | DASH-04 | Phase 4 | Complete |
