@@ -8,6 +8,7 @@ from sqlalchemy import update
 from app.database import get_session_maker
 from app.models.node import Node, NodeStatus
 from app.models.instance import Instance, InstanceStatus
+from app.ws.frontend_manager import frontend_manager
 from app.ws.manager import connection_manager
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,9 @@ async def _mark_node_stale(node_id: str) -> None:
         except Exception:
             await session.rollback()
             raise
+
+    # Push stale status to frontend connections
+    await frontend_manager.broadcast_node_status(node_id, "stale")
 
     # Try to close the WebSocket connection
     conn = connection_manager.get(node_id)

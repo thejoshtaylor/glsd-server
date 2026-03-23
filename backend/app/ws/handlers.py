@@ -14,6 +14,7 @@ from app.database import get_session_maker
 from app.models.instance import Instance, InstanceStatus
 from app.models.node import Node, NodeStatus
 from app.models.stream_event import StreamEvent as StreamEventModel
+from app.ws.frontend_manager import frontend_manager
 from app.ws.manager import NodeConnection, connection_manager
 from app.ws.protocol import (
     AckPayload,
@@ -50,12 +51,14 @@ async def handle_node_register(payload: NodeRegisterPayload, conn: NodeConnectio
 
         now = datetime.now(timezone.utc)
 
+        is_new = False
         async with get_session_maker()() as session:
             try:
                 node = await session.get(Node, payload.node_id)
                 if node is None:
                     # New node — log warning per server-spec security section.
                     logger.warning("New node_id connected: %s", payload.node_id)
+                    is_new = True
                     node = Node(
                         node_id=payload.node_id,
                         platform=payload.platform,
@@ -82,6 +85,11 @@ async def handle_node_register(payload: NodeRegisterPayload, conn: NodeConnectio
             except Exception:
                 await session.rollback()
                 raise
+
+        # Push status changes to frontend connections
+        if is_new:
+            await frontend_manager.broadcast_new_node_alert(payload.node_id)
+        await frontend_manager.broadcast_node_status(payload.node_id, "connected")
 
 
 async def reconcile_instances(
@@ -158,6 +166,7 @@ async def handle_ack(payload: AckPayload, envelope_id: str) -> None:
         except Exception:
             await session.rollback()
             raise
+    await frontend_manager.broadcast_instance_status(payload.instance_id, "running")
     logger.info("ACK received for instance %s (envelope %s)", payload.instance_id, envelope_id)
 
 
@@ -189,8 +198,11 @@ async def handle_stream_event(payload: StreamEventPayload) -> None:
             await session.rollback()
             raise
 
-    # Buffer in-memory for real-time fan-out to frontend (Phase 4).
+    # Buffer in-memory for real-time fan-out to frontend.
     connection_manager.append_stream_event(payload.instance_id, parsed_data)
+
+    # Fan out to subscribed frontend connections.
+    await frontend_manager.fan_out_stream_event(payload.instance_id, parsed_data)
 
 
 async def handle_instance_started(payload: InstanceStartedPayload) -> None:
@@ -226,6 +238,8 @@ async def handle_instance_finished(payload: InstanceFinishedPayload) -> None:
     # Clear in-memory stream buffer — data is persisted to DB.
     connection_manager.clear_stream_events(payload.instance_id)
 
+    await frontend_manager.broadcast_instance_status(payload.instance_id, "finished")
+
 
 async def handle_instance_error(payload: InstanceErrorPayload) -> None:
     """Handle instance_error: mark instance errored.
@@ -249,6 +263,8 @@ async def handle_instance_error(payload: InstanceErrorPayload) -> None:
     # Clear in-memory stream buffer.
     connection_manager.clear_stream_events(payload.instance_id)
 
+    await frontend_manager.broadcast_instance_status(payload.instance_id, "errored")
+
 
 async def handle_node_disconnect(payload: NodeDisconnectPayload, node_id: str) -> None:
     """Handle node_disconnect: graceful shutdown — mark node disconnected."""
@@ -264,6 +280,7 @@ async def handle_node_disconnect(payload: NodeDisconnectPayload, node_id: str) -
             raise
 
     connection_manager.deregister(node_id)
+    await frontend_manager.broadcast_node_status(node_id, "disconnected")
     logger.info("Node %s disconnected gracefully: %s", node_id, payload.reason)
 
 
@@ -299,4 +316,5 @@ async def handle_unexpected_disconnect(node_id: str) -> None:
             raise
 
     connection_manager.deregister(node_id)
+    await frontend_manager.broadcast_node_status(node_id, "disconnected")
     logger.info("Node %s disconnected unexpectedly, errored all running instances", node_id)
