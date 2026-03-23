@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { NodeResponse } from '@/types/api'
 import type { WsOutgoingMessage } from '@/types/protocol'
+import { VoiceButton } from './VoiceButton'
+import { type RecorderState } from '@/hooks/useVoiceRecorder'
 
 interface ExecuteFormProps {
   node: NodeResponse
@@ -24,6 +26,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
       setSessionId(defaultSessionId)
     }
   }, [defaultSessionId])
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const [pendingInstanceId, setPendingInstanceId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const socket = useWsStore((s) => s.socket)
@@ -37,6 +40,15 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
   // (running, completed, errored all mean ACK was received or instance is done)
   if (pendingInstanceId && pendingStatus && pendingStatus !== 'pending') {
     setPendingInstanceId(null)
+  }
+
+  const handleTranscript = (text: string) => {
+    setPrompt(text)
+    setIsTranscribing(false)
+  }
+
+  const handleVoiceStateChange = (state: RecorderState) => {
+    setIsTranscribing(state === 'processing')
   }
 
   const executeMutation = useMutation({
@@ -89,13 +101,27 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
         </select>
       </div>
 
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Enter prompt..."
-        rows={3}
-        className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
-      />
+      <div className="relative">
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Enter prompt..."
+          rows={3}
+          disabled={isTranscribing}
+          className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        {isTranscribing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-800/80 rounded-md">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span>Transcribing...</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       <Input
         value={sessionId}
@@ -104,13 +130,20 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
         className="bg-gray-800 border-gray-700 text-gray-200 text-sm"
       />
 
-      <Button
-        onClick={() => executeMutation.mutate()}
-        disabled={!canExecute || executeMutation.isPending || isAwaitingAck}
-        className="w-full"
-      >
-        {executeMutation.isPending ? 'Dispatching...' : isAwaitingAck ? 'Awaiting ACK...' : 'Execute'}
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          onClick={() => executeMutation.mutate()}
+          disabled={!canExecute || executeMutation.isPending || isAwaitingAck}
+          className="flex-1"
+        >
+          {executeMutation.isPending ? 'Dispatching...' : isAwaitingAck ? 'Awaiting ACK...' : 'Execute'}
+        </Button>
+        <VoiceButton
+          onTranscript={handleTranscript}
+          onStateChange={handleVoiceStateChange}
+          disabled={node.status !== 'connected'}
+        />
+      </div>
 
       {executeMutation.isError && (
         <p className="text-sm text-red-400">{executeMutation.error.message}</p>
