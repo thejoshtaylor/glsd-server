@@ -37,3 +37,13 @@ export interface TokenResponse {
   refresh_token: string
   token_type: string
 }
+
+export interface AuditLogResponse {
+  id: number
+  timestamp: string
+  node_id: string | null
+  instance_id: string | null
+  user_id: string | null
+  event_type: string
+  details: Record<string, unknown> | null
+}

@@ -53,6 +53,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     }
   }
 
+  if (res.status === 401) {
+    clearTokens()
+    window.location.href = '/login'
+    throw new Error('Session expired')
+  }
+
   if (!res.ok) {
     const text = await res.text()
     throw new Error(text || `HTTP ${res.status}`)

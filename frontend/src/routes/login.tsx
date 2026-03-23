@@ -7,11 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { TokenResponse } from '../types/api'
 
 export const Route = createFileRoute('/login')({
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: (search.redirect as string) || undefined,
+  }),
   component: LoginPage,
 })
 
 function LoginPage() {
   const navigate = useNavigate()
+  const search = Route.useSearch()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -41,7 +45,7 @@ function LoginPage() {
 
       const data: TokenResponse = await res.json()
       setTokens(data.access_token, data.refresh_token)
-      navigate({ to: '/dashboard' })
+      navigate({ to: search.redirect || '/dashboard' })
     } catch {
       setError('Network error')
     } finally {
