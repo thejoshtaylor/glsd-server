@@ -25,16 +25,14 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 - [x] Command dispatch: execute, kill, status_request — Validated in Phase 2: Node Protocol Engine
 - [x] Team-based multi-tenancy (nodes belong to teams, users belong to teams, personal team by default) — Validated in Phase 3: Auth and Teams
 - [x] JWT authentication for frontend users — Validated in Phase 3: Auth and Teams
+- [x] Stream event forwarding to frontend in real time — Validated in Phase 4: Dashboard and Streaming
+- [x] Full web dashboard: node list, instance management, live streaming output — Validated in Phase 4: Dashboard and Streaming
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] Stream event forwarding to frontend in real time
-- [ ] Full web dashboard: node list, instance management, live streaming output
 - [ ] OpenAI Whisper voice transcription (v1 must-have)
-- [ ] PostgreSQL persistence for node/instance/user/team state
-- [ ] Docker Compose deployment
 - [ ] Audit trail logging for commands and events
 
 ### Out of Scope
