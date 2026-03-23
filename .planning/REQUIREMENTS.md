@@ -67,8 +67,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **TEAM-02**: User can create additional teams
 - [x] **TEAM-03**: User can invite other users to their teams
 - [x] **TEAM-04**: Nodes are assigned to teams
-- [ ] **TEAM-05**: Users can only see and manage nodes belonging to their teams
-- [ ] **TEAM-06**: Execute/kill commands enforce team ownership validation
+- [x] **TEAM-05**: Users can only see and manage nodes belonging to their teams
+- [x] **TEAM-06**: Execute/kill commands enforce team ownership validation
 - [x] **TEAM-07**: A node can be shared across multiple teams
 
 ### Token Management
@@ -181,8 +181,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEAM-02 | Phase 3 | Complete |
 | TEAM-03 | Phase 3 | Complete |
 | TEAM-04 | Phase 3 | Complete |
-| TEAM-05 | Phase 3 | Pending |
-| TEAM-06 | Phase 3 | Pending |
+| TEAM-05 | Phase 3 | Complete |
+| TEAM-06 | Phase 3 | Complete |
 | TEAM-07 | Phase 3 | Complete |
 | TOKN-01 | Phase 2 | Complete |
 | TOKN-02 | Phase 2 | Complete |
