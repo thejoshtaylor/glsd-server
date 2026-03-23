@@ -14,6 +14,7 @@ from app.database import get_session_maker
 from app.models.instance import Instance, InstanceStatus
 from app.models.node import Node, NodeStatus
 from app.models.stream_event import StreamEvent as StreamEventModel
+from app.services.audit_service import write_audit_log
 from app.ws.frontend_manager import frontend_manager
 from app.ws.manager import NodeConnection, connection_manager
 from app.ws.protocol import (
@@ -239,6 +240,12 @@ async def handle_instance_finished(payload: InstanceFinishedPayload) -> None:
     connection_manager.clear_stream_events(payload.instance_id)
 
     await frontend_manager.broadcast_instance_status(payload.instance_id, "finished")
+    await write_audit_log(
+        event_type="instance_finished",
+        node_id=None,  # node_id not in payload; instance_id sufficient for correlation
+        instance_id=payload.instance_id,
+        details={"exit_code": payload.exit_code},
+    )
 
 
 async def handle_instance_error(payload: InstanceErrorPayload) -> None:
@@ -264,6 +271,11 @@ async def handle_instance_error(payload: InstanceErrorPayload) -> None:
     connection_manager.clear_stream_events(payload.instance_id)
 
     await frontend_manager.broadcast_instance_status(payload.instance_id, "errored")
+    await write_audit_log(
+        event_type="instance_error",
+        instance_id=payload.instance_id,
+        details={"error": payload.error},
+    )
 
 
 async def handle_node_disconnect(payload: NodeDisconnectPayload, node_id: str) -> None:

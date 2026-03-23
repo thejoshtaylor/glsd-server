@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session_maker
 from app.models.instance import Instance, InstanceStatus
+from app.services.audit_service import write_audit_log
 from app.services.node_service import user_can_access_node
 from app.ws.manager import connection_manager
 from app.ws.protocol import ExecutePayload, KillPayload, StatusRequestPayload
@@ -105,6 +106,13 @@ async def dispatch_execute(
         instance_id,
         project,
     )
+    await write_audit_log(
+        event_type="execute",
+        node_id=node_id,
+        instance_id=instance_id,
+        user_id=user_id,
+        details={"project": project, "prompt": prompt[:200]},
+    )
     return instance_id
 
 
@@ -139,6 +147,12 @@ async def dispatch_kill(node_id: str, instance_id: str, user_id: str, db: AsyncS
 
     # (e) Log
     logger.info("Dispatched kill to node %s: instance=%s", node_id, instance_id)
+    await write_audit_log(
+        event_type="kill",
+        node_id=node_id,
+        instance_id=instance_id,
+        user_id=user_id,
+    )
     return True
 
 
