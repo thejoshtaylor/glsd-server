@@ -49,7 +49,7 @@
   5. Section headings appear uppercase with letter-spacing; IDs, timestamps, and stream output render in monospace; page titles use the Orbitron display font
 **Plans**: 3 plans
 Plans:
-- [ ] 08-01-PLAN.md — CSS tokens, font installation, glow utilities, structural fixes
+- [x] 08-01-PLAN.md — CSS tokens, font installation, glow utilities, structural fixes
 - [ ] 08-02-PLAN.md — Gray sweep across route files + typography application
 - [ ] 08-03-PLAN.md — Gray sweep across component files + button glow application
 **UI hint**: yes
