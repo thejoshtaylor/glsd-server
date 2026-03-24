@@ -69,8 +69,10 @@ Exceptions: none — Phase 8 is a token/CSS layer phase, no new interactive elem
 |------|------|--------|-------------|------|-----------|---------|--------|
 | Body | 14px | 400 (regular) | 1.5 | Geist Variable | none | normal | default |
 | Label / muted | 12px | 400 (regular) | 1.4 | Geist Variable | none | normal | default |
-| Section heading | 12px | 600 (semibold) | 1.2 | Geist Variable | UPPERCASE | 0.1em | REQUIREMENTS.md TYP-01 + CONTEXT.md |
+| Section heading | 12px | 700 (bold) | 1.2 | Geist Variable | UPPERCASE | 0.1em | REQUIREMENTS.md TYP-01 + CONTEXT.md |
 | Page title / display | 20px | 700 (bold) | 1.1 | Orbitron Variable | none | normal | REQUIREMENTS.md TYP-03 + CONTEXT.md |
+
+Section headings are differentiated from page titles via size (12px vs 20px), transform (UPPERCASE vs none), and font (Geist vs Orbitron) — not weight.
 
 ### Monospace Usage (TYP-02)
 
@@ -93,7 +95,7 @@ The following token changes are required in `frontend/src/index.css`:
              'Liberation Mono', 'Courier New', monospace;
 ```
 
-Font weights declared: **400 (regular)** and **600/700 (semibold/bold)**. Two weights maximum.
+Font weights declared: **400 (regular)** and **700 (bold)**. Two weights maximum.
 
 ---
 
