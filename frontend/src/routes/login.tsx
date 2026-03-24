@@ -54,10 +54,10 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center h-full bg-gray-950">
-      <Card className="w-full max-w-sm bg-gray-900 border-gray-800">
+    <div className="flex items-center justify-center h-full bg-background">
+      <Card className="w-full max-w-sm bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-center text-white">GLSD Server</CardTitle>
+          <CardTitle className="text-center text-foreground font-heading">GLSD Server</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -67,7 +67,7 @@ function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-gray-800 border-gray-700 text-white"
+              className="bg-muted border-border text-foreground"
             />
             <Input
               type="password"
@@ -75,7 +75,7 @@ function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="bg-gray-800 border-gray-700 text-white"
+              className="bg-muted border-border text-foreground"
             />
             {error && <p className="text-sm text-red-400">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>

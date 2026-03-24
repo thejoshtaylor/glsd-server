@@ -22,28 +22,28 @@ function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex h-screen bg-gray-950 text-gray-100">
+      <div className="flex h-screen bg-background text-foreground">
         {isLoggedIn && (
-          <aside className="w-56 border-r border-gray-800 bg-gray-900 flex flex-col">
-            <div className="p-4 border-b border-gray-800">
-              <h1 className="text-lg font-bold text-white">GLSD</h1>
+          <aside className="w-56 border-r border-border bg-sidebar flex flex-col">
+            <div className="p-4 border-b border-border">
+              <h1 className="text-lg font-bold font-heading text-foreground">GLSD</h1>
             </div>
             <nav className="flex-1 p-3 space-y-1">
               <Link
                 to="/dashboard"
-                className="block px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-800 hover:text-white [&.active]:bg-gray-800 [&.active]:text-white"
+                className="block px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted hover:text-foreground [&.active]:bg-muted [&.active]:text-foreground"
               >
                 Dashboard
               </Link>
               <Link
                 to="/dashboard/audit"
-                className="block px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-800 hover:text-white [&.active]:bg-gray-800 [&.active]:text-white"
+                className="block px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted hover:text-foreground [&.active]:bg-muted [&.active]:text-foreground"
               >
                 Audit Log
               </Link>
             </nav>
-            <div className="p-3 border-t border-gray-800">
-              <Button variant="ghost" size="sm" className="w-full justify-start text-gray-400" onClick={handleLogout}>
+            <div className="p-3 border-t border-border">
+              <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign out
               </Button>
