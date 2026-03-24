@@ -9,7 +9,7 @@ const MAX_RECONNECT_DELAY_MS = 30000
 export function useWebSocket() {
   const { setSocket, setConnected, handleMessage } = useWsStore()
   const reconnectAttempt = useRef(0)
-  const reconnectTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
