@@ -64,7 +64,7 @@ function AuditPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h2 className="text-xl font-semibold text-white">Audit Log</h2>
+      <h2 className="text-xl font-semibold font-heading text-foreground">Audit Log</h2>
 
       <AuditFilters
         nodes={nodes ?? []}
@@ -77,7 +77,7 @@ function AuditPage() {
       />
 
       {hasNoNodes ? (
-        <p className="text-sm text-gray-500">No nodes found. Connect a node to see audit entries.</p>
+        <p className="text-sm text-muted-foreground">No nodes found. Connect a node to see audit entries.</p>
       ) : (
         <>
           <AuditTable
@@ -97,7 +97,7 @@ function AuditPage() {
             >
               Previous
             </Button>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               {entries && entries.length > 0
                 ? `Showing ${offset + 1}\u2013${offset + entries.length} results`
                 : ''}
