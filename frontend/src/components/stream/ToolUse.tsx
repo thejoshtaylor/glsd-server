@@ -16,7 +16,7 @@ export function ToolUse({ event }: { event: ToolUseEvent }) {
         <span className="font-medium">{event.name}</span>
       </button>
       {expanded && (
-        <pre className="mt-1 text-xs text-gray-400 font-mono overflow-x-auto">
+        <pre className="mt-1 text-xs text-muted-foreground font-mono overflow-x-auto">
           {JSON.stringify(event.input, null, 2)}
         </pre>
       )}
