@@ -47,7 +47,11 @@
   3. Accent elements render in neon magenta and borders use a faint cyan tint instead of neutral gray
   4. A glow utility class is available and applied — interactive elements have a visible neon halo on hover/focus
   5. Section headings appear uppercase with letter-spacing; IDs, timestamps, and stream output render in monospace; page titles use the Orbitron display font
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 08-01-PLAN.md — CSS tokens, font installation, glow utilities, structural fixes
+- [ ] 08-02-PLAN.md — Gray sweep across route files + typography application
+- [ ] 08-03-PLAN.md — Gray sweep across component files + button glow application
 **UI hint**: yes
 
 ### Phase 9: Component Upgrades and Icon Pass
@@ -90,10 +94,10 @@ Phases execute in numeric order: 8 → 9 → 10
 | 5. Voice and Audit | v1.0 | 3/3 | Complete | 2026-03-23 |
 | 6. Frontend Production Deployment | v1.0 | 1/1 | Complete | 2026-03-23 |
 | 7. Audit UI & Dashboard Auth Guard | v1.0 | 2/2 | Complete | 2026-03-23 |
-| 8. Color System and Foundation | v1.1 | 0/? | Not started | - |
+| 8. Color System and Foundation | v1.1 | 0/3 | Planned | - |
 | 9. Component Upgrades and Icon Pass | v1.1 | 0/? | Not started | - |
 | 10. Animations and Login Treatment | v1.1 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-24 — v1.1 roadmap added (Phases 8-10)*
+*Last updated: 2026-03-24 — Phase 8 planned (3 plans)*
