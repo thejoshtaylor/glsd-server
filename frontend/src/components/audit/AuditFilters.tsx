@@ -12,8 +12,8 @@ interface AuditFiltersProps {
   nodes: NodeResponse[]
   selectedNodeId: string
   selectedType: string
-  onNodeChange: (nodeId: string) => void
-  onTypeChange: (type: string) => void
+  onNodeChange: (nodeId: string | null) => void
+  onTypeChange: (type: string | null) => void
   isLoadingNodes: boolean
   nodesError: boolean
 }

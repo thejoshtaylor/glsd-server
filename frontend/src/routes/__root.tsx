@@ -17,7 +17,7 @@ function RootLayout() {
   const handleLogout = () => {
     clearTokens()
     queryClient.clear()
-    navigate({ to: '/login' })
+    navigate({ to: '/login', search: { redirect: undefined } })
   }
 
   return (
