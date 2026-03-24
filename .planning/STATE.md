@@ -76,6 +76,12 @@ Next: `/gsd:new-milestone` to start v1.1
 
 *(none)*
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260324-jbe | Update root README, remove port exposures from docker-compose | 2026-03-24 | 86be4be | [260324-jbe-update-root-readme-remove-port-exposures](./quick/260324-jbe-update-root-readme-remove-port-exposures/) |
+
 ---
 
 ## Session Continuity
@@ -84,4 +90,4 @@ Next: `/gsd:new-milestone` to start v1.1
 **Stopped at:** Milestone v1.0 archived and completed
 
 ---
-*Last updated: 2026-03-23 after v1.0 milestone completion*
+Last activity: 2026-03-24 - Completed quick task 260324-jbe: Update root README, remove port exposures from docker-compose, ensure clean build
