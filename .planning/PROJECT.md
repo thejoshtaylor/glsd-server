@@ -41,9 +41,26 @@ Shipped v1.0 MVP with ~6,300 LOC (3,600 Python + 2,700 TypeScript).
 - ✓ Audit trail UI with filterable, paginated log — v1.0
 - ✓ Dashboard auth guard redirecting unauthenticated users to login — v1.0
 
+## Current Milestone: v1.1 Cyberpunk Beautification
+
+**Goal:** Transform the entire frontend into a polished, cyberpunk-themed experience with intuitive controls, consistent iconography, gradients, and UX improvements.
+
+**Target features:**
+- Cyberpunk color theme with gradients across all views
+- Lucide icon library integration with meaningful, consistent icons
+- shadcn/ui component upgrades (buttons, cards, dialogs, tables)
+- UX polish: loading states, transitions, micro-interactions
+- Navigation flow improvements
+- Consistent spacing, typography, and visual hierarchy across all screens
+
 ### Active
 
-(None yet — define with `/gsd:new-milestone`)
+- [ ] Cyberpunk color theme with gradients across all views
+- [ ] Lucide icon integration with consistent, meaningful iconography
+- [ ] shadcn/ui component upgrades across all screens
+- [ ] UX polish: loading states, transitions, micro-interactions
+- [ ] Navigation flow improvements
+- [ ] Consistent spacing, typography, and visual hierarchy
 
 ### Out of Scope
 
@@ -105,4 +122,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-23 after v1.0 milestone completion*
+*Last updated: 2026-03-24 after v1.1 milestone start*
