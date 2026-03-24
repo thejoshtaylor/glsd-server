@@ -503,3 +503,235 @@ v1 constraint from PROJECT.md: "Horizontal server scaling — single-instance se
 - [WebSocket Notifications with FastAPI — Connection Management, Rooms, Reconnection](https://blog.greeden.me/en/2025/10/28/weaponizing-real-time-websocket-sse-notifications-with-fastapi-connection-management-rooms-reconnection-scale-out-and-observability/) (MEDIUM confidence)
 - [Scalable WebSocket Architecture — Hathora](https://blog.hathora.dev/scalable-websocket-architecture/) (MEDIUM confidence)
 - `server-spec.md` and `protocol-spec.md` in this repository (HIGH confidence — normative specs)
+
+---
+
+## v1.1 Frontend Theme Architecture: Cyberpunk UI Integration
+
+**Domain:** Cyberpunk theme layer on existing React + shadcn/ui + Tailwind v4 frontend
+**Researched:** 2026-03-24
+**Confidence:** HIGH
+
+This section documents how the cyberpunk theme system integrates with the existing frontend architecture for the v1.1 milestone.
+
+### Theme Layer System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Theme Token Layer                           │
+│  src/index.css — single source of truth for all CSS variables   │
+│  :root/.dark { --cyber-* }    @theme inline { --color-cyber-* } │
+│  @layer utilities { .cyber-* } @keyframes { glow-pulse, etc }   │
+├─────────────────────────────────────────────────────────────────┤
+│                   Component Layer                               │
+│  ┌──────────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │  ui/ (CVA    │  │  nodes/  │  │ stream/  │  │ execute/ │    │
+│  │  cyber vars) │  │  cards   │  │  panels  │  │  forms   │    │
+│  └──────────────┘  └──────────┘  └──────────┘  └──────────┘    │
+├─────────────────────────────────────────────────────────────────┤
+│                    Layout / Route Layer                         │
+│  ┌────────────────────────────────────────────────────────┐     │
+│  │  __root.tsx (sidebar + nav) — primary cyberpunk canvas │     │
+│  └────────────────────────────────────────────────────────┘     │
+├─────────────────────────────────────────────────────────────────┤
+│                    State / Data Layer (unchanged)               │
+│  ┌──────────┐  ┌──────────────┐  ┌──────────────────────┐       │
+│  │ wsStore  │  │ TanStack     │  │ TanStack Router       │       │
+│  │ (zustand)│  │ Query        │  │ (file-based routes)   │       │
+│  └──────────┘  └──────────────┘  └──────────────────────┘       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Files: Modify vs Leave Alone
+
+| File | Action | What Changes |
+|------|--------|--------------|
+| `src/index.css` | **MODIFY (primary)** | Add cyberpunk tokens to `.dark`, `@theme inline`, `@layer utilities`, `@keyframes` |
+| `routes/__root.tsx` | **MODIFY** | Sidebar: replace hardcoded `bg-gray-900`/`border-gray-800` with cyber tokens; gradient bg, glow nav active state |
+| `components/ui/button.tsx` | **MODIFY** | Add `cyber` variant to CVA; add `cyber-ghost` for nav |
+| `components/ui/badge.tsx` | **MODIFY** | Wire status colors through cyber token CSS vars |
+| `components/ui/card.tsx` | **MODIFY** | Add glow border treatment via `box-shadow` CSS var |
+| `components/ui/input.tsx` | **MODIFY** | Cyber focus ring (cyan glow vs default ring) |
+| `components/ui/skeleton.tsx` | **MODIFY** | Shimmer color → cyber surface colors |
+| `components/nodes/NodeCard.tsx` | **MODIFY** | Replace hardcoded `bg-gray-900`/`border-gray-800` with cyber tokens |
+| `components/nodes/NodeStatusBadge.tsx` | **MODIFY** | Replace inline `bg-green-600/20 text-green-400` etc. with cyber semantic tokens |
+| `components/nodes/NodeGrid.tsx` | **MODIFY** | Empty state styling |
+| `components/stream/StreamPanel.tsx` | **MODIFY** | Header gradient, scroll-to-bottom button cyber style |
+| `components/execute/ExecuteForm.tsx` | **MODIFY** | Replace raw `<textarea>`/`<select>` with proper shadcn Input/Select; apply cyber tokens |
+| `routes/dashboard/index.tsx` | **MODIFY** | Page header typography, spacing |
+| `routes/dashboard/$nodeId.tsx` | **MODIFY** | Panel borders, back button, metadata grid styling |
+| `routes/dashboard/audit.tsx` | **MODIFY** | Table header, filter styling |
+| `stores/wsStore.ts` | **NO CHANGE** | State logic unaffected by visual layer |
+| `hooks/useWebSocket.ts` | **NO CHANGE** | Network logic unaffected |
+| `hooks/useAutoScroll.ts` | **NO CHANGE** | Behavior unchanged |
+| `lib/api.ts` | **NO CHANGE** | Network layer unchanged |
+
+### New Files to Create
+
+| File | Reason |
+|------|--------|
+| `components/ui/icon.tsx` | Thin Lucide wrapper enforcing consistent `size` and `strokeWidth={1.5}` |
+| `components/ui/progress.tsx` | Add via `npx shadcn add progress` — needed for loading state polish |
+
+### Tailwind v4 Token Architecture
+
+The project already uses `@theme inline` in `index.css` to bridge CSS custom properties to Tailwind utilities. This is the correct v4 pattern. The cyberpunk migration extends this exact pattern:
+
+**Step 1 — Define runtime CSS vars in `.dark` block:**
+```css
+.dark {
+  --cyber-primary: oklch(0.72 0.25 200);          /* neon cyan */
+  --cyber-secondary: oklch(0.68 0.30 320);         /* neon magenta */
+  --cyber-accent: oklch(0.75 0.28 145);            /* neon green */
+  --cyber-danger: oklch(0.65 0.28 25);             /* neon red-orange */
+  --cyber-surface: oklch(0.12 0.02 250);           /* near-black blue-tinted */
+  --cyber-surface-elevated: oklch(0.16 0.02 250);
+  --cyber-border: oklch(0.72 0.25 200 / 25%);
+  --cyber-glow-primary: 0 0 12px oklch(0.72 0.25 200 / 60%);
+  --cyber-glow-secondary: 0 0 12px oklch(0.68 0.30 320 / 60%);
+}
+```
+
+**Step 2 — Wire into `@theme inline` to generate utility classes:**
+```css
+@theme inline {
+  /* ... existing mappings ... */
+  --color-cyber-primary: var(--cyber-primary);
+  --color-cyber-secondary: var(--cyber-secondary);
+  --color-cyber-accent: var(--cyber-accent);
+  --color-cyber-surface: var(--cyber-surface);
+  --color-cyber-surface-elevated: var(--cyber-surface-elevated);
+  --color-cyber-border: var(--cyber-border);
+}
+```
+
+**Step 3 — Add gradient utilities in `@layer utilities`:**
+```css
+@layer utilities {
+  .cyber-gradient-bg {
+    background: linear-gradient(
+      135deg,
+      oklch(0.12 0.02 250) 0%,
+      oklch(0.10 0.04 280) 100%
+    );
+  }
+  .cyber-scanlines {
+    background-image: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      oklch(0 0 0 / 4%) 2px,
+      oklch(0 0 0 / 4%) 4px
+    );
+  }
+}
+```
+
+**Step 4 — Animation keyframes in `@theme`:**
+```css
+@theme {
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+  --animate-status-ping: status-ping 1.5s cubic-bezier(0,0,0.2,1) infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 4px var(--cyber-primary); }
+  50%       { box-shadow: 0 0 16px var(--cyber-primary), 0 0 32px var(--cyber-primary); }
+}
+
+@keyframes status-ping {
+  75%, 100% { transform: scale(1.5); opacity: 0; }
+}
+```
+
+After these four steps, components use `bg-cyber-surface`, `text-cyber-primary`, `border-cyber-border`, `animate-glow-pulse` as standard Tailwind classes. No hardcoded oklch values in component files.
+
+### CVA Cyber Variant Pattern
+
+The button and badge already use class-variance-authority. Add a `cyber` variant alongside existing variants — do not replace `default`:
+
+```typescript
+// components/ui/button.tsx — add to buttonVariants
+cyber: [
+  "border border-cyber-primary/40",
+  "bg-cyber-primary/10 text-cyber-primary",
+  "hover:bg-cyber-primary/20 hover:border-cyber-primary/70",
+  "hover:shadow-[var(--cyber-glow-primary)]",
+  "transition-all duration-200",
+].join(" "),
+```
+
+The `cyber` variant is opt-in per callsite. Existing uses of `variant="default"` and `variant="ghost"` remain unchanged.
+
+### Icon Integration
+
+`lucide-react` v1 is already installed and partially used (`Monitor`, `Clock`, `ArrowLeft`, `ArrowDown`, `LogOut`). The existing usage is inconsistent — some icons use `h-4 w-4`, some `h-3 w-3`. A thin `Icon` wrapper at `components/ui/icon.tsx` enforces `strokeWidth={1.5}` (lighter than Lucide's default 2 — better for cyberpunk aesthetic) and a consistent size scale:
+
+```typescript
+interface IconProps {
+  icon: LucideIcon
+  size?: 'xs' | 'sm' | 'md' | 'lg'  // maps to size-3 / size-3.5 / size-4 / size-5
+  className?: string
+}
+```
+
+All new icon additions go through this wrapper. Existing usages can be migrated in the same pass.
+
+### Animation Layer
+
+Three animation layers stack without conflict:
+
+1. **tw-animate-css** (already imported): Handles entrance/exit — `animate-in fade-in slide-in-from-top-2` for panel transitions, toast notifications
+2. **Custom `@keyframes`** in `@theme`: Handles ambient persistent animations — `animate-glow-pulse` on connected node status indicators, `animate-status-ping` for live instance running state
+3. **Tailwind `transition-*` utilities**: Handles hover/focus micro-interactions — `transition-all duration-200` on card hover, button press
+
+No CSS animation state lives in React (no `useState` for animation triggers). All animations are CSS-driven.
+
+### No Theme State Required
+
+The app is dark-only — `__root.tsx` hardcodes `bg-gray-950` and `text-gray-100`. The existing `@custom-variant dark (&:is(.dark *))` activates all `.dark` block tokens when `class="dark"` is on `<html>`. `next-themes` is installed but not wired up, which is correct — do not add a `ThemeProvider` wrapper.
+
+Ensure `<html class="dark">` is present in `index.html` or set on document mount. All cyberpunk tokens activate automatically. Zero Zustand or React context is needed for theme state.
+
+### Build Order for v1.1 Implementation
+
+Dependencies between layers determine the correct sequence:
+
+```
+1. Token Foundation (src/index.css)
+   Cyberpunk CSS vars, @theme wiring, @layer utilities, @keyframes
+   — everything downstream depends on tokens existing first
+
+2. Base Component Variants (button, badge, card, input, skeleton, icon wrapper)
+   — route layouts compose these components
+
+3. Root Layout + Navigation (__root.tsx)
+   — pages inherit the sidebar/chrome
+
+4. Domain Components (NodeCard, NodeStatusBadge, StreamPanel, ExecuteForm)
+   — compose base components; can now apply cyber variants
+
+5. Loading States + Micro-interactions (skeleton, progress, animate-in classes)
+   — polish layer; safe to add after structure is correct
+
+6. Typography + Spacing Pass (all dashboard routes)
+   — final visual hierarchy sweep across all pages
+```
+
+### Frontend Theme Anti-Patterns
+
+**Do not hardcode oklch/hex values in component files.** Every color must go through a `--cyber-*` token defined in `index.css`. Use arbitrary values (`bg-[#0a0a1a]`) only for truly one-off values with no token equivalent — and there should be none in a properly tokenized theme.
+
+**Do not override `@theme inline` to change semantic shadcn tokens.** The `@theme inline` block inlines values at build time — it does not respond to dark/light context switching. Cyberpunk color overrides belong in the `:root` / `.dark` blocks (runtime variables), which is how `index.css` is already structured.
+
+**Do not re-run `shadcn add` with a different style.** `components.json` is locked to `base-nova` (`@base-ui/react` primitives). Running `shadcn add` with a conflicting style will break existing components. New components (e.g., `progress`, `dialog`) must be added as `base-nova` and then styled via CSS variable overrides.
+
+**Do not add animation CSS to individual component files.** All `@keyframes` belong in `index.css` under `@theme`. Component files only apply utility class names.
+
+### Sources
+
+- [Tailwind CSS v4 Theme Variables](https://tailwindcss.com/docs/theme) — `@theme inline` semantics, CSS custom property exposure — HIGH confidence
+- [shadcn/ui Tailwind v4 Guide](https://ui.shadcn.com/docs/tailwind-v4) — CSS variable structure, dark mode pattern — HIGH confidence
+- [tw-animate-css](https://github.com/Wombosvideo/tw-animate-css) — Tailwind v4 compatible animation library (already installed) — HIGH confidence
+- [Lucide React sizing guide](https://lucide.dev/guide/react/basics/sizing) — strokeWidth prop, size defaults — HIGH confidence
+- Codebase inspection: `frontend/src/index.css`, `__root.tsx`, `components/ui/button.tsx`, `NodeCard.tsx`, `StreamPanel.tsx`, `NodeStatusBadge.tsx`, `components.json` — HIGH confidence (direct source)

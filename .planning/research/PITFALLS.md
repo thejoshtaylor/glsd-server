@@ -1,154 +1,155 @@
 # Pitfalls Research
 
-**Domain:** WebSocket server for distributed node management — Python FastAPI, real-time streaming, multi-tenancy
-**Researched:** 2026-03-20
-**Confidence:** HIGH (protocol spec is normative; framework pitfalls verified against official docs and community sources)
+**Domain:** Cyberpunk UI beautification — adding visual theme, gradient system, icon overhaul, and animation layer to existing React 19 + shadcn/ui + Tailwind v4 dashboard
+**Researched:** 2026-03-24
+**Confidence:** HIGH (Tailwind v4 and shadcn/ui pitfalls verified against official docs and GitHub issues; animation/performance claims verified against MDN and browser vendor documentation)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Multiple Uvicorn Workers Destroy In-Memory Connection State
+### Pitfall 1: @theme inline Breaks Dark Mode Variable Switching
 
 **What goes wrong:**
-The node connection registry (the dict mapping `node_id` to active WebSocket objects) is stored in a single Python process's memory. If you run `uvicorn --workers 4` or use Gunicorn with multiple workers, each worker process has its own completely independent copy of that dict. Node A connects to worker 1. The frontend asks worker 2 for Node A's status. Worker 2's registry is empty — it returns "not connected." Commands dispatched via worker 2 can never reach the node on worker 1.
+The existing `index.css` uses `@theme inline { ... }` to map shadcn CSS variables to Tailwind color utilities. When you add cyberpunk color overrides (e.g., `--primary: oklch(0.7 0.3 200)` for neon cyan), those new values bake into the Tailwind utility classes at build time. When the `.dark` class toggles (or any custom theme variant), the underlying CSS variables update in the DOM — but the `@theme inline` utilities already have the original values embedded and do not respond. The result: theme-aware cyberpunk colors work in one mode and break in the other.
 
 **Why it happens:**
-FastAPI tutorials commonly show `ConnectionManager` as a module-level singleton dict. In development this works because there's one process. In any multi-worker production config it silently breaks — no exception is raised, the registry just returns stale or empty data.
+This is a confirmed Tailwind v4 bug/limitation. `@theme inline` resolves variable references once at build time and embeds static values into the generated utilities. Downstream CSS variable changes at runtime (class toggling, media queries) do not propagate. GitHub issue #18296 in tailwindcss/tailwindcss documents this explicitly.
 
 **How to avoid:**
-For v1 (single Docker Compose instance), enforce exactly one Uvicorn worker in `docker-compose.yml`: `command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1`. Document this constraint explicitly. Do NOT use `--workers $(nproc)` or the `tiangolo/uvicorn-gunicorn-fastapi` Docker image (which auto-scales workers). If horizontal scaling is needed in future, migrate the connection registry to Redis pub/sub — but that is out of scope for v1.
+Keep `@theme inline` as-is for the existing shadcn color mappings — do not remove it. Add new cyberpunk tokens directly as raw CSS variables in `:root` and the `.dark` block rather than adding more `@theme inline` mappings. For any cyberpunk color that must respond to dark mode, use the raw CSS variable (`var(--cp-neon-cyan)`) in component styles rather than a new Tailwind utility built on `@theme inline`. Use Tailwind's arbitrary value syntax (`bg-[var(--cp-neon-cyan)]`) if a utility class is needed.
 
 **Warning signs:**
-- Commands to nodes "randomly" fail to reach them
-- Frontend shows node as disconnected even though the node logs show an active connection
-- State is inconsistent across page refreshes
+- Cyberpunk gradient colors appear correct in one theme but ignore the dark/light switch
+- Adding a new `@theme inline` entry for a cyberpunk token and observing it doesn't change when `.dark` is toggled
 
-**Phase to address:** Core WebSocket infrastructure phase (the very first phase). Set `--workers 1` from day one. Never "fix later."
+**Phase to address:** Color system phase (first phase). Establish the CSS variable strategy before any component work begins, or every subsequent component will need rework.
 
 ---
 
-### Pitfall 2: Blocking Calls Inside the Async Event Loop
+### Pitfall 2: Animating box-shadow for Neon Glow Causes Constant Repaints
 
 **What goes wrong:**
-The FastAPI server handles all WebSocket connections on a single asyncio event loop. Any synchronous blocking call — a sync SQLAlchemy query, `time.sleep()`, a sync HTTP call to OpenAI, a sync file read — freezes the entire event loop. While one `stream_event` is being written to a blocking database query, every other connected node's messages are queued, heartbeat pongs are delayed, and nodes start timing out and reconnecting. Under load this cascades: one slow DB call causes multiple nodes to miss their 90-second pong window.
+Cyberpunk aesthetics heavily use neon glow — glowing borders, pulsing card edges, hover glow effects. The obvious implementation is `@keyframes` that animates `box-shadow` values. This triggers a browser repaint on every animation frame. On a real-time dashboard with active WebSocket streams (new rows appearing, status badges changing, stream output updating), multiple simultaneous repaints stack up. The result is visible frame drops, especially on mid-range hardware.
 
 **Why it happens:**
-Python's asyncio requires the developer to explicitly use async libraries. It is easy to accidentally call sync psycopg2 instead of asyncpg, or use the `requests` library instead of `httpx`, or use synchronous Whisper API calls. FastAPI won't warn you — it silently runs the blocking call and starves the event loop.
+`box-shadow` is not a GPU-composited property. Unlike `transform` and `opacity`, animating it forces the browser to recalculate paint layers every frame. The Gaussian blur in `box-shadow` scales roughly quadratically with blur radius — a `20px` blur blur is ~4x more expensive than a `10px` blur.
 
 **How to avoid:**
-- Use `asyncpg` / `SQLAlchemy 2.0 async` (`create_async_engine` with `asyncpg`) for all DB operations — never sync SQLAlchemy
-- Use `httpx.AsyncClient` for all outbound HTTP (OpenAI Whisper API)
-- Use `asyncio.sleep()` not `time.sleep()` in any timed logic
-- Run any unavoidably blocking work (e.g., local file operations) in a thread executor: `await asyncio.get_event_loop().run_in_executor(None, blocking_fn)`
-- In development, use `blockbuster` or `asyncio-event-loop-monitor` to detect accidental blocking calls
+Never animate `box-shadow` directly. Instead, use one of two GPU-safe patterns:
+
+Pattern A (pseudo-element): Create a `::before` or `::after` pseudo-element positioned behind the component with `box-shadow` as a static value. Animate the pseudo-element's `opacity` from 0 to 1. Opacity is GPU-composited — no repaint.
+
+Pattern B (filter): Use `filter: drop-shadow(...)` on a wrapper element and animate the wrapper's `opacity` instead of the filter value. Same GPU path.
+
+For one-shot hover glows (not continuous pulses), `transition: box-shadow 200ms` is acceptable — the duration is too short to cause perceptible jank.
 
 **Warning signs:**
-- Node heartbeat timeouts cluster together (multiple nodes go stale simultaneously)
-- WebSocket message latency spikes correlate with database query times
-- `uvicorn` logs show handler taking many seconds for simple operations
+- Chrome DevTools Performance tab shows "Paint" events on every animation frame
+- Glow animations stutter when the stream output panel is actively receiving events
+- Animations appear smooth in isolation but jank when combined with live data updates
 
-**Phase to address:** Core WebSocket infrastructure phase. Choose async libraries during project setup; retrofitting is expensive.
+**Phase to address:** Animation layer phase. Write the glow utility classes with the pseudo-element pattern from the start. Do not ship direct `box-shadow` keyframe animations and "optimize later."
 
 ---
 
-### Pitfall 3: Node Authentication Accepted After `websocket.accept()`
+### Pitfall 3: Overriding shadcn Component CSS Without Understanding the Data-Slot Target Model
 
 **What goes wrong:**
-If you call `await websocket.accept()` before validating the Bearer token, the WebSocket connection is fully established and consuming server resources (file descriptor, memory) for an unauthenticated client. An attacker can open thousands of unauthenticated connections and exhaust server file descriptors before any authentication runs.
+shadcn/ui (Tailwind v4 era) adds `data-slot` attributes to component internals (e.g., `data-slot="button"`, `data-slot="card-header"`). When you try to style the inner parts of shadcn components using Tailwind utility overrides in className, you are targeting the outer wrapper. The inner elements (icon container, label, indicator) are styled via `data-slot` selectors in the component's own class string. A naive override like adding `className="bg-gradient-to-r from-cyan-500 to-purple-600"` to a Button works. But overriding the button's focus ring or the inner icon color requires understanding that `[&_svg]:text-primary` or `data-[state=active]:...` selectors are controlling those inner elements.
 
 **Why it happens:**
-FastAPI's `WebSocket` object does not naturally map to the HTTP upgrade handshake model. The common pattern is to `accept()` then authenticate — but this is backwards. FastAPI's dependency injection on WebSocket routes also cannot raise HTTP 401/403 cleanly; raising `HTTPException` in a WebSocket dependency crashes the handler rather than returning a structured error response.
+Developers accustomed to v3-era shadcn assume className merges are sufficient for all visual changes. The `data-slot` architecture is new in the Tailwind v4 shadcn distribution. The shadcn source code for components lives in `src/components/ui/` (it's owned code, not a node_module) — reading the source before overriding is required.
 
 **How to avoid:**
-Validate the `Authorization: Bearer {token}` header during the WebSocket route handler, **before** calling `await websocket.accept()`. If validation fails, call `await websocket.close(code=4001)` (use 4000-4999 for application close codes) instead of accepting. Do NOT use FastAPI's standard `Depends(oauth2_scheme)` for node WebSocket auth — nodes send a static Bearer token via `Authorization` header, validated against a database or config before upgrade. For the frontend WebSocket, validate JWT before accepting.
+Before styling any shadcn component, read its source in `src/components/ui/`. Identify which elements are controlled by `data-slot`, `data-state`, and `data-variant` attributes. Make overrides directly in the component source rather than fighting className merges. Since shadcn components are owned code, editing them directly (as intended) is the correct approach — not wrapping them with override classes.
 
 **Warning signs:**
-- WebSocket endpoint accepts any connection without inspecting headers
-- Server runs out of file descriptors under moderate load
-- Authentication errors appear after `accept()` rather than before
+- Tailwind classes added to a component's className prop have no visible effect
+- An inner icon or indicator keeps its default color despite className overrides
+- Styles work on the outer element but not on child elements within the component
 
-**Phase to address:** Core WebSocket infrastructure phase. First line of the WebSocket handler must be auth validation.
+**Phase to address:** Component upgrade phase. Read component source before touching any shadcn component's visual style.
 
 ---
 
-### Pitfall 4: State Reconciliation Race on Concurrent Reconnect
+### Pitfall 4: Gradient Text Breaks Screen Readers and Invisible on Some Backgrounds
 
 **What goes wrong:**
-A node reconnects and sends `node_register` with `running_instances`. The reconciliation logic reads the server's tracked instances for that node, diffs them, and writes updates. If two rapid reconnects arrive (e.g., a node briefly drops and reconnects within milliseconds — common in flaky networks), both `node_register` handlers may read the same stale snapshot simultaneously. The second reconciliation may re-add instances already marked as lost, or overwrite a correct `errored` state back to `running`.
+Cyberpunk headings typically use gradient text (`background-clip: text; -webkit-text-fill-color: transparent`). Two problems emerge: (1) Some assistive technologies misread or skip gradient text because the text color is technically "transparent." (2) On backgrounds that are close to the gradient's midpoint colors — common when the same neon palette is used on both text and backgrounds — gradient text disappears entirely. This is especially likely when a neon cyan gradient heading sits on a card with a neon cyan border glow.
 
 **Why it happens:**
-Asyncio's concurrency model means two coroutines can interleave at any `await` point. A `SELECT` then `UPDATE` sequence for reconciliation has multiple await points, and without explicit serialization, concurrent reconciliations for the same `node_id` will race.
+`-webkit-text-fill-color: transparent` is needed to clip a gradient to text. It's widely supported but removes the text from the standard color accessibility model. WCAG contrast checks against `transparent` return undefined results. Background interference is a design blindspot: gradient text is designed against a solid dark background, but when components stack (cards within cards, tooltips over panels), the background shifts.
 
 **How to avoid:**
-Maintain a per-node asyncio lock (`asyncio.Lock`) in the connection registry, keyed by `node_id`. Any coroutine processing a `node_register` must acquire the lock for that `node_id` before reading or writing reconciliation state. This ensures sequential processing of reconnects for the same node. Since all state changes are funneled through one lock per node, the lock is narrow (per-node, not global) and won't create contention across different nodes.
+Reserve gradient text for primary headings only (H1-level page titles, section headers). Never use it for body text, labels, status text, or table content. Always test gradient text against every background it appears on — dark panel, lighter panel, dialog overlay. Add a CSS fallback color: `color: var(--cp-neon-cyan); background: gradient; -webkit-background-clip: text;` — browsers that do not apply the clip still render the fallback color. Run the page through a screen reader (VoiceOver or NVDA) to verify headings are announced correctly.
 
 **Warning signs:**
-- Instance status intermittently flips between `running` and `errored` without corresponding events
-- Duplicate instances appear in tracking after a node reconnects
-- Database constraint violations on instance upsert during high-frequency reconnects
+- A heading disappears when a dialog or tooltip overlays it
+- Screen reader announces gradient text headings as blank or skips them
+- Running automated contrast check returns "unable to determine" for gradient text
 
-**Phase to address:** State reconciliation phase. Write the lock before writing the reconciliation logic.
+**Phase to address:** Color system phase for the CSS pattern; typography phase for placement rules.
 
 ---
 
-### Pitfall 5: Treating `stream_event` Data as Plain Text Instead of Nested JSON
+### Pitfall 5: Framer Motion Entrance Animations on Rapidly-Updating Real-Time Data Rows
 
 **What goes wrong:**
-The `stream_event` payload has a `data` field that is a **JSON-serialized string** — it contains a NDJSON line from Claude CLI, which is itself a JSON object encoded as a string. If the server forwards `data` to the frontend as-is (a raw string), the React frontend has to double-parse it. More critically, if the server needs to inspect or filter stream events (e.g., routing by `instance_id`, logging tool use events), it must parse `data` as JSON. Treating it as opaque text breaks any server-side stream processing.
+Adding `AnimatePresence` + `motion.tr` entrance animations to the node list or stream output table feels polished in demos. In production, when WebSocket events are arriving multiple times per second (active Claude CLI runs produce many stream events), a new `motion.tr` mount triggers an entrance animation for every single new row. With 20 concurrent incoming rows, the animation system is managing 20 simultaneous springs. This creates visual noise (every row bouncing in) and CPU overhead (Framer Motion running layout calculations for each mount).
 
 **Why it happens:**
-The protocol spec says "data: a single NDJSON line from Claude CLI, JSON-encoded as a string." The double encoding is deliberate — the outer WebSocket frame is JSON, and the inner NDJSON line is also JSON, stored as a string value. It's easy to miss this when reading the spec and assume `data` is already a structured object.
+The pattern is demonstrated in Framer Motion docs for list items, and it looks great for low-frequency adds (a to-do item, a notification). It was not designed for high-frequency real-time data streams.
 
 **How to avoid:**
-In the `stream_event` handler, always parse `payload.data` as JSON before further processing: `claude_event = json.loads(payload.data)`. Define a typed Pydantic model for the Claude CLI event structure so parsing is validated. When forwarding to the frontend WebSocket, decide at design time whether to forward the raw string or the parsed object — pick one and be consistent.
+Do not use entrance animations on streaming output rows (the `stream` view). For the nodes list and instances list — which update infrequently — entrance animations are fine. For any list that receives WebSocket-driven updates more than once per second, use CSS transitions (`transition: background-color 200ms`) for state changes (color shift when status changes) but skip mount animations entirely. Use Framer Motion for: page transitions, dialog open/close, loading skeleton fade-out, and the nodes/instances list where updates are human-paced.
 
 **Warning signs:**
-- Frontend receives stream events but cannot render them (JSON parse errors)
-- Server-side stream event logging shows raw JSON strings where structured fields are expected
-- `instance_id` extraction from stream events requires `json.loads` not direct attribute access
+- Stream output panel shows visible frame drops or animation queuing during active runs
+- Chrome DevTools shows Framer Motion layout calculations running continuously during stream
+- Animation feels "busy" or chaotic rather than polished
 
-**Phase to address:** Stream event forwarding phase.
+**Phase to address:** Animation layer phase. Set this rule before animating any list components.
 
 ---
 
-### Pitfall 6: SQLAlchemy Connection Pool Exhaustion Under WebSocket Load
+### Pitfall 6: Lucide Icon Import Pattern Causes Slow Dev Server Startup
 
 **What goes wrong:**
-Each WebSocket connection handler that does any database work holds an async SQLAlchemy session. The default `pool_size=5, max_overflow=10` means 15 total database connections. With many nodes connected and streaming, it's easy to exhaust the pool if sessions are not released promptly. Worse: a WebSocket handler that awaits a database session inside a long-lived loop (e.g., persisting every `stream_event`) holds a connection for the lifetime of the stream — which can be minutes.
+When replacing ad-hoc icon usage across the dashboard with a consistent Lucide icon set, the natural reflex is to import from the barrel: `import { Terminal, Activity, Zap, Server, ... } from 'lucide-react'`. In production, Vite tree-shakes this correctly. In development, the Vite dev server processes the entire lucide-react module graph for each import, making cold start and hot reload significantly slower. A medium-sized dashboard with 30-40 icons can increase dev server startup from under 1s to 5-8s.
 
 **Why it happens:**
-FastAPI's `Depends(get_db)` pattern works well for short HTTP request lifecycles. For WebSocket handlers with long-lived loops, the session stays open for the entire connection lifetime if not managed carefully.
+Vite's dev server does not fully tree-shake during development — it processes module graphs lazily but still resolves the barrel file. The `lucide-react` package exports ~1,600 icons from a single barrel. Each resolved icon adds a module to Vite's internal graph.
 
 **How to avoid:**
-Do NOT inject a database session via `Depends` into the top-level WebSocket handler. Instead, open and close sessions per discrete operation: acquire session, execute query, commit, release. For `stream_event` persistence, consider buffering events in memory and batch-writing to the database (e.g., every N events or every 5 seconds), rather than writing each event individually. Configure `pool_size` and `max_overflow` based on expected concurrent nodes — with 20 connected nodes all actively streaming, a pool of 5 is dangerously small.
+Import each icon from its direct path: `import Terminal from 'lucide-react/icons/terminal'`. This eliminates the barrel traversal entirely. A documented benchmark shows this approach reduces bundled modules from 1,637 to 35 and build time from 5.6s to 0.784s. The tradeoff is verbose import statements — acceptable given the performance gain. Create a local re-export file (`src/lib/icons.ts`) that collects all direct-path imports and re-exports them under clean names, giving the rest of the codebase a single import source without the barrel performance hit.
 
 **Warning signs:**
-- `QueuePool limit of size X overflow Y reached` errors in logs during peak load
-- Database operations time out only when many nodes are connected
-- `max_inactive_connection_lifetime` warnings from asyncpg
+- Dev server `ready in` time noticeably increases after adding icons
+- HMR updates to icon-heavy files take 2-4 seconds instead of milliseconds
+- Vite reports processing >500 modules on startup
 
-**Phase to address:** Database integration phase. Pool configuration must be explicit from the start.
+**Phase to address:** Icon integration phase. Establish the `src/lib/icons.ts` pattern at the start of icon work.
 
 ---
 
-### Pitfall 7: Stale Node Detection Is Not Event-Driven
+### Pitfall 7: Applying Theme to Components That Share State With Real-Time Logic
 
 **What goes wrong:**
-The spec requires nodes stale after >90 seconds without a ping. A naive implementation runs a background task that polls all nodes every N seconds, checking `last_heartbeat`. At scale this is fine. But the common mistake is NOT running this background task at all and relying only on connection close events — meaning a node with a broken connection that hasn't formally closed (e.g., behind NAT that silently dropped the TCP connection) is never marked stale. Instances on that node stay in `running` state indefinitely.
+When upgrading components like `NodeCard` or `InstanceRow` to the new cyberpunk visual style, it is tempting to restructure the component's JSX at the same time — pulling the layout apart to add gradient wrappers, glow containers, and animation divs. This structural change breaks the component's existing Zustand store bindings, TanStack Query subscriptions, or WebSocket event handlers, introducing regressions in real-time behavior that are not immediately obvious during visual review.
 
 **Why it happens:**
-WebSocket disconnection events are not reliable in the presence of NAT and proxies. A TCP connection can appear open from the server side long after the client is unreachable. The server only discovers this when it tries to write to the dead connection.
+Visual refactoring feels like "just CSS changes" but inevitably involves JSX restructuring. Moving a status badge three levels deeper in the DOM to achieve a new layout can break a selector, a ref, or a conditional render path that was written against the original structure.
 
 **How to avoid:**
-Run a dedicated asyncio background task (`asyncio.create_task`) at server startup that scans `last_heartbeat` for all connected nodes every 30 seconds (half the stale threshold). Nodes where `now() - last_heartbeat > 90s` are marked `stale` and their running instances marked `errored`. The Uvicorn ping/pong mechanism handles protocol-level keepalives but the **application** must track `last_heartbeat` separately via the `node_register` / incoming WebSocket ping frame handler.
+Separate visual uplift from structural changes. Commit policy: one commit = one concern. "Add cyberpunk card styling" should not restructure JSX hierarchy. Test real-time behavior after every component refactor: connect a live node and verify status updates, instance lifecycle transitions, and stream output rendering still work. Keep the outer data-binding shell unchanged and add visual wrappers inside it.
 
 **Warning signs:**
-- Disconnected nodes remain in `connected` state in the dashboard
-- Instances on crashed nodes never transition out of `running`
-- No background task visible in the codebase for stale node detection
+- A component's status badge stops updating after a "visual only" change
+- WebSocket events arrive (confirmed in DevTools Network) but the component does not re-render
+- Zustand `useStore` selector returns data but the derived display prop is now undefined
 
-**Phase to address:** Node health monitoring phase.
+**Phase to address:** Component upgrade phase. Add a "real-time smoke test" to the definition of done for every component touched.
 
 ---
 
@@ -156,12 +157,12 @@ Run a dedicated asyncio background task (`asyncio.create_task`) at server startu
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Store all node state in a Python dict (not persisted) | Simpler code, no DB schema for live connection state | Server restart loses all connected node knowledge; nodes reconcile on reconnect so this is recoverable, but running instance state may temporarily show wrong status | Acceptable for v1 — spec's reconciliation protocol handles recovery. Persistent "connected" state is not needed; PostgreSQL stores historical node and instance records |
-| Sync SQLAlchemy for database queries | Familiar API, less boilerplate | Blocks event loop under any concurrent load; causes node timeouts | Never acceptable — use async from day one |
-| Accept WebSocket then validate auth | Simpler handler flow | DoS attack surface; resource exhaustion on auth failure | Never acceptable |
-| Skip per-node reconnect lock | Simpler code | Race conditions on concurrent reconnects; state corruption | Never acceptable |
-| Write every stream_event to DB immediately | Simple, no buffering logic | DB connection pool exhaustion; high DB load during active streams | Acceptable in very early development only; must batch before production |
-| No stale node background task (rely on disconnect events only) | Simpler startup | Instances on NAT-dropped connections stay `running` forever | Never acceptable in production |
+| Copy-paste gradient classes across components instead of Tailwind utilities | Fast initial implementation | Inconsistent gradients if the palette changes; 20+ places to update | Never — define gradient utilities in `index.css` from day one |
+| Use inline `style` props for cyberpunk colors | Avoids CSS variable system | Breaks Tailwind's purge; no dark mode support; no design token consistency | Only for truly one-off elements never seen elsewhere |
+| Animate `box-shadow` directly | Simple implementation | Constant repaints on a real-time dashboard; visible jank | Only for hover transitions with duration under 200ms |
+| Import all Lucide icons from barrel | Convenient barrel import | Slow dev server (5-8s startup vs <1s) | Never in a large dashboard — use direct-path imports |
+| Override shadcn styles with `!important` | Quick visual fix | Maintenance nightmare; breaks future shadcn updates | Never — edit the component source instead |
+| Skip contrast verification on neon text | Faster iteration | WCAG AA failures; unreadable text for color-blind users | Never for text intended to convey information |
 
 ---
 
@@ -169,13 +170,12 @@ Run a dedicated asyncio background task (`asyncio.create_task`) at server startu
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| OpenAI Whisper API | Sending audio via WebSocket message instead of REST | Audio must go via `POST /api/transcribe` REST endpoint. Binary audio does not belong in the JSON WebSocket protocol |
-| OpenAI Whisper API | Not validating file size before sending | Enforce 25 MB limit server-side before calling OpenAI; return 413 to client immediately rather than letting OpenAI reject it |
-| OpenAI Whisper API | Using sync `openai` client in async handler | Use `httpx.AsyncClient` directly or ensure the `openai` Python client's async methods are used: `await client.audio.transcriptions.create(...)` |
-| OpenAI Whisper API | Assuming `webm` audio from browser is always valid | Browser MediaRecorder produces `audio/webm` with Opus codec — Whisper supports `webm` but be explicit about format; some browsers produce `audio/ogg` instead |
-| PostgreSQL / asyncpg | Using sync `psycopg2` for "just one quick query" | All DB access must go through `asyncpg` / async SQLAlchemy; one sync query starves the event loop |
-| Node WebSocket auth | Using FastAPI `OAuth2PasswordBearer` for node Bearer token | Nodes send `Authorization: Bearer {token}` on the HTTP upgrade header — validate this header directly before `websocket.accept()`, not via FastAPI's OAuth2 dependency |
-| Uvicorn ping/pong | Assuming Uvicorn handles application heartbeat tracking | Uvicorn handles protocol-level pings; the application must separately track `last_heartbeat` per node to detect stale nodes |
+| shadcn/ui + Tailwind v4 | Adding new theme tokens to `@theme inline` expecting dark mode to work | Add raw CSS variables to `:root` and `.dark` blocks; use `var(--token)` or arbitrary Tailwind values |
+| shadcn/ui components | Using `className` to override inner element styles | Edit the component source in `src/components/ui/`; use `data-slot` attribute selectors for targeted inner styling |
+| tw-animate-css | Importing it alongside custom `@keyframes` with the same animation names | Namespace custom keyframes (`cp-pulse`, `cp-flicker`) to avoid collisions with tw-animate-css defaults |
+| Lucide React | Barrel imports from `lucide-react` | Import from `lucide-react/icons/[name]` paths; centralize via `src/lib/icons.ts` |
+| Framer Motion + TanStack Router | Wrapping `<Outlet>` in `AnimatePresence` without key prop | `AnimatePresence` requires a `key` on the child that changes on route — use `useLocation().pathname` as the key |
+| OKLCH colors | Using OKLCH for neon values and expecting identical rendering across browsers | OKLCH is supported in all modern browsers (Chrome 111+, Safari 15.4+, Firefox 113+); no fallback needed for this project's audience |
 
 ---
 
@@ -183,24 +183,22 @@ Run a dedicated asyncio background task (`asyncio.create_task`) at server startu
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Writing every `stream_event` to PostgreSQL | DB connection pool exhaustion; stream lag visible in frontend | Buffer events in memory; batch write every N events or every 5s | At ~5 concurrent actively-streaming nodes |
-| Broadcasting stream events to all connected frontend clients (not just the subscribing user) | Unnecessary data sent to all frontend WebSocket connections | Track which frontend WebSocket is subscribed to which `instance_id`; only forward to that connection | At ~10 concurrent frontend users |
-| Per-request DB session on WebSocket handlers | Connection pool exhausted on startup | Open sessions only for discrete operations, not for the handler lifetime | At ~15 concurrent nodes (default pool_size=5 + max_overflow=10 = 15 connections) |
-| No index on `instances.node_id` | Slow reconciliation queries when a node reconnects | Add index on `instances.node_id` and `instances.status` from day one | At ~1000 total instance records |
-| Synchronous Whisper API call blocking event loop | All WebSocket connections stall during transcription (1-5 seconds) | Use async OpenAI client; Whisper API calls are network I/O and must be awaited properly | At 1 concurrent transcription request if blocking |
+| Animating `box-shadow` in continuous keyframe loops | "Paint" events every frame in DevTools; jank during live data updates | Use pseudo-element opacity animation instead | Immediately on mid-range hardware with concurrent live streams |
+| Framer Motion `AnimatePresence` on stream output rows | Animation queue builds up; CPU spikes during active Claude runs | Skip mount animations on high-frequency update lists | At >5 stream events per second |
+| Multiple simultaneous CSS `filter: blur()` elements | GPU memory pressure; scroll lag | Limit blur to decorative background elements only; never apply blur to interactive or data-heavy components | At >3 simultaneous blurred elements on low-end hardware |
+| Custom `@keyframes` on every status badge | All badge animations running simultaneously in node list | Stagger animations or use CSS `animation-delay` based on row index | At >10 nodes visible simultaneously |
+| Gradient backgrounds via `background-image` on re-rendering components | Background recalculated on every render | Use CSS variables with `background` shorthand; let the browser cache static gradient | At high WebSocket update frequency triggering forced repaints |
 
 ---
 
 ## Security Mistakes
 
+This milestone is frontend visual polish — no new security surface area. No new auth flows, data endpoints, or storage mechanisms are introduced. The existing security model is unchanged.
+
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Accepting WebSocket before validating Bearer token | DoS via resource exhaustion; unauthenticated node data injection | Validate `Authorization: Bearer` header before `websocket.accept()`; close with code 4001 on failure |
-| Frontend can subscribe to any `instance_id` without team membership check | Cross-team data leakage — one team's Claude output visible to another | Every stream subscription request must validate: (1) user is authenticated, (2) user's team owns the node that ran the instance |
-| `node_id` accepted at face value from `node_register` — no binding to token | A malicious node can impersonate another node by sending a different `node_id` in `node_register` | Bind `node_id` to the auth token at registration: the first `node_register` for a token establishes the `node_id` for that token; subsequent `node_register` messages with a different `node_id` for the same token should be rejected |
-| JWT secret in Docker Compose environment as plaintext | Secret exposed in `docker-compose.yml` committed to source control | Use Docker secrets or environment-specific `.env` files not committed to git |
-| Dispatching `execute` command without checking team ownership of target node | User on Team A can execute against Team B's node | Before dispatching `execute`, verify: authenticated user's team == target node's team |
-| No rate limiting on `/api/transcribe` | Unlimited OpenAI API spend via unauthenticated calls | Require JWT auth on transcription endpoint; add per-user rate limit |
+| Adding CSS `content` via unsanitized user data (e.g., node names in pseudo-elements) | XSS if node names are rendered via `content: attr(data-label)` with unescaped HTML | Never use CSS `content` with user-provided data; use React's JSX rendering which escapes by default |
+| Storing theme preference in localStorage and trusting it without sanitization | Minimal but possible XSS if theme key is reflected into DOM | Theme preference is a simple string (`"dark"` or `"light"`); validate the value against an allowlist before applying |
 
 ---
 
@@ -208,24 +206,25 @@ Run a dedicated asyncio background task (`asyncio.create_task`) at server startu
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Showing node as "connected" when it is actually stale | User dispatches command to stale node; command silently queues or fails with no feedback | Distinguish `connected` / `stale` / `disconnected` visually in dashboard; disable "Execute" button for non-`connected` nodes |
-| No visual feedback on `execute` dispatch before `ack` arrives | User double-clicks, sending two execute commands | Disable the execute button on first click; re-enable only on `ack` or `instance_error` receipt |
-| Stream output displayed as raw NDJSON lines | Claude CLI produces structured JSON events; raw lines are unreadable | Parse `stream_event.data` as JSON in the frontend; render assistant text, tool use, and error events appropriately |
-| Instance state stuck at `pending` with no timeout | If `ack` never arrives (node crash mid-dispatch), instance shows `pending` forever | Implement a server-side timeout: if no `ack` within 10 seconds of dispatch, mark instance `errored` with reason "no ack received" |
-| Whisper transcription provides no interim feedback | Audio upload + transcription takes 2-5 seconds with no progress indication | Show "Transcribing..." spinner immediately on audio send; disable submit until transcription completes |
+| Applying the same neon intensity to all UI elements | "Visual screaming" — everything demands attention; critical status indicators are lost in noise | Reserve maximum neon intensity (high chroma OKLCH) for critical states only: errors, active runs, alerts. Use low-chroma muted variants for ambient UI chrome |
+| Replacing all text with gradient text | Core dashboard data (node names, timestamps, counts) becomes unreadable on varied backgrounds | Gradient text only for primary display headings; all data-bearing text uses solid foreground colors |
+| Cyberpunk font for body text and tables | Decorative fonts reduce readability for dense data tables (node lists, audit logs) | Cyberpunk font for headings and labels only; retain Geist (already configured) for all data content |
+| Excessive animation during monitoring tasks | Users watching node status for anomalies are distracted by ambient pulsing/flicker | Apply `prefers-reduced-motion` media query to all non-essential animations; also provide a manual "reduce motion" toggle in settings |
+| Icon overhaul without labeling convention review | Icons that seemed obvious to the developer are ambiguous to users without labels | Add visible text labels to all primary action buttons; icons alone are acceptable only for global navigation items with tooltips |
+| Dark cyberpunk theme with no light mode consideration | Users in bright environments or with certain visual impairments cannot use the dashboard | Ensure the `.dark` CSS block is the cyberpunk theme; `:root` (light mode) remains a usable high-contrast alternative; do not abandon light mode entirely |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Node reconnect handling:** Registering the new connection is not the same as running state reconciliation. Verify that reconnect triggers a full diff of `running_instances` against server state, not just an upsert of the node record.
-- [ ] **Terminal event handling:** `instance_finished` and `instance_error` both set `finished_at` and transition instance status. Verify both paths are implemented — it's easy to implement only one.
-- [ ] **`node_disconnect` vs connection drop:** These are two separate paths. `node_disconnect` is a graceful shutdown frame; connection drop is a WebSocket close event. Both must mark the node `disconnected` and handle instance state. Verify both paths exist.
-- [ ] **Stale node background task is running:** Check that the health monitor task is started in the FastAPI `lifespan` handler, not just defined as a function. A defined-but-not-started task is a common mistake.
-- [ ] **Stream events forwarded to frontend in real time:** Verify that stream events are forwarded immediately on receipt, not buffered until instance completes. Real-time streaming means forwarding each event as it arrives.
-- [ ] **Multi-tenancy at every query:** Verify that every database query for nodes, instances, and users filters by `team_id`. A missing `WHERE team_id = ?` clause is invisible in unit tests that use single-tenant data.
-- [ ] **`projects` field validated before dispatch:** The spec requires validating that the target project exists on the target node before dispatching `execute`. Verify this check is present — it's easy to skip and only surfaces as a confusing node-side error.
-- [ ] **Whisper endpoint requires authentication:** The transcription endpoint calls the OpenAI API which costs money. Verify it requires a valid JWT before accepting audio.
+- [ ] **Gradient text headings:** Verify visible on every background they can appear on — dark panel, dialog overlay, lighter sidebar. Run VoiceOver and confirm heading is announced.
+- [ ] **Neon glow animations:** Open Chrome DevTools Performance tab, record 5 seconds with an active stream running. Confirm no "Paint" events on animation frames — only "Composite."
+- [ ] **Dark mode toggle:** Cycle between light and dark mode three times. Confirm all cyberpunk color tokens update correctly, no component is frozen at build-time baked values.
+- [ ] **Icon imports:** Run `vite build` and verify no barrel import warnings. Check dev server cold start time is under 3s.
+- [ ] **Component real-time behavior:** After each component visual refactor, connect a live node and trigger an execute command. Confirm status transitions, stream output, and instance lifecycle still render correctly.
+- [ ] **Reduced motion:** Enable OS-level "Reduce Motion." Confirm all pulsing, flicker, and entrance animations stop. Confirm the dashboard is fully usable without animation.
+- [ ] **WCAG contrast on neon text:** Run automated contrast check (Axe, or browser DevTools accessibility audit) on all text rendered over dark backgrounds. Target AA (4.5:1 for normal text, 3:1 for large text).
+- [ ] **Lucide icon sizes:** Verify icons are consistently sized across all components (16px for inline, 20px for buttons, 24px for nav). Mismatched icon sizes are the most common visual inconsistency after an icon overhaul.
 
 ---
 
@@ -233,12 +232,12 @@ Run a dedicated asyncio background task (`asyncio.create_task`) at server startu
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Multi-worker in-memory state split-brain | HIGH | Redeploy with `--workers 1`; existing connections drop and reconnect; instances reconcile via `node_register` on reconnect |
-| Blocking DB call causing node timeouts | MEDIUM | Identify blocking call, replace with async equivalent, redeploy; nodes reconnect with exponential backoff within 30s |
-| Auth accepted after `websocket.accept()` | MEDIUM | Add pre-accept validation; redeploy; low operational impact unless actively exploited |
-| Connection pool exhaustion | LOW | Increase `pool_size` in config, redeploy; or add event stream buffering to reduce DB connection hold time |
-| Missing stale node detection background task | MEDIUM | Add task to `lifespan` handler, redeploy; stale instances must be manually reviewed and marked `errored` for instances that were orphaned before fix |
-| Cross-team data access (security) | HIGH | Audit all queries for missing `team_id` filter; add integration tests asserting cross-team isolation; hotfix and redeploy |
+| `@theme inline` breaks dark mode | MEDIUM | Remove cyberpunk tokens from `@theme inline`; move to raw `:root`/`.dark` CSS variables; update utility usage to `var()` or arbitrary values |
+| `box-shadow` animation causing jank | LOW | Replace keyframe with pseudo-element opacity approach; 30-minute refactor per animated component |
+| Framer Motion overuse on real-time lists | LOW | Remove `AnimatePresence` from stream output component; add `layout` prop to list containers instead for smooth reordering |
+| Lucide barrel import slowing dev server | LOW | Replace barrel imports with direct-path imports; centralize in `src/lib/icons.ts`; 1-2 hour find-and-replace |
+| Component real-time regressions from JSX restructure | MEDIUM | Git revert the structural changes; re-apply visual styling without restructuring the JSX hierarchy |
+| Gradient text invisible on certain backgrounds | LOW | Add `color: var(--cp-neon-cyan)` as a non-clip fallback; review placement to avoid background conflicts |
 
 ---
 
@@ -246,34 +245,32 @@ Run a dedicated asyncio background task (`asyncio.create_task`) at server startu
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Multiple workers destroying connection state | Core WebSocket infrastructure | `docker-compose.yml` has explicit `--workers 1`; integration test confirms node stays connected across reconnect |
-| Blocking calls in event loop | Core WebSocket infrastructure | All imports are async libraries (asyncpg, httpx); `blockbuster` detects no blocking calls in handler smoke test |
-| Auth accepted after websocket.accept() | Core WebSocket infrastructure | Test that missing/invalid Bearer token returns close code 4001 before `accept()` is called |
-| Reconciliation race on concurrent reconnect | State reconciliation phase | Integration test: simulate rapid double-reconnect; verify instance state is consistent after both `node_register` messages |
-| stream_event data as nested JSON | Stream event forwarding phase | Unit test: parse a `stream_event` fixture and assert `json.loads(payload.data)` yields a structured object |
-| Connection pool exhaustion | Database integration phase | Load test: 20 concurrent nodes streaming; verify no pool exhaustion errors in DB logs |
-| Stale node detection not event-driven | Node health monitoring phase | Integration test: silence a node's pings for 91s; verify node transitions to `stale` and its instances to `errored` |
-| Multi-tenancy gaps in queries | Team/auth phase | Integration test with two teams; verify team A user cannot read team B nodes or instances |
-| `execute` dispatch without team ownership check | Command dispatch phase | Integration test: user from team A calls execute targeting team B's node; verify 403 |
-| Whisper endpoint unauthenticated | Whisper integration phase | Test: unauthenticated POST to `/api/transcribe` returns 401 before any OpenAI call |
+| `@theme inline` dark mode breakage | Phase 1: Color system | Toggle dark/light three times; all cyberpunk tokens update |
+| `box-shadow` animation repaints | Phase 3: Animation layer | DevTools Performance: no Paint events during glow animations |
+| shadcn `data-slot` override confusion | Phase 2: Component upgrades | Read component source before touching; test inner element styling works |
+| Gradient text accessibility | Phase 1: Color system + Phase 2 | Axe audit passes; VoiceOver announces gradient headings correctly |
+| Framer Motion on high-frequency lists | Phase 3: Animation layer | Stream output panel under load shows no animation queuing |
+| Lucide barrel imports | Phase 2: Icon integration | Dev server cold start under 3s; `src/lib/icons.ts` pattern in place |
+| Real-time regression from JSX restructure | Phase 2: Component upgrades | Live node smoke test after every component commit |
+| Visual noise / neon intensity calibration | Phase 1: Color system | Design review: only error/active states use max chroma neon |
+| Reduced motion missing | Phase 3: Animation layer | OS reduced motion enabled; all keyframe animations disabled |
 
 ---
 
 ## Sources
 
-- FastAPI WebSocket official documentation: https://fastapi.tiangolo.com/advanced/websockets/
-- FastAPI WebSocket auth pitfalls (pre-accept validation): https://dev.to/hamurda/how-i-solved-websocket-authentication-in-fastapi-and-why-depends-wasnt-enough-1b68
-- WebSocket reconnection and state sync: https://websocket.org/guides/reconnection/
-- FastAPI WebSocket scaling and multi-worker issues: https://websocket.org/guides/frameworks/fastapi/
-- SQLAlchemy async connection pooling: https://docs.sqlalchemy.org/en/20/core/pooling.html
-- FastAPI SQLAlchemy pool exhaustion: https://github.com/fastapi/fastapi/discussions/10450
-- Asyncio blocking call detection: https://dev.to/cbornet/introducing-blockbuster-is-my-asyncio-event-loop-blocked-3487
-- Multi-tenant session isolation: https://www.jit.io/blog/designing-secure-tenant-isolation-in-python-for-serverless-apps
-- Uvicorn WebSocket ping/pong configuration: https://uvicorn.dev/settings/
-- OpenAI Whisper API constraints: https://platform.openai.com/docs/guides/speech-to-text
-- Protocol spec (normative): `protocol-spec.md` (GSD Node Wire Protocol v1.2.0)
-- Server spec (normative): `server-spec.md`
+- Tailwind v4 `@theme inline` dark mode issue (confirmed bug): https://github.com/tailwindlabs/tailwindcss/issues/18296
+- Tailwind v4 `@theme` vs `@theme inline` discussion: https://github.com/tailwindlabs/tailwindcss/discussions/18560
+- shadcn/ui Tailwind v4 theming guide: https://ui.shadcn.com/docs/tailwind-v4
+- Shadcnblocks Tailwind v4 theming update: https://www.shadcnblocks.com/blog/tailwind4-shadcn-themeing/
+- Animating `box-shadow` performance: https://tobiasahlin.com/blog/how-to-animate-box-shadow/
+- CSS animation performance (avoid repaints): https://www.sitepoint.com/css-box-shadow-animation-performance/
+- Lucide React tree-shaking with Vite: https://javascript.plainenglish.io/tree-shaking-lucide-react-icons-with-vite-and-vitest-57bf4cfe6032
+- Lucide direct-path import benchmark: https://christopher.engineering/en/blog/lucide-icons-with-vite-dev-server
+- OKLCH browser support (92%+ in Q2 2025): https://caniuse.com/mdn-css_types_color_oklch
+- Framer Motion best practices: https://motion.dev/
+- React Cyberpunk theme reference: https://www.shadcn.io/theme/cyberpunk
 
 ---
-*Pitfalls research for: WebSocket server managing distributed GSD nodes — Python FastAPI*
-*Researched: 2026-03-20*
+*Pitfalls research for: Cyberpunk UI beautification — React 19 + shadcn/ui + Tailwind v4 frontend visual overhaul*
+*Researched: 2026-03-24*
