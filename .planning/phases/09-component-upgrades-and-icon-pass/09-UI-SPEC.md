@@ -42,7 +42,7 @@ Declared values (multiples of 4):
 | 3xl | 64px | Page-level vertical spacing |
 
 Exceptions:
-- Icon touch targets on icon-only buttons: minimum 44px (accessibility). Use `p-2.5` (10px) padding on a 24px icon to reach 44px total.
+- Icon touch targets on icon-only buttons: minimum 44px (accessibility). Use `p-3` (12px) padding on a 24px icon to reach 48px total, exceeding the 44px minimum.
 - Skeleton shimmer rows within a card: 8px vertical gap between skeleton lines (`space-y-2`).
 
 ---
@@ -52,12 +52,12 @@ Exceptions:
 | Role | Size | Weight | Line Height | Font | Source |
 |------|------|--------|-------------|------|--------|
 | Body | 14px | 400 (regular) | 1.5 | Geist Variable | index.css `--font-sans` |
-| Label | 12px | 600 (semibold) | 1.3 | Geist Variable | Phase 8 section heading pattern |
-| Heading | 16px | 600 (semibold) | 1.2 | Geist Variable | Used in section headings with icons |
+| Label | 12px | 700 (bold) | 1.3 | Geist Variable | Phase 8 section heading pattern |
+| Heading | 16px | 700 (bold) | 1.2 | Geist Variable | Used in section headings with icons |
 | Display | 20px | 700 (bold) | 1.2 | Orbitron Variable | Page titles, major section headers (TYP-03) |
 
 Typography rules for this phase:
-- Section headings: uppercase + `tracking-wider` + weight 600 (TYP-01 — already applied in Phase 8, maintain on any new headings)
+- Section headings: uppercase + `tracking-wider` + weight 700 (TYP-01 — already applied in Phase 8, maintain on any new headings)
 - IDs, timestamps, command output: `font-mono` class (TYP-02 — already applied in Phase 8, maintain)
 - Icon size in headings: `size={20}` (20px), paired with `text-primary` class
 - Icon size in buttons and inline labels: `size={16}` (16px)
