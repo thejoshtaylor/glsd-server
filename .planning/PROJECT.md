@@ -55,12 +55,12 @@ Shipped v1.0 MVP with ~6,300 LOC (3,600 Python + 2,700 TypeScript).
 
 ### Active
 
-- [ ] Cyberpunk color theme with gradients across all views
+- [x] Cyberpunk color theme with gradients across all views — Phase 8
 - [ ] Lucide icon integration with consistent, meaningful iconography
 - [ ] shadcn/ui component upgrades across all screens
 - [ ] UX polish: loading states, transitions, micro-interactions
 - [ ] Navigation flow improvements
-- [ ] Consistent spacing, typography, and visual hierarchy
+- [x] Consistent spacing, typography, and visual hierarchy — Phase 8 (foundation tokens)
 
 ### Out of Scope
 
@@ -122,4 +122,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-24 after v1.1 milestone start*
+*Last updated: 2026-03-24 after Phase 8 completion*
