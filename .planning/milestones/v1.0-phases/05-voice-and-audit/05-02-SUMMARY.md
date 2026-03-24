@@ -77,7 +77,7 @@ Each task was committed atomically:
 
 1. **Task 1: Create POST /api/transcribe endpoint and register router** - `97d39c4` (feat)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `41e7fd4` (docs: complete plan)
 
 ## Files Created/Modified
 

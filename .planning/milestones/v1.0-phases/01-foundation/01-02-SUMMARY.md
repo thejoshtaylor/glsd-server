@@ -147,6 +147,20 @@ None — no external service configuration required. Stack starts with `cp .env.
 - All 6 database tables exist and are ready for Phase 2 WebSocket node registry and Phase 3 auth
 - `.env` pattern established — Phase 3 auth adds no new infrastructure, just JWT_SECRET_KEY and SERVER_TOKEN already in .env.example
 
+## Self-Check: PASSED
+
+- FOUND: backend/Dockerfile
+- FOUND: backend/entrypoint.sh
+- FOUND: docker-compose.yml
+- FOUND: .env.example
+- FOUND: .gitignore
+- FOUND: frontend/.gitkeep
+- FOUND: backend/alembic/versions/0001_initial_schema.py
+- FOUND: .planning/phases/01-foundation/01-02-SUMMARY.md
+- FOUND: commit 9cc065c (Task 1)
+- FOUND: commit 329b8d0 (Task 2)
+- FOUND: commit b841475 (metadata)
+
 ---
 *Phase: 01-foundation*
 *Completed: 2026-03-21*
