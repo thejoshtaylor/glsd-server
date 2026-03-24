@@ -98,7 +98,7 @@ function NodeDetailPage() {
       </div>
 
       <div className="flex-1 min-h-0 px-6 pb-6">
-        <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg border border-gray-700">
+        <ResizablePanelGroup orientation="horizontal" className="h-full rounded-lg border border-gray-700">
           <ResizablePanel defaultSize={40} minSize={25}>
             <div className="flex flex-col h-full overflow-y-auto p-4 space-y-4">
               <ExecuteForm

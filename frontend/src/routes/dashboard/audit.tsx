@@ -50,13 +50,13 @@ function AuditPage() {
     enabled: !!effectiveNodeId,
   })
 
-  const handleNodeChange = (nodeId: string) => {
-    setSelectedNodeId(nodeId)
+  const handleNodeChange = (nodeId: string | null) => {
+    setSelectedNodeId(nodeId ?? '')
     setOffset(0)
   }
 
-  const handleTypeChange = (type: string) => {
-    setSelectedType(type)
+  const handleTypeChange = (type: string | null) => {
+    setSelectedType(type ?? 'all')
     setOffset(0)
   }
 
