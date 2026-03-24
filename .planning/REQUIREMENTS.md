@@ -25,8 +25,8 @@ Requirements for the Cyberpunk Beautification milestone. Each maps to roadmap ph
 
 ### Typography
 
-- [ ] **TYP-01**: Section headings use uppercase with letter-spacing for cyberpunk feel
-- [ ] **TYP-02**: Data fields (IDs, timestamps, command output) render in monospace font
+- [x] **TYP-01**: Section headings use uppercase with letter-spacing for cyberpunk feel
+- [x] **TYP-02**: Data fields (IDs, timestamps, command output) render in monospace font
 - [x] **TYP-03**: Heading font (Orbitron) used for page titles and major section headers
 
 ### Component Polish
@@ -97,8 +97,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ICN-02 | Phase 9 | Pending |
 | ICN-03 | Phase 9 | Pending |
 | ICN-04 | Phase 9 | Pending |
-| TYP-01 | Phase 8 | Pending |
-| TYP-02 | Phase 8 | Pending |
+| TYP-01 | Phase 8 | Complete |
+| TYP-02 | Phase 8 | Complete |
 | TYP-03 | Phase 8 | Complete |
 | CMP-01 | Phase 9 | Pending |
 | CMP-02 | Phase 9 | Pending |

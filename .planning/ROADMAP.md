@@ -50,8 +50,8 @@
 **Plans**: 3 plans
 Plans:
 - [x] 08-01-PLAN.md — CSS tokens, font installation, glow utilities, structural fixes
-- [ ] 08-02-PLAN.md — Gray sweep across route files + typography application
-- [ ] 08-03-PLAN.md — Gray sweep across component files + button glow application
+- [x] 08-02-PLAN.md — Gray sweep across route files + typography application
+- [x] 08-03-PLAN.md — Gray sweep across component files + button glow application
 **UI hint**: yes
 
 ### Phase 9: Component Upgrades and Icon Pass
