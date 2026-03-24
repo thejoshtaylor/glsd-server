@@ -9,9 +9,9 @@ export function NodeGrid() {
     queryFn: () => api<NodeResponse[]>('/api/nodes'),
   })
 
-  if (isLoading) return <div className="text-gray-400 p-6">Loading nodes...</div>
+  if (isLoading) return <div className="text-muted-foreground p-6">Loading nodes...</div>
   if (error) return <div className="text-red-400 p-6">Failed to load nodes: {(error as Error).message}</div>
-  if (!nodes?.length) return <div className="text-gray-400 p-6">No nodes found. Assign nodes to your teams first.</div>
+  if (!nodes?.length) return <div className="text-muted-foreground p-6">No nodes found. Assign nodes to your teams first.</div>
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

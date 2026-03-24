@@ -64,12 +64,12 @@ export function AuditTable({ entries, isLoading, isError }: AuditTableProps) {
         {!isLoading && !isError && entries.length === 0 && (
           <TableRow>
             <TableCell colSpan={5} className="text-center">
-              <span className="text-sm text-gray-500">No audit entries found.</span>
+              <span className="text-sm text-muted-foreground">No audit entries found.</span>
             </TableCell>
           </TableRow>
         )}
         {!isLoading && !isError && entries.map((entry) => (
-          <TableRow key={entry.id} className="hover:bg-gray-800">
+          <TableRow key={entry.id} className="hover:bg-muted">
             <TableCell>
               <span title={entry.timestamp}>
                 {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
@@ -90,7 +90,7 @@ export function AuditTable({ entries, isLoading, isError }: AuditTableProps) {
             <TableCell>
               {entry.details != null
                 ? JSON.stringify(entry.details)
-                : <span className="text-sm text-gray-500">—</span>}
+                : <span className="text-sm text-muted-foreground">—</span>}
             </TableCell>
           </TableRow>
         ))}

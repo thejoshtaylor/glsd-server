@@ -85,14 +85,14 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
   const canExecute = project && prompt.trim() && node.status === 'connected'
 
   return (
-    <div className="space-y-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
-      <div className="text-sm font-medium text-gray-300">Execute Command</div>
+    <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
+      <div className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Execute Command</div>
 
       <div className="flex gap-2">
         <select
           value={project}
           onChange={(e) => setProject(e.target.value)}
-          className="flex-1 bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-md px-3 py-2"
+          className="flex-1 bg-muted border border-border text-foreground text-sm rounded-md px-3 py-2"
         >
           {projects.length === 0 && <option value="">No projects</option>}
           {projects.map((p) => (
@@ -108,11 +108,11 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
           placeholder="Enter prompt..."
           rows={3}
           disabled={isTranscribing}
-          className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full bg-muted border border-border text-foreground text-sm rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
         />
         {isTranscribing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-800/80 rounded-md">
-            <div className="flex items-center gap-2 text-sm text-gray-400">
+          <div className="absolute inset-0 flex items-center justify-center bg-muted/80 rounded-md">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -127,7 +127,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
         value={sessionId}
         onChange={(e) => setSessionId(e.target.value)}
         placeholder="Resume session ID (optional)"
-        className="bg-gray-800 border-gray-700 text-gray-200 text-sm"
+        className="bg-muted border-border text-foreground text-sm"
       />
 
       <div className="flex gap-2">
