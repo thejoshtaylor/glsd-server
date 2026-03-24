@@ -72,6 +72,12 @@ Next: `/gsd:new-milestone` to start v1.1
 - Multi-tenancy filters — every DB query for nodes/instances/users must include `WHERE team_id = ?`
 - Pool size — default `pool_size=5, max_overflow=10` may be insufficient; make configurable via env var
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260323-sar | Create thorough README documentation for the repo | 2026-03-24 | 8ec96c8 | [260323-sar-create-thorough-readme-documentation-for](./quick/260323-sar-create-thorough-readme-documentation-for/) |
+
 ### Blockers
 
 *(none)*
