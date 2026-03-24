@@ -87,42 +87,42 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLR-01 | — | Pending |
-| CLR-02 | — | Pending |
-| CLR-03 | — | Pending |
-| CLR-04 | — | Pending |
-| CLR-05 | — | Pending |
-| CLR-06 | — | Pending |
-| ICN-01 | — | Pending |
-| ICN-02 | — | Pending |
-| ICN-03 | — | Pending |
-| ICN-04 | — | Pending |
-| TYP-01 | — | Pending |
-| TYP-02 | — | Pending |
-| TYP-03 | — | Pending |
-| CMP-01 | — | Pending |
-| CMP-02 | — | Pending |
-| CMP-03 | — | Pending |
-| CMP-04 | — | Pending |
-| CMP-05 | — | Pending |
-| CMP-06 | — | Pending |
-| CMP-07 | — | Pending |
-| CMP-08 | — | Pending |
-| ANI-01 | — | Pending |
-| ANI-02 | — | Pending |
-| ANI-03 | — | Pending |
-| ANI-04 | — | Pending |
-| ANI-05 | — | Pending |
-| LGN-01 | — | Pending |
-| LGN-02 | — | Pending |
-| LGN-03 | — | Pending |
-| LGN-04 | — | Pending |
+| CLR-01 | Phase 8 | Pending |
+| CLR-02 | Phase 8 | Pending |
+| CLR-03 | Phase 8 | Pending |
+| CLR-04 | Phase 8 | Pending |
+| CLR-05 | Phase 8 | Pending |
+| CLR-06 | Phase 8 | Pending |
+| ICN-01 | Phase 9 | Pending |
+| ICN-02 | Phase 9 | Pending |
+| ICN-03 | Phase 9 | Pending |
+| ICN-04 | Phase 9 | Pending |
+| TYP-01 | Phase 8 | Pending |
+| TYP-02 | Phase 8 | Pending |
+| TYP-03 | Phase 8 | Pending |
+| CMP-01 | Phase 9 | Pending |
+| CMP-02 | Phase 9 | Pending |
+| CMP-03 | Phase 9 | Pending |
+| CMP-04 | Phase 9 | Pending |
+| CMP-05 | Phase 9 | Pending |
+| CMP-06 | Phase 9 | Pending |
+| CMP-07 | Phase 9 | Pending |
+| CMP-08 | Phase 9 | Pending |
+| ANI-01 | Phase 10 | Pending |
+| ANI-02 | Phase 10 | Pending |
+| ANI-03 | Phase 10 | Pending |
+| ANI-04 | Phase 10 | Pending |
+| ANI-05 | Phase 10 | Pending |
+| LGN-01 | Phase 10 | Pending |
+| LGN-02 | Phase 10 | Pending |
+| LGN-03 | Phase 10 | Pending |
+| LGN-04 | Phase 10 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 30 total
-- Mapped to phases: 0
-- Unmapped: 30 ⚠️
+- Mapped to phases: 30
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-24*
-*Last updated: 2026-03-24 after initial definition*
+*Last updated: 2026-03-24 — traceability complete after roadmap creation*

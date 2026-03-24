@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Cyberpunk Beautification
 status: in_progress
-stopped_at: Defining requirements
+stopped_at: Roadmap created — ready to plan Phase 8
 last_updated: "2026-03-24T00:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -23,21 +23,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and stream results back to users in real time
-**Current focus:** v1.1 Cyberpunk Beautification — defining requirements
+**Current focus:** v1.1 Cyberpunk Beautification — Phase 8: Color System and Foundation
 
 ---
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-24 — Milestone v1.1 started
+Phase: 8 of 10 (Color System and Foundation)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-24 — v1.1 roadmap created (Phases 8-10, 30 requirements)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
-**Plans executed:** 21
-**Phases completed:** 7
+**Plans executed:** 21 (v1.0)
+**Phases completed:** 7 (v1.0)
 **Timeline:** 4 days (2026-03-20 → 2026-03-23)
 
 ---
@@ -46,33 +48,21 @@ Last activity: 2026-03-24 — Milestone v1.1 started
 
 ### Key Decisions Locked In
 
-- **Single Uvicorn worker** — in-memory ConnectionManager cannot be shared across processes; `--workers 1` enforced in Docker Compose from Phase 1
-- **asyncpg + SQLAlchemy 2 async** — blocking DB calls in the event loop cascade into node timeouts; async-only patterns established in Phase 1 before any WebSocket code
-- **Auth before `websocket.accept()`** — both `/ws/node` (Bearer token) and `/ws/frontend` (JWT ticket) validate credentials before accepting the WebSocket upgrade
-- **Per-node asyncio.Lock** — prevents reconciliation race on concurrent reconnects; keyed by `node_id`
-- **Stream events not persisted to DB** — only terminal state transitions written to PostgreSQL; stream events forwarded to frontend via asyncio queues only
+- **Single Uvicorn worker** — in-memory ConnectionManager cannot be shared across processes
+- **asyncpg + SQLAlchemy 2 async** — blocking DB calls cascade into node timeouts; async-only
 - **PyJWT 2.x + pwdlib** — python-jose and passlib are abandoned; do not use them
-- **EventRouter asyncio queue pattern** — per-connection asyncio queues with dedicated writer coroutines; never direct `websocket.send_text()` from EventRouter
-- **alembic.ini static URL placeholder** — `sqlalchemy.url` uses static placeholder; env.py overrides at runtime
-- **Alembic enum lifecycle** — let `op.create_table()` create enums via column definition; never call `enum.create()` explicitly
-- **Atomic registration** — User + Team + TeamMember created in single `db.flush()`
-- **WS ticket atomic consumption** — raw SQL `UPDATE...WHERE...RETURNING` to prevent replay race
-- **No refresh token rotation v1** — rotation is a v2 enhancement
 - **TanStackRouterVite first in plugins** — must precede react() and tailwindcss()
+- **v1.1 is frontend-only** — no backend changes; all work in `frontend/` directory
+- **No `motion` library in v1.1** — all animations via `tw-animate-css` and CSS `@keyframes` only
+- **OKLCH tokens in `:root`/`.dark` only** — never in `@theme inline` block (avoids dark mode breakage bug #18296)
+- **Lucide imports via `src/lib/icons.ts`** — direct paths only; barrel import slows dev server 5-8x
 
-### Architecture Notes
+### v1.1 Technical Pitfalls
 
-- Two WebSocket endpoints: `/ws/node` (GSD nodes) and `/ws/frontend` (browser clients)
-- NodeRegistry: in-memory `node_id -> WebSocket` map + PostgreSQL node metadata
-- EventRouter: internal message bus; decouples routing from network I/O; team-scoped fan-out
-- CommandBus: validates node connectivity + team ownership before dispatch
-- Health Monitor: FastAPI lifespan background task; scans every 30s; marks stale at >90s
-
-### Pitfalls to Watch
-
-- `stream_event.data` is double-encoded JSON — always `json.loads(payload.data)` before inspection
-- Multi-tenancy filters — every DB query for nodes/instances/users must include `WHERE team_id = ?`
-- Pool size — default `pool_size=5, max_overflow=10` may be insufficient; make configurable via env var
+- `@theme inline` bakes static values at build — add new tokens in `:root`/`.dark` raw CSS blocks only
+- Animating `box-shadow` directly causes repaints — use pseudo-element opacity animation instead
+- shadcn uses `data-slot` selectors — read component source before overriding; edit source directly
+- Never add mount animations to stream output rows — causes animation queuing at >5 events/sec
 
 ### Blockers
 
@@ -88,8 +78,5 @@ Last activity: 2026-03-24 — Milestone v1.1 started
 
 ## Session Continuity
 
-**Last session:** 2026-03-23
-**Stopped at:** Milestone v1.0 archived and completed
-
----
-Last activity: 2026-03-24 - Completed quick task 260324-jbe: Update root README, remove port exposures from docker-compose, ensure clean build
+**Last session:** 2026-03-24
+**Stopped at:** v1.1 roadmap created — 3 phases, 30 requirements mapped
