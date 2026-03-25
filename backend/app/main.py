@@ -3,8 +3,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.config import get_settings
 from app.database import get_engine
 from app.routers import audit, auth, health, nodes, teams, transcribe
+from app.services.admin_bootstrap import ensure_initial_admin
 from app.ws.frontend_router import router as frontend_ws_router
 from app.ws.health import stale_node_scanner
 from app.ws.router import router as ws_router
@@ -14,6 +16,8 @@ from app.ws.router import router as ws_router
 async def lifespan(app: FastAPI):
     # Startup: launch background tasks
     scanner_task = asyncio.create_task(stale_node_scanner())
+    settings = get_settings()
+    await ensure_initial_admin(settings)
     yield
     # Shutdown: cancel background tasks, dispose engine
     scanner_task.cancel()

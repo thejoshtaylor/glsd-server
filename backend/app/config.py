@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     db_pool_size: int = 10
     db_max_overflow: int = 20
 
+    # Initial admin bootstrap (optional)
+    initial_admin_email: str | None = None
+    initial_admin_password: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
