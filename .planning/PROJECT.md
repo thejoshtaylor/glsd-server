@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A central management server for GSD nodes — remote agents that run Claude CLI instances. The server accepts inbound WebSocket connections from nodes, dispatches commands (execute, kill, status), streams real-time output, and provides a polished cyberpunk-themed web dashboard for team-based management. It includes voice-to-text input via OpenAI Whisper so users can speak prompts that get transcribed and dispatched to nodes.
+A central management server for GSD nodes — remote agents that run Claude CLI instances. The server accepts inbound WebSocket connections from nodes, dispatches commands (execute, kill, status), streams real-time output, and provides a polished cyberpunk-themed web dashboard for team-based management. It includes voice-to-text input via OpenAI Whisper, in-app onboarding for new users, and secure long-lived sessions with automatic token rotation.
 
 ## Core Value
 
@@ -10,13 +10,13 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 
 ## Current State
 
-Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,600 LOC Python backend. Phase 11 (Extended Sessions) complete — 1hr access tokens, opaque refresh token rotation with reuse detection, singleton refresh guard.
+Shipped v1.2 Ease of Access with ~4,000 LOC TypeScript frontend + ~3,800 LOC Python backend.
 
 **Tech stack:** Python 3.12 FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL 16 (backend), React 19 + TanStack Router + TanStack Query + Zustand + shadcn/ui + Tailwind v4 (frontend), Nginx (reverse proxy), Docker Compose (deployment).
 
-**Frontend features (v1.1):** OKLCH cyberpunk color palette, Orbitron display font, Lucide icons throughout, skeleton loading states, CSS animations (node pulse, stream live dot, recording ring, page transitions, login glitch), reduced-motion compliance.
+**Frontend features (v1.2):** OKLCH cyberpunk color palette, Orbitron display font, Lucide icons throughout, skeleton loading states, CSS animations with reduced-motion compliance, onboarding guide page with copy-to-clipboard commands, simplified execute form with project picker and preset prompts, singleton refresh guard with proactive token refresh, auth-aware WebSocket reconnect.
 
-**Known tech debt:** WebSocket reconnect doesn't refresh expired tokens (INT-01). 3 orphaned CSS glow utilities (glow-amber, glow-red, glow-magenta — infrastructure for future use). 4 scaffolded shadcn components not yet consumed (dialog, tooltip, progress, tabs). Residual hardcoded color classes in error contexts.
+**Known tech debt:** Hard-reload direct navigation redirects to login before async refresh resolves (pre-existing — beforeLoad checks in-memory token synchronously). 3 orphaned CSS glow utilities (glow-amber, glow-red, glow-magenta). 4 scaffolded shadcn components not yet consumed (dialog, tooltip, progress, tabs). Daily token cleanup sweep not implemented (login-time cleanup covers primary case).
 
 ## Requirements
 
@@ -46,25 +46,15 @@ Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,6
 - ✓ CSS animations with reduced-motion compliance — v1.1
 - ✓ Cyberpunk login page treatment — v1.1
 - ✓ Typography system (Orbitron, monospace, uppercase headings) — v1.1
-
-## Current Milestone: v1.2 Ease of Access
-
-**Goal:** Make the dashboard approachable for non-technical users with guided onboarding, simplified controls, and longer secure sessions.
-
-**Target features:**
-- In-app node onboarding guide page with step-by-step instructions and copyable commands
-- Simplified execute form with preset prompts, project picker, and plain-language labels
-- Extended sessions: 1hr access token + 7-day silent refresh token rotation
-- Fix INT-01: WebSocket reconnect refreshes expired tokens automatically
-- Fix INT-02: Audit page establishes WebSocket on direct navigation
+- ✓ Extended session duration (1hr access + 7-day refresh with rotation) — v1.2
+- ✓ WebSocket token refresh on reconnect (INT-01 fix) — v1.2
+- ✓ Audit page WebSocket on direct navigation (INT-02 fix) — v1.2
+- ✓ Node onboarding guide page with copy-to-clipboard — v1.2
+- ✓ Simplified execute form with project picker and preset prompts — v1.2
 
 ### Active
 
-- [x] Node onboarding guide page — Phase 13
-- [x] Simplified execute form with presets and project picker — Phase 13
-- [x] Extended session duration (1hr access + 7-day refresh) — Phase 11
-- [x] WebSocket token refresh on reconnect (INT-01) — Phase 12
-- [x] Audit page WebSocket on direct navigation (INT-02) — Phase 12
+*(No active milestone — planning next)*
 
 ### Out of Scope
 
@@ -75,10 +65,12 @@ Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,6
 - Horizontal server scaling — single-instance server for v1
 - xterm.js terminal emulation — Claude CLI output is NDJSON, not PTY
 - In-browser audio editing — voice input is transcribe-and-dispatch only
+- httpOnly cookie for refresh token — deferred to future security hardening
+- Prompt templates library — preset selector with editable textarea is sufficient
 
 ## Context
 
-- The GSD node implementation already exists (v1.2.0, written in Go). The server is shipped.
+- The GSD node implementation already exists (v1.2.0, written in Go). The server is shipped through v1.2.
 - Wire protocol is fully specified in `protocol-spec.md` — 10 message types, JSON over WebSocket.
 - Server spec is in `server-spec.md`.
 - Nodes connect outbound to the server (NAT-friendly). The server never connects to nodes.
@@ -111,6 +103,9 @@ Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,6
 | Pseudo-element glow, not box-shadow | Direct box-shadow animation causes repaints | ✓ Good — smooth animations |
 | Lucide via icons.ts barrel | Barrel import from lucide-react slows dev 5-8x | ✓ Good — centralized re-exports |
 | No motion library in v1.1 | tw-animate-css + CSS @keyframes covers all needs | ✓ Good — zero extra deps |
+| WS close code 4001 for auth failure | Distinguishes auth failure from network errors in reconnect logic | ✓ Good — clean client-side handling |
+| useWebSocket in layout route | All dashboard child routes get WS automatically; prevents INT-02 class of bugs | ✓ Good — single call, full coverage |
+| Native details/summary for disclosure | No extra component dep needed; keyboard-accessible out of the box | ✓ Good — zero overhead |
 
 ## Evolution
 
@@ -130,4 +125,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-24 after Phase 13 (UX Surface) completion — v1.2 milestone complete*
+*Last updated: 2026-03-25 after v1.2 Ease of Access milestone*
