@@ -9,7 +9,9 @@ message resets the stale timer). The node sends WebSocket-level pings every
 30s, which Starlette handles automatically at the protocol level.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
+
+from app.utils.time import utcnow
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
@@ -78,7 +80,7 @@ async def node_ws_endpoint(websocket: WebSocket) -> None:
         await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
         return
 
-    now = datetime.now(timezone.utc)
+    now = utcnow()
     conn = NodeConnection(
         node_id=register_payload.node_id,
         websocket=websocket,
@@ -105,7 +107,7 @@ async def node_ws_endpoint(websocket: WebSocket) -> None:
 
             # Update heartbeat on ANY received message (Starlette has no ping callback;
             # this approximates heartbeat tracking via application-level messages).
-            now = datetime.now(timezone.utc)
+            now = utcnow()
             connection_manager.update_heartbeat(node_id, now)
 
             try:

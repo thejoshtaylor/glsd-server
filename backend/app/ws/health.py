@@ -1,7 +1,9 @@
 """Background task for detecting and handling stale GSD nodes."""
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
+
+from app.utils.time import utcnow
 
 from sqlalchemy import update
 
@@ -40,7 +42,7 @@ async def stale_node_scanner() -> None:
 
 async def _scan_for_stale_nodes() -> None:
     """Scan all connected nodes and mark any stale ones."""
-    now = datetime.now(timezone.utc)
+    now = utcnow()
     threshold = now - timedelta(seconds=STALE_THRESHOLD_SECONDS)
 
     for conn in connection_manager.all_connections():
@@ -57,7 +59,7 @@ async def _scan_for_stale_nodes() -> None:
 
 async def _mark_node_stale(node_id: str) -> None:
     """Mark a node as stale in the DB and error all its running/pending instances."""
-    now = datetime.now(timezone.utc)
+    now = utcnow()
     async with get_session_maker()() as session:
         try:
             # Mark node as stale in DB

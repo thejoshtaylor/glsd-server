@@ -2,7 +2,9 @@
 
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+
+from app.utils.time import utcnow
 
 import jwt
 from fastapi import HTTPException, status
@@ -39,7 +41,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(user_id: str, settings: Settings) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = utcnow() + timedelta(
         minutes=settings.jwt_access_token_expire_minutes
     )
     payload = {"sub": user_id, "type": "access", "exp": expire}
@@ -47,7 +49,7 @@ def create_access_token(user_id: str, settings: Settings) -> str:
 
 
 def create_refresh_token(user_id: str, settings: Settings) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = utcnow() + timedelta(
         days=settings.jwt_refresh_token_expire_days
     )
     payload = {"sub": user_id, "type": "refresh", "exp": expire}
@@ -121,7 +123,7 @@ async def store_refresh_token(
 ) -> None:
     """Hash and persist a refresh token record."""
     token_hash = hashlib.sha256(token_str.encode()).hexdigest()
-    expires_at = datetime.now(timezone.utc) + timedelta(
+    expires_at = utcnow() + timedelta(
         days=settings.jwt_refresh_token_expire_days
     )
     db.add(
@@ -162,7 +164,7 @@ async def refresh_access_token(
         )
 
     token_hash = hashlib.sha256(refresh_token_str.encode()).hexdigest()
-    now = datetime.now(timezone.utc)
+    now = utcnow()
 
     result = await db.execute(
         select(RefreshToken).where(
@@ -173,7 +175,7 @@ async def refresh_access_token(
     )
     stored = result.scalar_one_or_none()
 
-    if stored is None or stored.expires_at.replace(tzinfo=timezone.utc) < now:
+    if stored is None or stored.expires_at < now:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
@@ -202,7 +204,7 @@ async def revoke_refresh_token(refresh_token_str: str, db: AsyncSession) -> None
 async def create_ws_ticket(user_id: str, db: AsyncSession) -> str:
     """Issue a single-use WS ticket valid for 30 seconds."""
     ticket_id = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+    expires_at = utcnow() + timedelta(seconds=30)
     db.add(
         WsTicket(
             ticket_id=ticket_id,
