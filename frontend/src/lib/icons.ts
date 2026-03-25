@@ -22,6 +22,10 @@ export {
   ChevronRight,
   ChevronDown,
   Wrench,
+  // Interactive response
+  MessageCircleQuestion,  // Question prompt header
+  Send,                   // Submit button
+  Check,                  // Multi-select checkmark
   // Alerts
   X,
   // Section headings
