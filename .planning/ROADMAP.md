@@ -81,8 +81,10 @@ Plans:
   2. The onboarding page at /dashboard/onboarding shows numbered setup steps with one-click copy buttons for every CLI command
   3. The execute form presents a project picker, a preset prompt selector, and plain-language field labels without requiring prior knowledge of the API
   4. The onboarding guide is reachable from the main navigation at any time
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+Plans:
+- [ ] 13-01-PLAN.md — Onboarding page, sidebar nav link, and empty-state CTA
+- [ ] 13-02-PLAN.md — Execute form project picker, preset prompts, labels, and advanced disclosure
 
 ## Progress
 
@@ -99,9 +101,9 @@ Plans:
 | 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
 | 11. Extended Sessions | v1.2 | 2/2 | Complete    | 2026-03-25 |
-| 12. WebSocket Reliability | v1.2 | 1/1 | Complete   | 2026-03-25 |
-| 13. UX Surface | v1.2 | 0/? | Not started | - |
+| 12. WebSocket Reliability | v1.2 | 1/1 | Complete    | 2026-03-25 |
+| 13. UX Surface | v1.2 | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — Phase 12 plans created*
+*Last updated: 2026-03-25 — Phase 13 plans created*
