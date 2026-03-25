@@ -41,7 +41,7 @@
 
 **Milestone Goal:** Make the dashboard approachable for non-technical users with guided onboarding, simplified controls, and longer secure sessions.
 
-- [ ] **Phase 11: Extended Sessions** - Robust 1hr/7-day session lifecycle with atomic rotation and concurrency safety
+- [x] **Phase 11: Extended Sessions** - Robust 1hr/7-day session lifecycle with atomic rotation and concurrency safety (completed 2026-03-25)
 - [ ] **Phase 12: WebSocket Reliability** - WS reconnect survives token expiry; audit page works on direct navigation
 - [ ] **Phase 13: UX Surface** - Onboarding guide page and simplified execute form
 
@@ -59,7 +59,7 @@
 **Plans**: 2 plans
 Plans:
 - [x] 11-01-PLAN.md — Backend token rotation with atomic SQL, reuse detection, and family-scoped revocation
-- [ ] 11-02-PLAN.md — Frontend singleton promise guard, proactive refresh, and tab visibility refresh
+- [x] 11-02-PLAN.md — Frontend singleton promise guard, proactive refresh, and tab visibility refresh
 
 ### Phase 12: WebSocket Reliability
 **Goal**: WebSocket connection recovers automatically after token expiry, and all dashboard routes including Audit work when navigated to directly
@@ -96,7 +96,7 @@ Plans:
 | 8. Color System and Foundation | v1.1 | 3/3 | Complete | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
-| 11. Extended Sessions | v1.2 | 1/2 | In Progress|  |
+| 11. Extended Sessions | v1.2 | 2/2 | Complete   | 2026-03-25 |
 | 12. WebSocket Reliability | v1.2 | 0/? | Not started | - |
 | 13. UX Surface | v1.2 | 0/? | Not started | - |
 
