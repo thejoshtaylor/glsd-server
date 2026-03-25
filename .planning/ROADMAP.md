@@ -52,7 +52,7 @@
 - [x] **Phase 14: Project Management** — Users can register and manage GSD projects on nodes (completed 2026-03-25)
 - [x] **Phase 15: Stream Intelligence and Command Palette** — Server classifies GSD stream events; users dispatch GSD commands from a palette (completed 2026-03-25)
 - [x] **Phase 16: Interactive Response and Notifications** — Users answer GSD questions inline and receive alerts when attention is needed (completed 2026-03-25)
-- [ ] **Phase 17: Auto Mode** — Users run sequential GSD command workflows that advance automatically
+- [x] **Phase 17: Auto Mode** — Users run sequential GSD command workflows that advance automatically (completed 2026-03-25)
 
 ## Phase Details
 
@@ -119,7 +119,7 @@ Plans:
 Plans:
 - [x] 17-01-PLAN.md — Backend: SequenceRegistry, run_sequence coroutine, handler/router wiring
 - [x] 17-02-PLAN.md — Frontend: Protocol types, wsStore sequence state, preset sequences
-- [ ] 17-03-PLAN.md — Frontend: AutoModeToggle, SequenceBuilder, SequenceProgress components
+- [x] 17-03-PLAN.md — Frontend: AutoModeToggle, SequenceBuilder, SequenceProgress components
 **UI hint**: yes
 
 ## Progress
@@ -142,7 +142,7 @@ Plans:
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
 | 15. Stream Intelligence and Command Palette | v1.3 | 2/2 | Complete    | 2026-03-25 |
 | 16. Interactive Response and Notifications | v1.3 | 3/3 | Complete    | 2026-03-25 |
-| 17. Auto Mode | v1.3 | 2/3 | In Progress|  |
+| 17. Auto Mode | v1.3 | 3/3 | Complete   | 2026-03-25 |
 
 ---
 *Roadmap created: 2026-03-20*

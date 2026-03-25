@@ -48,7 +48,7 @@ Requirements for GSD Integration milestone. Each maps to roadmap phases.
 - [x] **AUTO-01**: User can enable auto mode for a node with a toggle
 - [x] **AUTO-02**: Server executes GSD commands sequentially with /clear (new session) between steps
 - [x] **AUTO-03**: User can select from default command sequences for common workflows (new-project, milestone cycle)
-- [ ] **AUTO-04**: User can build custom command queues (ordered list of GSD commands)
+- [x] **AUTO-04**: User can build custom command queues (ordered list of GSD commands)
 - [x] **AUTO-05**: User sees per-step progress indicator showing current position in the sequence
 - [x] **AUTO-06**: Auto mode notifies user on step completion when auto mode is off; auto-advances when on
 
@@ -110,7 +110,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTO-01 | Phase 17 | Complete |
 | AUTO-02 | Phase 17 | Complete |
 | AUTO-03 | Phase 17 | Complete |
-| AUTO-04 | Phase 17 | Pending |
+| AUTO-04 | Phase 17 | Complete |
 | AUTO-05 | Phase 17 | Complete |
 | AUTO-06 | Phase 17 | Complete |
 
