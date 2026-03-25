@@ -13,6 +13,9 @@ import {
 } from '@/lib/gsdCommands'
 import type { NodeResponse, ProjectResponse } from '@/types/api'
 import type { WsOutgoingMessage } from '@/types/protocol'
+import { AutoModeToggle } from './AutoModeToggle'
+import { SequenceBuilder } from './SequenceBuilder'
+import { SequenceProgress } from './SequenceProgress'
 
 interface CommandPaletteProps {
   node: NodeResponse
@@ -28,6 +31,8 @@ export function CommandPalette({ node, onInstanceCreated }: CommandPaletteProps)
   const queryClient = useQueryClient()
   const socket = useWsStore((s) => s.socket)
   const instanceStatuses = useWsStore((s) => s.instanceStatuses)
+  const autoModeNodeIds = useWsStore((s) => s.autoModeNodeIds)
+  const isAutoMode = autoModeNodeIds.includes(node.node_id)
 
   const projectsQuery = useQuery({
     queryKey: ['projects', node.node_id],
@@ -127,10 +132,15 @@ export function CommandPalette({ node, onInstanceCreated }: CommandPaletteProps)
 
   return (
     <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
-      <div className="text-sm font-medium text-muted-foreground uppercase tracking-widest inline-flex items-center gap-1.5">
-        <Command size={20} className="text-primary" />
-        GSD Commands
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-medium text-muted-foreground uppercase tracking-widest inline-flex items-center gap-1.5">
+          <Command size={20} className="text-primary" />
+          GSD Commands
+        </div>
+        <AutoModeToggle nodeId={node.node_id} />
       </div>
+
+      <SequenceProgress nodeId={node.node_id} />
 
       {!currentProject && (
         <p className="text-xs text-muted-foreground">
@@ -138,6 +148,15 @@ export function CommandPalette({ node, onInstanceCreated }: CommandPaletteProps)
         </p>
       )}
 
+      {isAutoMode ? (
+        <SequenceBuilder
+          nodeId={node.node_id}
+          project={currentProject}
+          workDir={workDir}
+          onInstanceCreated={onInstanceCreated}
+        />
+      ) : (
+      <>
       {/* Category tabs */}
       <div className="flex gap-1 flex-wrap">
         {GSD_COMMAND_CATEGORIES.map((cat) => (
@@ -221,6 +240,8 @@ export function CommandPalette({ node, onInstanceCreated }: CommandPaletteProps)
           </div>
         ))}
       </div>
+      </>
+      )}
     </div>
   )
 }

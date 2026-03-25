@@ -44,4 +44,11 @@ export {
   GitBranch,      // Clone project
   Link,           // Connect project
   FolderPlus,     // Bootstrap / new project
+  // Auto mode / sequences
+  CircleDot,      // Active sequence step
+  Plus,           // Add step
+  Trash2,         // Remove step
+  SkipForward,    // Advance sequence
+  ListOrdered,    // Sequence list
+  ArrowUp,        // Reorder step
 } from 'lucide-react'
