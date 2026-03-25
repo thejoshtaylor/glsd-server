@@ -15,7 +15,9 @@ from sqlalchemy import func, select, update
 from app.database import get_session_maker
 from app.models.instance import Instance, InstanceStatus
 from app.models.node import Node, NodeStatus
+from app.models.node_team import NodeTeam
 from app.models.stream_event import StreamEvent as StreamEventModel
+from app.models.team import Team
 from app.services.audit_service import write_audit_log
 from app.ws.frontend_manager import frontend_manager
 from app.ws.manager import NodeConnection, connection_manager
@@ -74,6 +76,17 @@ async def handle_node_register(payload: NodeRegisterPayload, conn: NodeConnectio
                         last_seen=now,
                     )
                     session.add(node)
+                    await session.flush()  # ensure Node row exists before FK insert
+                    first_team = (
+                        await session.execute(select(Team).limit(1))
+                    ).scalar_one_or_none()
+                    if first_team is not None:
+                        session.add(NodeTeam(node_id=payload.node_id, team_id=first_team.team_id))
+                        logger.info(
+                            "Auto-assigned new node %s to team %s",
+                            payload.node_id,
+                            first_team.name,
+                        )
                 else:
                     node.platform = payload.platform
                     node.version = payload.version

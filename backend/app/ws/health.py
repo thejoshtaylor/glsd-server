@@ -15,7 +15,7 @@ from app.ws.manager import connection_manager
 
 logger = logging.getLogger(__name__)
 
-STALE_THRESHOLD_SECONDS = 90
+STALE_THRESHOLD_SECONDS = 300
 SCAN_INTERVAL_SECONDS = 30
 
 
