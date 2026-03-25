@@ -38,10 +38,10 @@ Requirements for GSD Integration milestone. Each maps to roadmap phases.
 
 ### Notifications
 
-- [ ] **NOTF-01**: User receives browser notification when a node needs input (AskUserQuestion or freeform wait)
-- [ ] **NOTF-02**: User receives browser notification when an instance completes or errors
-- [ ] **NOTF-03**: User sees in-app toast (Sonner) for completion and input-needed events
-- [ ] **NOTF-04**: User can manage notification permissions from the dashboard
+- [x] **NOTF-01**: User receives browser notification when a node needs input (AskUserQuestion or freeform wait)
+- [x] **NOTF-02**: User receives browser notification when an instance completes or errors
+- [x] **NOTF-03**: User sees in-app toast (Sonner) for completion and input-needed events
+- [x] **NOTF-04**: User can manage notification permissions from the dashboard
 
 ### Auto Mode
 
@@ -103,10 +103,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RESP-03 | Phase 16 | Pending |
 | RESP-04 | Phase 16 | Complete |
 | RESP-05 | Phase 16 | Complete |
-| NOTF-01 | Phase 16 | Pending |
-| NOTF-02 | Phase 16 | Pending |
-| NOTF-03 | Phase 16 | Pending |
-| NOTF-04 | Phase 16 | Pending |
+| NOTF-01 | Phase 16 | Complete |
+| NOTF-02 | Phase 16 | Complete |
+| NOTF-03 | Phase 16 | Complete |
+| NOTF-04 | Phase 16 | Complete |
 | AUTO-01 | Phase 17 | Pending |
 | AUTO-02 | Phase 17 | Pending |
 | AUTO-03 | Phase 17 | Pending |

@@ -102,7 +102,7 @@ Plans:
 Plans:
 - [x] 16-01-PLAN.md — Backend prompt claiming protocol + frontend WS types and wsStore prompt state
 - [ ] 16-02-PLAN.md — InteractiveResponseUI component for AskUserQuestion and freeform input
-- [ ] 16-03-PLAN.md — Browser notifications, Sonner toasts, and NotificationSettings dashboard UI
+- [x] 16-03-PLAN.md — Browser notifications, Sonner toasts, and NotificationSettings dashboard UI
 **UI hint**: yes
 
 ### Phase 17: Auto Mode
@@ -136,7 +136,7 @@ Plans:
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
 | 15. Stream Intelligence and Command Palette | v1.3 | 2/2 | Complete    | 2026-03-25 |
-| 16. Interactive Response and Notifications | v1.3 | 1/3 | In Progress|  |
+| 16. Interactive Response and Notifications | v1.3 | 2/3 | In Progress|  |
 | 17. Auto Mode | v1.3 | 0/? | Not started | — |
 
 ---
