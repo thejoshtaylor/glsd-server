@@ -43,7 +43,7 @@
 
 - [x] **Phase 11: Extended Sessions** - Robust 1hr/7-day session lifecycle with atomic rotation and concurrency safety (completed 2026-03-25)
 - [x] **Phase 12: WebSocket Reliability** - WS reconnect survives token expiry; audit page works on direct navigation (completed 2026-03-25)
-- [ ] **Phase 13: UX Surface** - Onboarding guide page and simplified execute form
+- [x] **Phase 13: UX Surface** - Onboarding guide page and simplified execute form (completed 2026-03-25)
 
 ## Phase Details
 
@@ -83,7 +83,7 @@ Plans:
   4. The onboarding guide is reachable from the main navigation at any time
 **Plans**: 2 plans
 Plans:
-- [ ] 13-01-PLAN.md — Onboarding page, sidebar nav link, and empty-state CTA
+- [x] 13-01-PLAN.md — Onboarding page, sidebar nav link, and empty-state CTA
 - [x] 13-02-PLAN.md — Execute form project picker, preset prompts, labels, and advanced disclosure
 
 ## Progress
@@ -102,7 +102,7 @@ Plans:
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
 | 11. Extended Sessions | v1.2 | 2/2 | Complete    | 2026-03-25 |
 | 12. WebSocket Reliability | v1.2 | 1/1 | Complete    | 2026-03-25 |
-| 13. UX Surface | v1.2 | 1/2 | In Progress|  |
+| 13. UX Surface | v1.2 | 2/2 | Complete   | 2026-03-25 |
 
 ---
 *Roadmap created: 2026-03-20*
