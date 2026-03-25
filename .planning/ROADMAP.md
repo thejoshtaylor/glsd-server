@@ -83,7 +83,7 @@ Plans:
   5. Each palette command shows a description and guidance on when to use it
 **Plans**: 2 plans
 Plans:
-- [ ] 15-01-PLAN.md — Backend: Stream event classifier module, handler/manager/replay enrichment with gsd field
+- [x] 15-01-PLAN.md — Backend: Stream event classifier module, handler/manager/replay enrichment with gsd field
 - [ ] 15-02-PLAN.md — Frontend: Protocol type extension, GSD command registry, CommandPalette component
 **UI hint**: yes
 
@@ -131,7 +131,7 @@ Plans:
 | 12. WebSocket Reliability | v1.2 | 1/1 | Complete | 2026-03-25 |
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
-| 15. Stream Intelligence and Command Palette | v1.3 | 0/2 | Not started | — |
+| 15. Stream Intelligence and Command Palette | v1.3 | 1/2 | In Progress|  |
 | 16. Interactive Response and Notifications | v1.3 | 0/? | Not started | — |
 | 17. Auto Mode | v1.3 | 0/? | Not started | — |
 

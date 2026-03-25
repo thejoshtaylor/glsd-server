@@ -23,10 +23,10 @@ Requirements for GSD Integration milestone. Each maps to roadmap phases.
 
 ### Stream Intelligence
 
-- [ ] **STRM-01**: Server detects AskUserQuestion tool_use events in NDJSON stream and classifies them
-- [ ] **STRM-02**: Server detects freeform input waits (heuristic: running instance with silence after question)
-- [ ] **STRM-03**: Server detects command completion and surfaces instance status changes
-- [ ] **STRM-04**: Server enriches forwarded stream events with GSD classification metadata (additive field, not mutating data)
+- [x] **STRM-01**: Server detects AskUserQuestion tool_use events in NDJSON stream and classifies them
+- [x] **STRM-02**: Server detects freeform input waits (heuristic: running instance with silence after question)
+- [x] **STRM-03**: Server detects command completion and surfaces instance status changes
+- [x] **STRM-04**: Server enriches forwarded stream events with GSD classification metadata (additive field, not mutating data)
 
 ### Interactive Response UI
 
@@ -94,10 +94,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CMD-02 | Phase 15 | Pending |
 | CMD-03 | Phase 15 | Pending |
 | CMD-04 | Phase 15 | Pending |
-| STRM-01 | Phase 15 | Pending |
-| STRM-02 | Phase 15 | Pending |
-| STRM-03 | Phase 15 | Pending |
-| STRM-04 | Phase 15 | Pending |
+| STRM-01 | Phase 15 | Complete |
+| STRM-02 | Phase 15 | Complete |
+| STRM-03 | Phase 15 | Complete |
+| STRM-04 | Phase 15 | Complete |
 | RESP-01 | Phase 16 | Pending |
 | RESP-02 | Phase 16 | Pending |
 | RESP-03 | Phase 16 | Pending |
