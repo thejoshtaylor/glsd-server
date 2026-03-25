@@ -65,25 +65,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SES-01 | TBD | Pending |
-| SES-02 | TBD | Pending |
-| SES-03 | TBD | Pending |
-| SES-04 | TBD | Pending |
-| SES-05 | TBD | Pending |
-| WSR-01 | TBD | Pending |
-| WSR-02 | TBD | Pending |
-| ONB-01 | TBD | Pending |
-| ONB-02 | TBD | Pending |
-| ONB-03 | TBD | Pending |
-| CTL-01 | TBD | Pending |
-| CTL-02 | TBD | Pending |
-| CTL-03 | TBD | Pending |
-| CTL-04 | TBD | Pending |
+| SES-01 | Phase 11 | Pending |
+| SES-02 | Phase 11 | Pending |
+| SES-03 | Phase 11 | Pending |
+| SES-04 | Phase 11 | Pending |
+| SES-05 | Phase 11 | Pending |
+| WSR-01 | Phase 12 | Pending |
+| WSR-02 | Phase 12 | Pending |
+| ONB-01 | Phase 13 | Pending |
+| ONB-02 | Phase 13 | Pending |
+| ONB-03 | Phase 13 | Pending |
+| CTL-01 | Phase 13 | Pending |
+| CTL-02 | Phase 13 | Pending |
+| CTL-03 | Phase 13 | Pending |
+| CTL-04 | Phase 13 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 14 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 14
+- Mapped to phases: 14
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-25*
