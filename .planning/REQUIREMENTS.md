@@ -16,10 +16,10 @@ Requirements for GSD Integration milestone. Each maps to roadmap phases.
 
 ### GSD Command Palette
 
-- [ ] **CMD-01**: User can see ~20 GSD commands organized in 4 categories (Project, Phase Lifecycle, Execution, Milestone)
-- [ ] **CMD-02**: User can click a command button to dispatch it to the selected node/project
-- [ ] **CMD-03**: User can fill parameters for parameterized commands (phase number, task description) via mini-forms before dispatch
-- [ ] **CMD-04**: User can see command descriptions and "when to use" guidance in the palette
+- [x] **CMD-01**: User can see ~20 GSD commands organized in 4 categories (Project, Phase Lifecycle, Execution, Milestone)
+- [x] **CMD-02**: User can click a command button to dispatch it to the selected node/project
+- [x] **CMD-03**: User can fill parameters for parameterized commands (phase number, task description) via mini-forms before dispatch
+- [x] **CMD-04**: User can see command descriptions and "when to use" guidance in the palette
 
 ### Stream Intelligence
 
@@ -33,8 +33,8 @@ Requirements for GSD Integration milestone. Each maps to roadmap phases.
 - [ ] **RESP-01**: User sees AskUserQuestion rendered as clickable option buttons (single-select)
 - [ ] **RESP-02**: User sees multi-select questions rendered as checkbox lists
 - [ ] **RESP-03**: User can type freeform text responses when input wait is detected
-- [ ] **RESP-04**: User's answer is submitted as a session-resume execute dispatch to the node
-- [ ] **RESP-05**: Multi-tab prompt claiming prevents duplicate answer submissions
+- [x] **RESP-04**: User's answer is submitted as a session-resume execute dispatch to the node
+- [x] **RESP-05**: Multi-tab prompt claiming prevents duplicate answer submissions
 
 ### Notifications
 
@@ -90,10 +90,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROJ-02 | Phase 14 | Complete |
 | PROJ-03 | Phase 14 | Complete |
 | PROJ-04 | Phase 14 | Complete |
-| CMD-01 | Phase 15 | Pending |
-| CMD-02 | Phase 15 | Pending |
-| CMD-03 | Phase 15 | Pending |
-| CMD-04 | Phase 15 | Pending |
+| CMD-01 | Phase 15 | Complete |
+| CMD-02 | Phase 15 | Complete |
+| CMD-03 | Phase 15 | Complete |
+| CMD-04 | Phase 15 | Complete |
 | STRM-01 | Phase 15 | Complete |
 | STRM-02 | Phase 15 | Complete |
 | STRM-03 | Phase 15 | Complete |
@@ -101,8 +101,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RESP-01 | Phase 16 | Pending |
 | RESP-02 | Phase 16 | Pending |
 | RESP-03 | Phase 16 | Pending |
-| RESP-04 | Phase 16 | Pending |
-| RESP-05 | Phase 16 | Pending |
+| RESP-04 | Phase 16 | Complete |
+| RESP-05 | Phase 16 | Complete |
 | NOTF-01 | Phase 16 | Pending |
 | NOTF-02 | Phase 16 | Pending |
 | NOTF-03 | Phase 16 | Pending |
