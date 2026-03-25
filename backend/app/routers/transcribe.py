@@ -15,8 +15,8 @@ MAX_AUDIO_BYTES = 25 * 1024 * 1024  # 25 MB
 
 @router.post("/transcribe")
 async def transcribe_audio(
-    file: UploadFile = File(...),
     current_user: CurrentUser,
+    file: UploadFile = File(...),
 ) -> dict[str, str]:
     """Transcribe an audio file using OpenAI Whisper.
 
