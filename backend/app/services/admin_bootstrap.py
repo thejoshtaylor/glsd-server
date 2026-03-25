@@ -40,6 +40,7 @@ async def ensure_initial_admin(settings: Settings) -> None:
             hashed = auth_service.hash_password(settings.initial_admin_password)
 
             session.add(User(user_id=user_id, email=email, hashed_password=hashed))
+            await session.flush()  # flush User first — Team FK references user_id
             session.add(Team(team_id=team_id, name=f"{email}'s Team", owner_id=user_id))
             session.add(TeamMember(team_id=team_id, user_id=user_id, role="owner"))
 
