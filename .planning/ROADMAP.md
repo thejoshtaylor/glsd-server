@@ -66,7 +66,7 @@ Plans:
   5. Dialog, tooltip, progress, and tabs shadcn components are scaffolded and importable from the UI library
 **Plans**: 3 plans
 Plans:
-- [ ] 09-01-PLAN.md — CSS glow utilities, icons.ts barrel, shadcn scaffold, icon migration
+- [x] 09-01-PLAN.md — CSS glow utilities, icons.ts barrel, shadcn scaffold, icon migration
 - [ ] 09-02-PLAN.md — Status badge OKLCH colors, section heading icons, action button icons, FAB fix
 - [ ] 09-03-PLAN.md — Skeleton loading states for NodeGrid, InstanceList, and $nodeId route
 **UI hint**: yes
