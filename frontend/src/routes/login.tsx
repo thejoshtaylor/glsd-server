@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { setTokens } from '../lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,6 +20,15 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [glitching, setGlitching] = useState(false)
+  const glitchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cleanup glitch timeout on unmount (prevents state-on-unmounted-component errors)
+  useEffect(() => {
+    return () => {
+      if (glitchTimeoutRef.current) clearTimeout(glitchTimeoutRef.current)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,7 +54,16 @@ function LoginPage() {
 
       const data: TokenResponse = await res.json()
       setTokens(data.access_token, data.refresh_token)
-      navigate({ to: search.redirect || '/dashboard' })
+
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (!reducedMotion) {
+        setGlitching(true)
+        glitchTimeoutRef.current = setTimeout(() => {
+          navigate({ to: search.redirect || '/dashboard' })
+        }, 300)
+      } else {
+        navigate({ to: search.redirect || '/dashboard' })
+      }
     } catch {
       setError('Network error')
     } finally {
@@ -54,36 +72,53 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center h-full bg-background animate-in fade-in duration-150 fill-mode-both">
-      <Card className="w-full max-w-sm bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-center text-foreground font-heading">GLSD Server</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="bg-muted border-border text-foreground"
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="bg-muted border-border text-foreground"
-            />
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div
+      className="flex items-center justify-center h-full bg-background animate-in fade-in duration-150 fill-mode-both"
+      style={{
+        backgroundImage: `
+          repeating-linear-gradient(0deg, oklch(0.75 0.18 195 / 5%) 0px, oklch(0.75 0.18 195 / 5%) 1px, transparent 1px, transparent 40px),
+          repeating-linear-gradient(90deg, oklch(0.75 0.18 195 / 5%) 0px, oklch(0.75 0.18 195 / 5%) 1px, transparent 1px, transparent 40px)
+        `,
+      }}
+    >
+      <div className={`login-card-border w-full max-w-sm ${glitching ? 'glitch-once' : ''}`}>
+        <Card className="w-full bg-card border-0 ring-0">
+          <CardHeader>
+            <CardTitle
+              className="text-center text-foreground font-heading text-[28px]"
+              style={{
+                textShadow: '0 0 10px oklch(0.75 0.18 195), 0 0 20px oklch(0.75 0.18 195 / 70%), 0 0 40px oklch(0.75 0.18 195 / 40%)',
+              }}
+            >
+              GLSD Server
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="bg-muted border-border text-foreground"
+              />
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="bg-muted border-border text-foreground"
+              />
+              {error && <p className="text-sm text-red-400">{error}</p>}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Signing in...' : 'Sign in'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
