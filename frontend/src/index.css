@@ -175,4 +175,46 @@
     .glow-magenta:focus-visible::after {
         opacity: 1;
     }
+
+    .glow-amber {
+        position: relative;
+        isolation: isolate;
+    }
+    .glow-amber::after {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: inherit;
+        background: transparent;
+        box-shadow: 0 0 8px 2px oklch(0.75 0.15 85 / 60%);
+        opacity: 0;
+        transition: opacity 200ms ease-out;
+        pointer-events: none;
+        z-index: -1;
+    }
+    .glow-amber:hover::after,
+    .glow-amber:focus-visible::after {
+        opacity: 1;
+    }
+
+    .glow-red {
+        position: relative;
+        isolation: isolate;
+    }
+    .glow-red::after {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: inherit;
+        background: transparent;
+        box-shadow: 0 0 8px 2px oklch(0.65 0.22 25 / 60%);
+        opacity: 0;
+        transition: opacity 200ms ease-out;
+        pointer-events: none;
+        z-index: -1;
+    }
+    .glow-red:hover::after,
+    .glow-red:focus-visible::after {
+        opacity: 1;
+    }
 }
