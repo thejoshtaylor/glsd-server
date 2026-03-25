@@ -60,8 +60,8 @@ Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,6
 
 ### Active
 
-- [ ] Node onboarding guide page
-- [ ] Simplified execute form with presets and project picker
+- [x] Node onboarding guide page — Phase 13
+- [x] Simplified execute form with presets and project picker — Phase 13
 - [x] Extended session duration (1hr access + 7-day refresh) — Phase 11
 - [x] WebSocket token refresh on reconnect (INT-01) — Phase 12
 - [x] Audit page WebSocket on direct navigation (INT-02) — Phase 12
@@ -130,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-24 after Phase 12 (WebSocket Reliability) completion*
+*Last updated: 2026-03-24 after Phase 13 (UX Surface) completion — v1.2 milestone complete*
