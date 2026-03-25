@@ -208,5 +208,82 @@ class FrontendConnectionManager:
                             instance_id,
                         )
 
+    async def broadcast_sequence_step(
+        self,
+        sequence_id: str,
+        node_id: str,
+        user_id: str,
+        *,
+        step_index: int,
+        total_steps: int,
+        command_id: str,
+        status: str,
+        auto_advance: bool,
+    ) -> None:
+        """Broadcast a sequence step started or completed event to ALL frontend connections.
+
+        The auto_advance field is included so the frontend can derive paused state
+        (AUTO-06): when auto_advance=False and status="completed", the frontend
+        knows the sequence is waiting for an advance_sequence message.
+        """
+        msg_type = "sequence_step_started" if status == "started" else "sequence_step_completed"
+        msg = {
+            "type": msg_type,
+            "sequence_id": sequence_id,
+            "node_id": node_id,
+            "step_index": step_index,
+            "total_steps": total_steps,
+            "command_id": command_id,
+            "auto_advance": auto_advance,
+        }
+        for user_conns in list(self._connections.values()):
+            for conn in user_conns:
+                try:
+                    conn.queue.put_nowait(msg)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Queue full for user=%s — dropping %s sequence=%s",
+                        conn.user_id,
+                        msg_type,
+                        sequence_id,
+                    )
+
+    async def broadcast_sequence_done(
+        self, sequence_id: str, node_id: str, user_id: str
+    ) -> None:
+        """Broadcast sequence_done to ALL frontend connections when all steps complete."""
+        msg = {"type": "sequence_done", "sequence_id": sequence_id, "node_id": node_id}
+        for user_conns in list(self._connections.values()):
+            for conn in user_conns:
+                try:
+                    conn.queue.put_nowait(msg)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Queue full for user=%s — dropping sequence_done sequence=%s",
+                        conn.user_id,
+                        sequence_id,
+                    )
+
+    async def broadcast_sequence_error(
+        self, sequence_id: str, node_id: str, user_id: str, *, reason: str
+    ) -> None:
+        """Broadcast sequence_error to ALL frontend connections when a sequence fails."""
+        msg = {
+            "type": "sequence_error",
+            "sequence_id": sequence_id,
+            "node_id": node_id,
+            "reason": reason,
+        }
+        for user_conns in list(self._connections.values()):
+            for conn in user_conns:
+                try:
+                    conn.queue.put_nowait(msg)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Queue full for user=%s — dropping sequence_error sequence=%s",
+                        conn.user_id,
+                        sequence_id,
+                    )
+
 
 frontend_manager = FrontendConnectionManager()
