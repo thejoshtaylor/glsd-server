@@ -85,5 +85,7 @@ Plan: Not started
 
 ## Session Continuity
 
-**Last session:** 2026-03-25T07:06:02Z
+**Last session:** 2026-03-25T07:00:19Z
 **Stopped at:** Completed quick/260325-009
+
+Last activity: 2026-03-25 - Completed quick task 260325-009: Fix node visibility - frontend not showing connected nodes despite API logs confirming connection
