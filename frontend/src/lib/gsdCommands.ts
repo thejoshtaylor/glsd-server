@@ -295,6 +295,37 @@ export const GSD_COMMANDS: GsdCommand[] = [
   },
 ]
 
+export interface GsdSequencePreset {
+  id: string
+  label: string
+  description: string
+  steps: Array<{ command_id: string; default_params?: Record<string, string> }>
+}
+
+export const GSD_SEQUENCE_PRESETS: GsdSequencePreset[] = [
+  {
+    id: 'new-project',
+    label: 'New Project Setup',
+    description: 'Bootstrap, Define Requirements, Create Roadmap',
+    steps: [
+      { command_id: 'new-project' },
+      { command_id: 'define-requirements' },
+      { command_id: 'create-roadmap' },
+    ],
+  },
+  {
+    id: 'milestone-cycle',
+    label: 'Phase Lifecycle',
+    description: 'Discuss, Plan, Execute, Verify for a single phase',
+    steps: [
+      { command_id: 'discuss-phase' },
+      { command_id: 'plan-phase' },
+      { command_id: 'execute-phase' },
+      { command_id: 'verify-phase' },
+    ],
+  },
+]
+
 export function expandPrompt(template: string, params: Record<string, string>): string {
   return Object.entries(params).reduce(
     (acc, [key, value]) => acc.replaceAll(`{{${key}}}`, value),
