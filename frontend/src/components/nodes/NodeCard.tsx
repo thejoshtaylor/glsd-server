@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { NodeStatusBadge } from './NodeStatusBadge'
 import type { NodeResponse } from '@/types/api'
 import { Monitor, Clock } from '@/lib/icons'
+import { cn } from '@/lib/utils'
 
 export function NodeCard({ node }: { node: NodeResponse }) {
   const projectCount = node.projects?.length ?? 0
@@ -12,7 +13,10 @@ export function NodeCard({ node }: { node: NodeResponse }) {
 
   return (
     <Link to="/dashboard/$nodeId" params={{ nodeId: node.node_id }} className="block">
-      <Card className="bg-card border-border hover:border-primary/30 transition-colors cursor-pointer">
+      <Card className={cn(
+        "bg-card border-border hover:border-primary/30 transition-colors cursor-pointer",
+        node.status === 'connected' && "pulse-glow-cyan"
+      )}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium text-foreground truncate">{node.node_id}</CardTitle>

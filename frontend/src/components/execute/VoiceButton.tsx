@@ -51,7 +51,7 @@ export function VoiceButton({ onTranscript, onStateChange, disabled }: VoiceButt
         size="icon"
         onClick={handleClick}
         disabled={disabled || state === 'processing'}
-        className={state === 'recording' ? 'border-red-500 text-red-400' : ''}
+        className={state === 'recording' ? 'border-red-500 text-red-400 pulse-ring-magenta' : ''}
         title={state === 'recording' ? 'Stop recording' : state === 'processing' ? 'Transcribing...' : 'Record voice prompt'}
       >
         {state === 'recording' ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}

@@ -22,6 +22,7 @@ export function StreamPanel({ instanceId, nodeId, instanceStatus }: StreamPanelP
       <div className="flex items-center justify-between p-3 border-b border-border bg-card/50">
         <div className="text-sm text-muted-foreground uppercase tracking-widest">
           Stream: <span className="text-muted-foreground font-mono text-xs">{instanceId.slice(0, 12)}...</span>
+          {isRunning && <span className="live-dot ml-2" aria-hidden="true" />}
         </div>
         <div className="flex items-center gap-2">
           {isRunning && (
