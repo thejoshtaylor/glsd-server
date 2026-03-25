@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useWsStore } from '@/stores/wsStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Terminal, Play, ChevronDown } from '@/lib/icons'
-import type { NodeResponse } from '@/types/api'
+import type { NodeResponse, ProjectResponse } from '@/types/api'
 import type { WsOutgoingMessage } from '@/types/protocol'
 import { VoiceButton } from './VoiceButton'
 import { type RecorderState } from '@/hooks/useVoiceRecorder'
@@ -41,6 +41,18 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [pendingInstanceId, setPendingInstanceId] = useState<string | null>(null)
   const queryClient = useQueryClient()
+
+  const projectsQuery = useQuery({
+    queryKey: ['projects', node.node_id],
+    queryFn: () => api<ProjectResponse[]>(`/api/nodes/${node.node_id}/projects`),
+  })
+
+  const projectMap = Object.fromEntries(
+    (projectsQuery.data ?? []).map((p) => [p.name, p.work_dir])
+  )
+
+  const dbProjectNames = (projectsQuery.data ?? []).map((p) => p.name)
+  const allProjects = [...new Set([...projects, ...dbProjectNames])]
   const socket = useWsStore((s) => s.socket)
   const instanceStatuses = useWsStore((s) => s.instanceStatuses)
 
@@ -70,7 +82,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
         body: JSON.stringify({
           node_id: node.node_id,
           project,
-          work_dir: project, // work_dir defaults to project name
+          work_dir: projectMap[project] ?? project,
           prompt,
           session_id: sessionId || null,
         }),
@@ -96,6 +108,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
   const projects = node.projects ?? []
   const canExecute = project && prompt.trim() && node.status === 'connected'
 
+
   return (
     <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
       <div className="text-sm font-medium text-muted-foreground uppercase tracking-widest inline-flex items-center gap-1.5">
@@ -108,7 +121,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
         <div className="space-y-1">
           <label className="text-sm font-semibold">Project</label>
           <p className="text-sm text-muted-foreground">Which project should Claude work in?</p>
-          {projects.length === 0 ? (
+          {allProjects.length === 0 ? (
             <div className="flex w-full items-center rounded-lg border border-input bg-transparent py-2 px-2.5 text-sm h-8 opacity-50 cursor-not-allowed text-muted-foreground">
               This node has no projects listed. Start the node and reconnect.
             </div>
@@ -118,7 +131,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
                 <SelectValue placeholder="Select a project..." />
               </SelectTrigger>
               <SelectContent>
-                {projects.map((p) => (
+                {allProjects.map((p) => (
                   <SelectItem key={p} value={p}>{p}</SelectItem>
                 ))}
               </SelectContent>

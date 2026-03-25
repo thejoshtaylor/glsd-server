@@ -29,4 +29,9 @@ export {
   Layers,         // Instances section
   Shield,         // Audit Log section
   Terminal,       // Execute Command section
+  // Project management
+  FolderOpen,     // Projects section heading
+  GitBranch,      // Clone project
+  Link,           // Connect project
+  FolderPlus,     // Bootstrap / new project
 } from 'lucide-react'
