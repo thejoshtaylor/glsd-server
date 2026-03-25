@@ -18,10 +18,10 @@ interface AuditTableProps {
 }
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  execute: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  kill: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  instance_finished: 'bg-green-500/20 text-green-400 border-green-500/30',
-  instance_error: 'bg-red-500/20 text-red-400 border-red-500/30',
+  execute: 'bg-[oklch(0.75_0.18_195/15%)] text-[oklch(0.75_0.18_195)] border-[oklch(0.75_0.18_195/30%)]',
+  kill: 'bg-[oklch(0.70_0.25_330/15%)] text-[oklch(0.70_0.25_330)] border-[oklch(0.70_0.25_330/30%)]',
+  instance_finished: 'bg-muted/30 text-muted-foreground border-muted-foreground/20',
+  instance_error: 'bg-[oklch(0.65_0.22_25/15%)] text-[oklch(0.65_0.22_25)] border-[oklch(0.65_0.22_25/30%)]',
 }
 
 const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => i)
