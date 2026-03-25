@@ -1,9 +1,10 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
-import { getAccessToken } from '@/lib/api'
+import { authReady, getAccessToken } from '@/lib/api'
 import { useWebSocket } from '@/hooks/useWebSocket'
 
 export const Route = createFileRoute('/dashboard')({
-  beforeLoad: ({ location }) => {
+  beforeLoad: async ({ location }) => {
+    await authReady
     if (!getAccessToken()) {
       throw redirect({
         to: '/login',

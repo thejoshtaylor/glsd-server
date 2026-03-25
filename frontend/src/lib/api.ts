@@ -125,10 +125,9 @@ document.addEventListener('visibilitychange', () => {
   }
 })
 
-// Arm proactive refresh if session exists on module load
-if (getStoredRefreshToken()) {
-  // Attempt a refresh to get a fresh access token, then schedule proactive refresh
-  refreshAccessToken().then((ok) => {
-    if (ok) scheduleProactiveRefresh()
-  })
-}
+// authReady resolves once the initial refresh attempt completes.
+// Route guards must await this before checking getAccessToken() to avoid
+// a false-redirect on page refresh (token is null until async refresh finishes).
+export const authReady: Promise<void> = getStoredRefreshToken()
+  ? refreshAccessToken().then((ok) => { if (ok) scheduleProactiveRefresh() })
+  : Promise.resolve()
