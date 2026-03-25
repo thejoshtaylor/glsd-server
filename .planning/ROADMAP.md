@@ -11,6 +11,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1-7 (shipped 2026-03-23) — [archive](milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1 Cyberpunk Beautification** — Phases 8-10 (shipped 2026-03-25) — [archive](milestones/v1.1-ROADMAP.md)
+- 🚧 **v1.2 Ease of Access** — Phases 11-13 (in progress)
 
 ## Phases
 
@@ -36,6 +37,48 @@
 
 </details>
 
+### 🚧 v1.2 Ease of Access (In Progress)
+
+**Milestone Goal:** Make the dashboard approachable for non-technical users with guided onboarding, simplified controls, and longer secure sessions.
+
+- [ ] **Phase 11: Extended Sessions** - Robust 1hr/7-day session lifecycle with atomic rotation and concurrency safety
+- [ ] **Phase 12: WebSocket Reliability** - WS reconnect survives token expiry; audit page works on direct navigation
+- [ ] **Phase 13: UX Surface** - Onboarding guide page and simplified execute form
+
+## Phase Details
+
+### Phase 11: Extended Sessions
+**Goal**: Users stay authenticated across long sessions without unexpected logouts, and token rotation is safe against concurrent refresh calls
+**Depends on**: Phase 10
+**Requirements**: SES-01, SES-02, SES-03, SES-04, SES-05
+**Success Criteria** (what must be TRUE):
+  1. User remains logged in for at least 1 hour without re-authenticating
+  2. Resuming the app after 6+ hours silently refreshes the session without a login redirect
+  3. Two simultaneous refresh calls (e.g., tab restore + background query) result in exactly one new token pair, not a logged-out state
+  4. Presenting a previously rotated refresh token revokes all of that user's refresh tokens and forces re-login
+**Plans**: TBD
+
+### Phase 12: WebSocket Reliability
+**Goal**: WebSocket connection recovers automatically after token expiry, and all dashboard routes including Audit work when navigated to directly
+**Depends on**: Phase 11
+**Requirements**: WSR-01, WSR-02
+**Success Criteria** (what must be TRUE):
+  1. Resuming a backgrounded tab with an expired access token restores the live WebSocket feed without a page reload or login redirect
+  2. Navigating directly to /dashboard/audit (or bookmarking it) shows live audit events without requiring navigation from another dashboard page
+**Plans**: TBD
+
+### Phase 13: UX Surface
+**Goal**: Non-technical users can discover how to connect a node and dispatch their first execution without needing external documentation
+**Depends on**: Phase 11
+**Requirements**: ONB-01, ONB-02, ONB-03, CTL-01, CTL-02, CTL-03, CTL-04
+**Success Criteria** (what must be TRUE):
+  1. A new user with zero nodes sees a link to the onboarding guide from the empty node list
+  2. The onboarding page at /dashboard/onboarding shows numbered setup steps with one-click copy buttons for every CLI command
+  3. The execute form presents a project picker, a preset prompt selector, and plain-language field labels without requiring prior knowledge of the API
+  4. The onboarding guide is reachable from the main navigation at any time
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -50,7 +93,10 @@
 | 8. Color System and Foundation | v1.1 | 3/3 | Complete | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
+| 11. Extended Sessions | v1.2 | 0/? | Not started | - |
+| 12. WebSocket Reliability | v1.2 | 0/? | Not started | - |
+| 13. UX Surface | v1.2 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — v1.1 shipped*
+*Last updated: 2026-03-25 — v1.2 Ease of Access roadmap added*
