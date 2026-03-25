@@ -42,7 +42,7 @@
 **Milestone Goal:** Make the dashboard approachable for non-technical users with guided onboarding, simplified controls, and longer secure sessions.
 
 - [x] **Phase 11: Extended Sessions** - Robust 1hr/7-day session lifecycle with atomic rotation and concurrency safety (completed 2026-03-25)
-- [ ] **Phase 12: WebSocket Reliability** - WS reconnect survives token expiry; audit page works on direct navigation
+- [x] **Phase 12: WebSocket Reliability** - WS reconnect survives token expiry; audit page works on direct navigation (completed 2026-03-25)
 - [ ] **Phase 13: UX Surface** - Onboarding guide page and simplified execute form
 
 ## Phase Details
@@ -70,7 +70,7 @@ Plans:
   2. Navigating directly to /dashboard/audit (or bookmarking it) shows live audit events without requiring navigation from another dashboard page
 **Plans**: 1 plan
 Plans:
-- [ ] 12-01-PLAN.md — Auth-aware WS reconnect and layout-level WebSocket connection
+- [x] 12-01-PLAN.md — Auth-aware WS reconnect and layout-level WebSocket connection
 
 ### Phase 13: UX Surface
 **Goal**: Non-technical users can discover how to connect a node and dispatch their first execution without needing external documentation
@@ -99,7 +99,7 @@ Plans:
 | 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
 | 11. Extended Sessions | v1.2 | 2/2 | Complete    | 2026-03-25 |
-| 12. WebSocket Reliability | v1.2 | 0/1 | Not started | - |
+| 12. WebSocket Reliability | v1.2 | 1/1 | Complete   | 2026-03-25 |
 | 13. UX Surface | v1.2 | 0/? | Not started | - |
 
 ---
