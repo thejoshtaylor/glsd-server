@@ -74,7 +74,7 @@ async function _doRefresh(): Promise<boolean> {
   }
 }
 
-async function refreshAccessToken(): Promise<boolean> {
+export async function refreshAccessToken(): Promise<boolean> {
   if (refreshPromise) return refreshPromise
   refreshPromise = _doRefresh().finally(() => {
     refreshPromise = null
