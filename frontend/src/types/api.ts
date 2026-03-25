@@ -47,3 +47,16 @@ export interface AuditLogResponse {
   event_type: string
   details: Record<string, unknown> | null
 }
+
+export interface ProjectResponse {
+  id: number
+  node_id: string
+  name: string
+  work_dir: string
+  created_at: string
+}
+
+export interface ProjectActionResponse {
+  instance_id: string | null
+  project: ProjectResponse
+}
