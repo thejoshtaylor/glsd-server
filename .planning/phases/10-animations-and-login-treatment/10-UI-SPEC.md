@@ -45,9 +45,7 @@ Declared values (all multiples of 4):
 | 3xl | 64px | Page-level vertical spacing |
 
 Exceptions:
-- Live dot: 6px width/height (inline status indicator — not a layout token)
 - Pulse ring outset: `inset: -4px` on VoiceButton `::after` (touch-target bleed, not layout spacing)
-- Login card gradient border: `padding: 1px` on wrapper div (technique artifact, not a spacing decision)
 
 Source: 8-point scale default; exceptions from RESEARCH.md patterns.
 
@@ -58,12 +56,12 @@ Source: 8-point scale default; exceptions from RESEARCH.md patterns.
 | Role | Size | Weight | Line Height | Font | Source |
 |------|------|--------|-------------|------|--------|
 | Body | 14px | 400 | 1.5 | Geist Variable | index.css base + default |
-| Label / UI text | 12px | 500 | 1.4 | Geist Variable | default for badges, dot labels |
-| Heading | 16px | 600 | 1.2 | Geist Variable (uppercase, tracked) | CONTEXT.md TYP-01 |
+| Label / UI text | 12px | 400 | 1.4 | Geist Variable | default for badges, dot labels |
+| Heading | 16px | 700 | 1.2 | Geist Variable (uppercase, tracked) | CONTEXT.md TYP-01 |
 | Display / Login title | 28px | 700 | 1.1 | Orbitron Variable | CONTEXT.md LGN-03 + REQUIREMENTS TYP-03 |
 
 Notes:
-- Monospace (IDs, timestamps, stream output): inherit from `--font-mono`, 13px, weight 400
+- Monospace (IDs, timestamps, stream output): inherits from `--font-mono` token set in Phase 8 — no new size or weight declared here
 - Login title uses `font-heading` class (Orbitron Variable) at 28px; the multi-layer `text-shadow` glow does not affect font metrics
 - No new font sizes introduced — all sizes already in use across phases 8–9
 
@@ -137,7 +135,7 @@ Extend existing `.glow-cyan` structural pattern (`position: relative; isolation:
   50%       { opacity: 1.0; }
 }
 ```
-Dot dimensions: 6×6px, `border-radius: 9999px`, `background: oklch(0.75 0.18 195)`, `display: inline-block`, `vertical-align: middle`.
+Dot dimensions: 8×8px (`w-2 h-2` in Tailwind), `border-radius: 9999px`, `background: oklch(0.75 0.18 195)`, `display: inline-block`, `vertical-align: middle`.
 
 **`pulseRing`** (ANI-03 — VoiceButton recording):
 ```css
@@ -204,7 +202,7 @@ background-image:
   );
 ```
 
-Grid line thickness: 1px. Grid cell spacing: 40px. Opacity: 5%. Both values per RESEARCH.md code examples (Claude's discretion confirmed).
+Grid line thickness: 1px (CSS technique detail — not a spacing token). Grid cell spacing: 40px. Opacity: 5%. Both values per RESEARCH.md code examples (Claude's discretion confirmed).
 
 ### LGN-02 — Gradient Card Border
 
@@ -213,7 +211,7 @@ Grid line thickness: 1px. Grid cell spacing: 40px. Opacity: 5%. Both values per 
 ```css
 .login-card-border {
   border-radius: var(--radius);   /* 0.625rem — matches card radius */
-  padding: 1px;
+  padding: 1px;                   /* CSS technique detail — not a spacing token */
   background: linear-gradient(135deg, oklch(0.75 0.18 195), oklch(0.70 0.25 330));
 }
 ```
