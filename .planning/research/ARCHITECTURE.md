@@ -1,380 +1,566 @@
 # Architecture Research
 
-**Domain:** GSD Server — v1.2 Ease of Access integration analysis
-**Researched:** 2026-03-24
-**Confidence:** HIGH (full source review of existing codebase)
+**Domain:** GSD control plane — stream intelligence, interactive response UI, project management, auto mode
+**Researched:** 2026-03-25
+**Confidence:** HIGH — based on direct codebase analysis of all relevant backend and frontend files
 
 ---
 
 ## Context: What This Research Covers
 
-This document answers: how do the four v1.2 feature areas integrate with the existing
-architecture? It maps integration points, identifies what is new vs modified, and proposes
-a build order based on dependency analysis.
+This document answers the v1.3 integration questions: where does stream intelligence hook into the existing pipeline, where do project management models live, how does auto mode work, how does interactive response UI send input back to the node, and what wire protocol changes are needed.
 
 ---
 
-## System Overview (Current State — v1.1)
+## System Overview (v1.3 Integration Points)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Frontend (React 19 + TanStack Router + TanStack Query + Zustand)   │
+│                       GSD Node (Go, outbound)                        │
+│  Claude CLI → NDJSON → stream_event{data: JSON-encoded-string}       │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │ WebSocket /ws/node  (no changes v1.3)
+┌──────────────────────────────▼──────────────────────────────────────┐
+│                      Backend: FastAPI / Python                        │
 │                                                                      │
-│  Routes (file-based):                                                │
-│  /login          /dashboard (auth guard)   /dashboard/$nodeId       │
-│                  /dashboard/audit                                    │
+│  ws/router.py  (no changes)                                          │
+│    └─► ws/handlers.py::handle_stream_event()  [MODIFIED]             │
+│          1. json.loads(payload.data)  ← unwrap double-encode         │
+│          2. NEW: classify_stream_event(parsed_data)                  │
+│             └─► if input_wait: broadcast_input_request()             │
+│          3. persist → StreamEvent table (unchanged)                  │
+│          4. connection_manager.append_stream_event() (unchanged)     │
+│          5. frontend_manager.fan_out_stream_event() (unchanged)      │
 │                                                                      │
-│  Hooks:          Stores:         Lib:                                │
-│  useWebSocket    wsStore         api.ts (token mgmt + fetch)         │
-│  useVoiceRec                     queryClient.ts                      │
-└─────────────────────────┬───────────────────────────────────────────┘
-                          │ HTTP + WebSocket
-┌─────────────────────────▼───────────────────────────────────────────┐
-│  Nginx (reverse proxy — /api + /ws + static assets)                  │
-└─────────────────────────┬───────────────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────────────┐
-│  FastAPI (single Uvicorn worker)                                      │
+│  ws/stream_intelligence.py  [NEW — pure classifier, no I/O]         │
+│  ws/auto_sequencer.py       [NEW — asyncio task runner per sequence] │
 │                                                                      │
-│  Routers: auth  nodes  teams  audit  transcribe  health              │
-│  WS:      /ws/node (GSD nodes)    /ws/frontend (browser)            │
-│  Services: auth_service  audit_service  team_service  node_service   │
-│  WS layer: ConnectionManager + FrontendConnectionManager             │
-│  Background: stale_node_scanner (asyncio task in lifespan)           │
-└─────────────────────────┬───────────────────────────────────────────┘
-                          │ asyncpg (async only)
-┌─────────────────────────▼───────────────────────────────────────────┐
-│  PostgreSQL 16                                                        │
-│  users  teams  team_members  nodes  instances  refresh_tokens        │
-│  ws_tickets  stream_events  audit_log  node_teams                    │
+│  ws/frontend_manager.py  [MODIFIED — 2 new broadcast methods]       │
+│  ws/frontend_router.py   [MODIFIED — handle node_input msg type]    │
+│                                                                      │
+│  routers/projects.py     [NEW — project CRUD REST]                  │
+│  routers/sequences.py    [NEW — auto sequence REST]                  │
+│  models/project.py       [NEW]                                       │
+│  models/auto_sequence.py [NEW]                                       │
+│                                                                      │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │ WebSocket /ws/frontend
+┌──────────────────────────────▼──────────────────────────────────────┐
+│                     Frontend: React 19 / TypeScript                   │
+│                                                                      │
+│  useWebSocket (layout route, no changes)                             │
+│  wsStore.handleMessage()  [MODIFIED — new cases]                     │
+│    stream_event      → streamBuffers[instanceId]  (unchanged)        │
+│    NEW input_request → inputRequests[instanceId]                     │
+│    NEW notification  → notifications[]                               │
+│    NEW sequence_status → sequenceStatuses[sequenceId]               │
+│                                                                      │
+│  StreamPanel → StreamEventRenderer  [MODIFIED — detect interactive] │
+│    NEW: InteractiveResponseUI (buttons/text → POST /api/execute)    │
+│                                                                      │
+│  NEW: CommandPalette (GSD commands, ~20 contextual buttons)         │
+│  NEW: ProjectManager (create/connect/clone project on a node)       │
+│  NEW: AutoModePanel (configure + trigger auto sequence)             │
+│  NEW: NotificationBadge (badge + dropdown for attention events)     │
+│  types/protocol.ts  [MODIFIED — 4 new WS message union variants]   │
+│                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Feature Integration Analysis
-
-### Feature 1: Extended JWT Sessions (1hr access + 7-day refresh rotation)
-
-#### Current state
-
-`config.py`: `jwt_access_token_expire_minutes: int = 30` and
-`jwt_refresh_token_expire_days: int = 7` (7-day already correct).
-
-`auth_service.py` — `refresh_access_token()`: issues a new access token but returns the
-same refresh token. Source comment: "Returns the same refresh token (no rotation) — rotation
-is a v2 enhancement." The `RefreshToken` DB model already has `revoked: bool` and `expires_at`,
-so the schema supports rotation without a migration.
-
-`api.ts` — `refreshAccessToken()` already calls `setTokens(data.access_token, data.refresh_token)`,
-which writes whatever the server returns to both memory and `localStorage`. Rotation is
-transparent to the frontend as written.
-
-#### Integration points — modified files
-
-**`backend/app/config.py`** (1-line change):
-Change `jwt_access_token_expire_minutes: int = 30` to `60`.
-
-**`backend/app/services/auth_service.py`** — `refresh_access_token()`:
-After validating the stored token, issue a new refresh JWT, insert a new `RefreshToken` row
-via `store_refresh_token()`, mark the old record `revoked = True`, and return
-`TokenResponse(access_token=new_access, refresh_token=new_refresh)`.
-Both the revoke and the insert happen in the same SQLAlchemy session — no new transaction
-management needed.
-
-**No frontend changes. No DB migration.**
-
----
-
-### Feature 2: WS Token Refresh on Reconnect (INT-01)
-
-#### Current state
-
-`useWebSocket.ts` — `connect()`:
-1. Reads `getAccessToken()` (module-level variable in `api.ts`)
-2. Calls `fetch('/api/auth/ws-ticket', { headers: { Authorization: Bearer ${token} } })`
-3. If token is expired, the endpoint returns 401
-4. **Bug:** `if (!res.ok) return` — silently abandons reconnect without attempting token refresh
-
-The module-level `refreshAccessToken()` function in `api.ts` handles the full refresh dance
-but is not exported, so `useWebSocket.ts` cannot call it.
-
-#### Integration points — modified files
-
-**`frontend/src/lib/api.ts`** — export `refreshAccessToken`:
-Change `async function refreshAccessToken()` to
-`export async function refreshAccessToken()`. One word change.
-
-**`frontend/src/hooks/useWebSocket.ts`** — handle 401 on ticket fetch:
-Import `refreshAccessToken` and add a retry block after the `!res.ok` check:
-
-```typescript
-if (res.status === 401) {
-  const refreshed = await refreshAccessToken()
-  if (!refreshed) return  // refresh token gone — let auth guard redirect
-  const retryRes = await fetch('/api/auth/ws-ticket', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getAccessToken()}` },
-  })
-  if (!retryRes.ok) return
-  const { ticket } = await retryRes.json()
-  // continue with ticket...
-}
-```
-
-**No backend changes.**
-
----
-
-### Feature 3: Audit Page WebSocket on Direct Navigation (INT-02)
-
-#### Current state
-
-`useWebSocket()` is called in `/dashboard/index.tsx` and `/dashboard/$nodeId.tsx` but NOT
-in `/dashboard/audit.tsx`. Navigating directly to `/dashboard/audit` (bookmark, deep link,
-or page refresh) means `wsStore.socket` is null for the entire session on that page. Node
-status updates do not arrive, and navigating away to a node detail page causes a reconnect
-delay.
-
-#### Integration point — modified file (1 line)
-
-**`frontend/src/routes/dashboard/route.tsx`** — add `useWebSocket()` to `DashboardLayout`:
-
-```typescript
-import { useWebSocket } from '@/hooks/useWebSocket'
-
-function DashboardLayout() {
-  useWebSocket()   // ADD: ensures WS is established for all dashboard children
-  return <Outlet />
-}
-```
-
-The hook already guards against duplicate connections
-(`wsRef.current.readyState === WebSocket.OPEN`), so the existing calls in `index.tsx` and
-`$nodeId.tsx` become redundant but harmless. They can be cleaned up later.
-
-**No backend changes. No changes to `audit.tsx`.**
-
----
-
-### Feature 4: Node Onboarding Guide Page
-
-#### Current state
-
-TanStack Router uses file-based routing under `frontend/src/routes/`. Adding a page requires
-adding one file and one nav entry. The page is entirely static content — no new API endpoints,
-no new stores, no backend changes.
-
-Available shadcn components already scaffolded: `Dialog`, `Tooltip`, `Progress`, `Tabs` —
-any of these can be used on the guide page without new dependencies.
-
-#### Integration points
-
-**New file: `frontend/src/routes/dashboard/onboarding.tsx`**
-Route: `/dashboard/onboarding`. Content: step-by-step node setup guide with copyable commands.
-Copy-to-clipboard is native browser API (`navigator.clipboard.writeText`) — no library needed.
-The scaffolded `Tooltip` component can provide "Copied!" feedback.
-
-**Modified: `frontend/src/routes/__root.tsx`** — add one `<Link to="/dashboard/onboarding">` in
-the sidebar `<nav>` block alongside Dashboard and Audit Log.
-
-**No backend changes.**
-
----
-
-### Feature 5: Simplified Execute Form
-
-#### Current state
-
-`ExecuteForm.tsx` exposes:
-- Project `<select>` — raw strings from `node.projects[]`
-- Prompt `<textarea>` — free text, placeholder "Enter prompt..."
-- Session ID `<Input>` — raw UUID input, label "Resume session ID (optional)"
-- Voice button
-
-Simplification targets (from v1.2 requirements): preset prompts, project picker improvements,
-plain-language labels. The API payload shape (`node_id`, `project`, `work_dir`, `prompt`,
-`session_id`) does not change.
-
-#### Integration point — modified file
-
-**`frontend/src/components/execute/ExecuteForm.tsx`** — local UI changes only:
-- Add a preset prompts `<select>` or `<datalist>` that populates the textarea on selection
-- Improve label copy (e.g. "Project" with a description tooltip rather than raw path)
-- Rename "Resume session ID" to "Continue previous session" with an optional show/hide toggle
-- The `Tabs` or `Dialog` components are already scaffolded if a two-panel UI is desired
-
-**No backend changes. No new stores. No API shape changes.**
-
----
-
 ## Component Map: New vs Modified
 
-| Component | File | Change Type | Notes |
-|-----------|------|-------------|-------|
-| Settings | `backend/app/config.py` | Modified | 1 line: 30 → 60 minutes |
-| Auth service | `backend/app/services/auth_service.py` | Modified | Add rotation to `refresh_access_token()` |
-| Auth router | `backend/app/routers/auth.py` | None | No changes needed |
-| RefreshToken model | `backend/app/models/refresh_token.py` | None | Schema already supports rotation |
-| Token lib | `frontend/src/lib/api.ts` | Modified | Export `refreshAccessToken` |
-| WS hook | `frontend/src/hooks/useWebSocket.ts` | Modified | Handle 401 with refresh retry |
-| Dashboard layout | `frontend/src/routes/dashboard/route.tsx` | Modified | Add `useWebSocket()` call |
-| Audit page | `frontend/src/routes/dashboard/audit.tsx` | None | WS inherited from layout |
-| Execute form | `frontend/src/components/execute/ExecuteForm.tsx` | Modified | Presets, label improvements |
-| Onboarding page | `frontend/src/routes/dashboard/onboarding.tsx` | **New** | Static guide content |
-| Root layout | `frontend/src/routes/__root.tsx` | Modified | Add onboarding nav link |
+| Component | File | Status | Notes |
+|-----------|------|--------|-------|
+| Stream event handler | `ws/handlers.py` | Modified | Add classify hook + input_request broadcast; 2 lines added to finished/error handlers for sequencer |
+| Stream classifier | `ws/stream_intelligence.py` | New | Pure function, no I/O, no await |
+| Auto sequencer | `ws/auto_sequencer.py` | New | asyncio task runner + asyncio.Event notification dict |
+| Frontend manager | `ws/frontend_manager.py` | Modified | Add `broadcast_input_request()` and `broadcast_notification()` |
+| Frontend router | `ws/frontend_router.py` | Modified | Handle `node_input` message type in reader loop |
+| Project model | `models/project.py` | New | Projects table with node_id FK |
+| Auto sequence model | `models/auto_sequence.py` | New | AutoSequence + AutoSequenceRun tables |
+| Projects router | `routers/projects.py` | New | CRUD REST endpoints |
+| Sequences router | `routers/sequences.py` | New | Trigger and status REST endpoints |
+| Projects schemas | `schemas/projects.py` | New | Pydantic schemas |
+| Sequences schemas | `schemas/sequences.py` | New | Pydantic schemas |
+| Alembic migration | `alembic/versions/xxxx_v1_3.py` | New | Creates projects, auto_sequences, auto_sequence_runs |
+| `wsStore.ts` | Frontend | Modified | Add `inputRequests`, `notifications`, `sequenceStatuses` slices and new handleMessage cases |
+| `types/protocol.ts` | Frontend | Modified | New incoming + outgoing WS message union variants |
+| `StreamEventRenderer.tsx` | Frontend | Modified | Detect `AskUserQuestion` tool_use, render `InteractiveResponseUI` |
+| `InteractiveResponseUI.tsx` | Frontend | New | Renders question as buttons/checkbox/text field |
+| `CommandPalette.tsx` | Frontend | New | ~20 GSD commands as contextual execute triggers |
+| `ProjectManager.tsx` | Frontend | New | Create/connect/clone project UI |
+| `AutoModePanel.tsx` | Frontend | New | Configure and trigger auto sequences |
+| `NotificationBadge.tsx` | Frontend | New | Badge + dropdown for input_request and completion events |
 
-**New files: 1. Modified files: 7. DB migrations: 0.**
+**New files: ~12 backend + 5 frontend. Modified files: 5 backend + 3 frontend. DB migrations: 1.**
 
 ---
 
-## Data Flow Changes
+## Integration Point 1: Stream Intelligence Pipeline Hook
 
-### Refresh Token Rotation (new behavior)
+**The hook point is `handle_stream_event` in `ws/handlers.py`, after `json.loads(payload.data)` and before the DB persist.**
 
+Current flow (handlers.py lines 199-230):
 ```
-POST /api/auth/refresh { refresh_token: OLD_RT }
-    │
-    ▼ auth_service.refresh_access_token()
-    ├─ jwt.decode(OLD_RT) → user_id
-    ├─ SELECT refresh_tokens WHERE hash=sha256(OLD_RT) AND revoked=FALSE
-    ├─ validate: not expired
-    ├─ UPDATE refresh_tokens SET revoked=TRUE WHERE token_id=...
-    ├─ create_refresh_token(user_id) → NEW_RT
-    ├─ store_refresh_token(user_id, NEW_RT) → INSERT new row
-    └─ return { access_token: NEW_AT, refresh_token: NEW_RT }
-
-Client: setTokens(NEW_AT, NEW_RT) → localStorage.setItem('refresh_token', NEW_RT)
+parsed_data = json.loads(payload.data)
+→ DB persist
+→ in-memory buffer
+→ fan-out to frontend
 ```
 
-### WS Reconnect with Token Refresh (new path)
+Modified flow:
+```
+parsed_data = json.loads(payload.data)
+→ classification = classify_stream_event(parsed_data)   [NEW — sync, pure]
+  if classification.requires_input:
+    await frontend_manager.broadcast_input_request(      [NEW side-effect]
+        payload.instance_id, classification
+    )
+→ DB persist                                             [unchanged]
+→ in-memory buffer                                       [unchanged]
+→ fan-out to frontend                                    [unchanged]
+```
+
+The classifier is a pure synchronous function — no DB, no await, no I/O. Called once per stream event. This keeps the hot-path change minimal and the classifier unit-testable in isolation.
+
+**What the classifier detects in parsed Claude CLI NDJSON:**
+
+| Detection Target | NDJSON Signal | Classification Result |
+|-----------------|---------------|----------------------|
+| `AskUserQuestion` tool use | `type == "tool_use" && name == "AskUserQuestion"` | `requires_input=True`, `input_type="buttons"`, `options=input.options` |
+| Freeform input wait | `type == "system" && subtype == "input_required"` (verify exact subtype) | `requires_input=True`, `input_type="text"` |
+| Successful completion | `type == "result" && subtype == "success"` | `is_completion=True`, `subtype="success"` |
+| Error completion | `type == "result" && subtype == "error"` | `is_completion=True`, `subtype="error"` |
+
+The exact system event subtype for freeform input wait requires verification against actual Claude CLI output — flag for phase-level research. `AskUserQuestion` is well-established from the existing `ndjson.ts` TypeScript types.
+
+---
+
+## Integration Point 2: Interactive Response UI — Wire Protocol for Sending Input
+
+**Critical constraint:** The existing GSD wire protocol v1.2.0 has no message type for sending stdin/text input to a running Claude CLI instance. PROJECT.md "Out of Scope" states "Node-side changes — server consumes the existing node protocol as-is."
+
+**Recommended approach for v1.3: Path A — answer as a new execute with session_id continuation. No protocol change needed.**
+
+How it works:
+
+1. Server detects `AskUserQuestion` in stream, broadcasts `input_request` WS message to frontend.
+2. `InteractiveResponseUI` renders the question with clickable options.
+3. User clicks an option.
+4. Frontend sends `{ type: "node_input", instance_id, text: selectedOption }` over the frontend WebSocket.
+5. `frontend_router.py` reader loop handles the new `node_input` message type:
+   - Looks up instance by `instance_id` → gets `node_id`, `project`, `session_id`
+   - Calls `dispatch_execute(node_id, project, work_dir, text, user_id, db, session_id=current_session_id)`
+6. Normal execute → ack → stream flow continues (existing pipeline unchanged).
+
+This is functionally equivalent to stdin — Claude CLI in `--continue` mode with the prior session_id will receive the answer and resume naturally.
+
+**Why not add a new protocol message type in v1.3:** The node changes to support true stdin pipe-write are out of scope. Path A works with all existing node deployments and achieves the same UX. A true `input` protocol message can be added in v1.4 when node changes are in scope.
+
+**New `frontend_router.py` message handler branch:**
+```python
+elif msg_type == "node_input":
+    instance_id = msg.get("instance_id")
+    text = msg.get("text")
+    if not instance_id or not text:
+        continue
+    # Look up instance for node_id, project, session_id
+    async with get_session_maker()() as db_session:
+        instance = await db_session.get(Instance, instance_id)
+        if instance is None:
+            continue
+        has_access = await user_can_access_instance(user_id, instance_id, db_session)
+    if not has_access:
+        continue
+    # Dispatch as a new execute using the current session for continuity
+    try:
+        await dispatch_execute(
+            instance.node_id, instance.project, instance.project,
+            text, user_id, db, session_id=instance.session_id
+        )
+    except (ValueError, PermissionError):
+        pass
+```
+
+---
+
+## Integration Point 3: Project Management DB Schema
+
+**The Node model already stores `projects: JSON` (list of strings from node self-report).** This is read-only from the server's perspective — it reflects what the node has configured. It is NOT the place to store server-managed projects.
+
+**New `Project` model (server-managed):**
+```
+projects table
+  id: UUID (PK)
+  node_id: String(255) FK → nodes.node_id
+  name: String(255)       — display name, should match node config project name
+  path: String(1024)      — absolute path on node filesystem
+  clone_url: String(1024, nullable) — GitHub URL if cloned
+  created_at: DateTime
+```
+
+**Relationship to existing models:**
+- `Instance.project` is a plain String — intentionally NOT an FK to `projects.id`. Instances are an immutable audit trail; they outlive project records.
+- `Node.projects` (JSON array) is the node-reported list. New `projects` table is the server-managed authoritative list. On node reconnect, `node_register.projects` can be cross-referenced to detect drift.
+- No migration changes to existing `instances`, `nodes`, or `stream_events` tables.
+
+**New `AutoSequence` model:**
+```
+auto_sequences table
+  id: UUID (PK)
+  node_id: String(255) FK → nodes.node_id
+  project: String(255)
+  name: String(255)         — user-defined sequence name
+  steps: JSON               — list of {prompt: str, clear_before: bool}
+  created_by: String FK → users.user_id
+  created_at: DateTime
+  updated_at: DateTime
+```
+
+**New `AutoSequenceRun` model:**
+```
+auto_sequence_runs table
+  id: UUID (PK)
+  sequence_id: UUID FK → auto_sequences.id
+  started_at: DateTime
+  finished_at: DateTime (nullable)
+  status: Enum (running, completed, errored, cancelled)
+  current_step: Integer
+  last_instance_id: String(36, nullable) — tracks which instance the sequencer is waiting on
+```
+
+---
+
+## Integration Point 4: Auto Mode Sequencer — Server-Side
+
+**The sequencer lives on the server, not the frontend.**
+
+Reasons:
+1. Frontend tab close or network drop must not abort a running sequence.
+2. The sequencer needs `dispatch_execute()`, DB access, and audit logging — all server-side.
+3. The sequencer observes `instance_finished` / `instance_error` which arrive at `handle_instance_finished` in `handlers.py`.
+
+**Implementation: asyncio background task per run, coordinated via asyncio.Event.**
+
+```python
+# ws/auto_sequencer.py
+
+_pending_steps: dict[str, asyncio.Event] = {}  # instance_id → event
+
+def register_pending_step(instance_id: str) -> asyncio.Event:
+    event = asyncio.Event()
+    _pending_steps[instance_id] = event
+    return event
+
+def notify_step_complete(instance_id: str) -> None:
+    """Called by handle_instance_finished and handle_instance_error."""
+    event = _pending_steps.pop(instance_id, None)
+    if event:
+        event.set()
+
+async def run_sequence(sequence_id: str, run_id: str, user_id: str) -> None:
+    """Asyncio task — runs all steps in a sequence, one at a time."""
+    # Load sequence steps
+    # For each step:
+    #   1. dispatch_execute(node_id, project, prompt, ...)
+    #   2. event = register_pending_step(instance_id)
+    #   3. await event.wait()   ← yields until handler fires
+    #   4. check run status (was it errored?)
+    #   5. advance step in DB
+    # On completion: broadcast notification
+```
+
+**Changes to `ws/handlers.py` — two 1-line additions:**
+
+In `handle_instance_finished()`:
+```python
+from app.ws.auto_sequencer import notify_step_complete
+notify_step_complete(payload.instance_id)   # ADD before existing cleanup
+```
+
+In `handle_instance_error()`:
+```python
+notify_step_complete(payload.instance_id)   # ADD before existing cleanup
+```
+
+**The /clear between steps** is handled by the sequencer: when `clear_before=True` on a step, the sequencer dispatches a synthetic `/clear` execute before the real step prompt. This is purely a data concern in the steps JSON — no protocol change.
+
+**Sequence tasks are started by `POST /api/sequences/{id}/run`:**
+```python
+run_task = asyncio.create_task(run_sequence(sequence_id, run_id, user_id))
+```
+
+**Orphan recovery on server restart:** `AutoSequenceRun` records with status `running` are detected at startup and marked `errored` (same pattern as instance reconciliation in `handle_node_register`).
+
+---
+
+## Wire Protocol Changes Summary
+
+**Node↔Server protocol (GSD wire protocol v1.2.0): NO changes for v1.3.**
+
+All new messages are frontend↔server only.
+
+**New server→frontend WebSocket message types:**
+
+`input_request` — sent when stream intelligence detects an interactive wait:
+```json
+{
+  "type": "input_request",
+  "instance_id": "<uuid>",
+  "question": "<string>",
+  "options": ["<opt1>", "<opt2>"] | null,
+  "input_type": "buttons" | "text"
+}
+```
+
+`notification` — sent on attention-needed events (input needed, sequence complete/error):
+```json
+{
+  "type": "notification",
+  "kind": "input_needed" | "sequence_complete" | "sequence_error" | "instance_finished",
+  "node_id": "<string>",
+  "instance_id": "<string>" | null,
+  "message": "<string>"
+}
+```
+
+`sequence_status` — sent when sequence step advances or completes:
+```json
+{
+  "type": "sequence_status",
+  "sequence_id": "<uuid>",
+  "status": "running" | "completed" | "errored",
+  "current_step": 0
+}
+```
+
+**New frontend→server WebSocket message type:**
+
+`node_input` — user's response to an interactive question:
+```json
+{
+  "type": "node_input",
+  "instance_id": "<uuid>",
+  "text": "<user response text>"
+}
+```
+
+**TypeScript changes — `types/protocol.ts`:**
+
+`WsIncomingMessage` gains three new union variants (`input_request`, `notification`, `sequence_status`).
+`WsOutgoingMessage` gains `node_input`.
+
+---
+
+## Data Flows
+
+### Stream Intelligence Flow
 
 ```
-useWebSocket.connect()
-  ├─ fetch POST /api/auth/ws-ticket  →  401 (access token expired)
-  ├─ [NEW] refreshAccessToken()
-  │     └─ fetch POST /api/auth/refresh  →  200 { NEW_AT, NEW_RT }
-  │         └─ setTokens(NEW_AT, NEW_RT)
-  ├─ fetch POST /api/auth/ws-ticket (retry)  →  200 { ticket }
-  └─ new WebSocket(`/ws/frontend?ticket=${ticket}`)
+Node
+  │ stream_event { instance_id, data: "<json-string>" }
+  ▼
+ws/handlers.py::handle_stream_event()
+  │ parsed_data = json.loads(payload.data)
+  │
+  ├─► classification = classify_stream_event(parsed_data)    [NEW sync call]
+  │     if requires_input:
+  │       await frontend_manager.broadcast_input_request(    [NEW]
+  │           instance_id, classification
+  │       )
+  │       → all subscribed FrontendConnections get input_request msg queued
+  │       → writer coroutines push to WebSocket
+  │       → wsStore.handleMessage() → inputRequests[instanceId] set
+  │       → StreamPanel re-renders → InteractiveResponseUI shown
+  │
+  ├─► StreamEvent DB persist (unchanged)
+  ├─► connection_manager.append_stream_event() (unchanged)
+  └─► frontend_manager.fan_out_stream_event() (unchanged)
 ```
 
-### Audit Page WS Lifecycle (fixed)
+### Interactive Response Flow
 
 ```
-Before (INT-02 present):
-  Navigate to /dashboard/audit
-  → DashboardLayout mounts (no WS hook)
-  → AuditPage mounts
-  → wsStore.socket === null for entire session
+User clicks option in InteractiveResponseUI
+  │
+  ▼ ws.send({ type: "node_input", instance_id, text })
+  │
+  ▼ frontend_router.py reader loop — new elif branch
+  │ looks up instance → node_id, project, session_id
+  │ calls dispatch_execute(node_id, project, work_dir, text, user_id, db, session_id)
+  │
+  ▼ Normal execute → ack → stream_event flow (existing, unchanged)
+```
 
-After (INT-02 fixed):
-  Navigate to /dashboard/audit
-  → DashboardLayout mounts
-  → useWebSocket() called → ticket fetched → WS connected
-  → AuditPage mounts
-  → node_status_update events arrive → ['nodes'] query invalidated
+### Auto Sequence Flow
+
+```
+POST /api/sequences/{id}/run
+  │ create AutoSequenceRun record (status=running)
+  │ asyncio.create_task(run_sequence(sequence_id, run_id, user_id))
+  │
+  ▼ run_sequence() asyncio task (background)
+  │
+  loop for each step:
+    │ dispatch_execute(node_id, project, step.prompt, ...)
+    │ event = register_pending_step(instance_id)
+    │ await event.wait()    ← suspends here, yields event loop
+    │    [later: handle_instance_finished() fires]
+    │    [notify_step_complete(instance_id) sets event]
+    │ advance current_step in DB, persist
+  │
+  on completion:
+  └─► frontend_manager.broadcast_notification(sequence_complete, ...)
+        → all connected team users get notification msg
+        → wsStore notifications[] updated → NotificationBadge shows badge
 ```
 
 ---
 
 ## Architectural Patterns
 
-### Two-Stage WS Auth: Ticket Retry Must Happen Before Handshake
+### Pattern 1: Classify-Then-Fan-Out (stream intelligence integration)
 
-The WS ticket pattern (REST auth → single-use UUID → WS URL param) is correct and must not
-change. The v1.2 fix adds a token-refresh retry loop before stage 1 (the ticket request).
-Never pass a refresh token to the WS handshake itself or as a WS message after connect.
+**What:** The stream event handler calls a pure synchronous classifier immediately after parsing. Side-effects (broadcast) happen between classify and existing fan-out. The existing DB persist and fan-out are untouched.
 
-### Layout-Level Hook Mounting
+**When to use:** Any new processing on stream events. The hook point is stable and the classifier is stateless.
 
-`useWebSocket` belongs at the highest shared layout boundary (`/dashboard/route.tsx`),
-not at individual page level. This guarantees WS is alive for any dashboard route regardless
-of navigation entry point. The hook's internal guard prevents duplicate connections.
+**Trade-offs:** Adds one sync function call per stream event (negligible). The pure-function design makes it unit-testable without touching the event loop or DB.
 
-### Rotation with Revoke-Then-Insert in Same Session
+### Pattern 2: asyncio.Event for Step Sequencing
 
-Both the `revoked = True` update and the new `RefreshToken` insert must happen in the same
-SQLAlchemy session before commit. This prevents a window where both the old and new tokens
-are simultaneously valid. The existing `refresh_access_token()` function already holds a
-session passed from the router dependency — use it for both operations.
+**What:** Background task registers an `asyncio.Event` keyed by the current step's `instance_id`. The existing instance lifecycle handler sets the event when the terminal message arrives. The task waits with `await event.wait()` — this yields the event loop cleanly.
 
----
+**When to use:** Anytime a background task must react to a node event without polling.
 
-## Anti-Patterns to Avoid
+**Trade-offs:** In-memory dict is lost on server restart. The `AutoSequenceRun` DB record enables restart recovery (mark orphaned runs errored at startup). Not suitable for multi-process scaling, but single-process is the v1.3 target.
 
-### Sending Refresh Token Through the WS Handshake
+### Pattern 3: Input-as-Continue-Execute (Path A interactive response)
 
-Do not add a `refresh_token` query parameter to `/ws/frontend`. Tickets exist specifically
-to avoid passing long-lived credentials in URLs. Fix token expiry in `connect()` before the
-ticket request, not during or after the WS handshake.
+**What:** An interactive response to `AskUserQuestion` is dispatched as a new execute command with the current session_id, effectively continuing the Claude CLI conversation.
 
-### Per-Page useWebSocket Calls as the INT-02 Fix
+**When to use:** v1.3, while node-side changes remain out of scope.
 
-Adding `useWebSocket()` to `audit.tsx` fixes INT-02 but leaves any future dashboard pages
-vulnerable to the same bug. The correct fix is to move the call to the shared layout.
-
-### DB Migration for Token Expiry Duration
-
-The 1hr access token change is a config value only. Token expiry is embedded in the JWT
-payload (`exp` claim) — it is not stored in PostgreSQL. No migration is needed.
-
-### Deleting Old Refresh Token Records at Rotation
-
-Keep revoked records. They provide audit trail for session compromise detection. Only set
-`revoked = True`. Cleanup of old records can be a periodic job if storage becomes a concern,
-but is out of scope for v1.2.
+**Trade-offs:** Creates a new `Instance` record per answer (minor audit noise). The UX is identical to true stdin from the user's perspective. Migrate to a proper `input` protocol message in v1.4 when node changes are in scope.
 
 ---
 
-## Build Order
+## Anti-Patterns
 
-Auth changes must precede WS reconnect fix because the reconnect fix depends on the refresh
-endpoint returning a rotated token (confirming the full refresh cycle works correctly).
+### Anti-Pattern 1: Sequencer on the Frontend
+
+**What people do:** Put sequence step-advancement in a React effect or polling interval.
+
+**Why it's wrong:** Tab close or network drop aborts the sequence. The frontend cannot persist state across reconnects. The server cannot observe instance lifecycle events from the frontend.
+
+**Do this instead:** Server-side asyncio task. Frontend renders sequence state from DB via REST + WS push.
+
+### Anti-Pattern 2: Classifying Stream Events on the Frontend
+
+**What people do:** Scan `streamBuffers` in React for `AskUserQuestion` tool uses and show interactive UI from the store.
+
+**Why it's wrong:** Notifications must fire even when the stream panel is not mounted. Other tabs will not receive the notification. The `input_request` WS message broadcast pattern covers all connected sessions simultaneously.
+
+**Do this instead:** Classify on the server, broadcast `input_request` to all subscribed frontend connections. Frontend renders from `inputRequests[instanceId]` in wsStore.
+
+### Anti-Pattern 3: FK from `Instance.project` to `projects.id`
+
+**What people do:** Add a foreign key from `Instance.project` to the new `projects` table.
+
+**Why it's wrong:** Instances are an immutable audit trail and must outlive project records. Project deletion would cascade-delete instance records or require `ON DELETE SET NULL`, losing the project name from history.
+
+**Do this instead:** `Instance.project` stays a plain String column. It is a denormalized snapshot taken at dispatch time.
+
+### Anti-Pattern 4: I/O in stream_intelligence.py
+
+**What people do:** Add DB queries inside `classify_stream_event()` to look up instance context.
+
+**Why it's wrong:** Called on every stream event. A DB round-trip per NDJSON line will create backpressure on the node connection and degrade stream throughput.
+
+**Do this instead:** The classifier is pure — no I/O. If per-instance state is needed (e.g., "has this instance already received a question?"), maintain a lightweight in-memory dict keyed by `instance_id`, cleared in `handle_instance_finished` and `handle_instance_error`.
+
+---
+
+## Build Order (Dependency-Aware)
+
+Dependencies run strictly top-to-bottom. Items at the same level are independent and can be parallelized.
 
 ```
-Step 1: Extended sessions + token rotation (backend only)
-  Files: config.py, auth_service.py
-  Dependency: none — self-contained
-  Test signal: POST /api/auth/refresh returns new refresh_token value each call
+Step 1: DB models + migration (project, auto_sequence, auto_sequence_run)
+  Files: models/project.py, models/auto_sequence.py, alembic/versions/xxxx_v1_3.py
+  Dependency: none — everything else may need these tables
 
-Step 2: WS token refresh on reconnect (frontend only)
-  Files: api.ts (export), useWebSocket.ts (retry block)
-  Dependency: Step 1 (rotation must be live before testing the full reconnect path)
-  Test signal: Manually expire access token, verify WS reconnects without page reload
+Step 2a: stream_intelligence.py (pure classifier)
+  Dependency: none — testable in isolation before handler modification
 
-Step 3: Audit page WS fix (frontend layout)
-  Files: dashboard/route.tsx
-  Dependency: Step 2 (ensures reconnect is reliable for long-idle sessions)
-  Test signal: Direct navigate to /dashboard/audit, confirm WS connected in store
+Step 2b: routers/projects.py + schemas/projects.py
+  Dependency: Step 1 (models)
 
-Step 4: Onboarding guide page (frontend new route)
-  Files: onboarding.tsx (new), __root.tsx (nav link)
-  Dependency: none — fully independent, can be parallelized with steps 1-3
-  Test signal: /dashboard/onboarding renders, nav link active
+Step 2c: CommandPalette.tsx (frontend)
+  Dependency: none — calls existing /api/execute only
 
-Step 5: Simplified execute form (frontend component)
-  Files: ExecuteForm.tsx
-  Dependency: none — independent UI change
-  Test signal: Preset selection populates textarea, form still submits correctly
+Step 3: Modify handle_stream_event + frontend_manager broadcast methods
+  Dependency: Step 2a (classifier must exist)
+  Parallel: extend WsIncomingMessage TypeScript types at same time
+
+Step 4a: InteractiveResponseUI + wsStore inputRequests slice
+  Dependency: Step 3 (new WS message type must be defined)
+
+Step 4b: auto_sequencer.py + notify hooks in handlers.py
+  Dependency: Step 1 (models for run tracking)
+
+Step 5a: frontend_router.py node_input handler
+  Dependency: Step 4a (node_input message defined in WS protocol)
+
+Step 5b: routers/sequences.py + schemas/sequences.py
+  Dependency: Step 4b (sequencer must exist to be triggered)
+
+Step 6: AutoModePanel.tsx
+  Dependency: Step 5b (sequences REST endpoint)
+
+Step 7: ProjectManager.tsx
+  Dependency: Step 2b (projects REST endpoint)
+
+Step 8: NotificationBadge.tsx
+  Dependency: Step 3 (notification WS message in frontend_manager)
 ```
 
-Steps 4 and 5 are independent of steps 1-3 and of each other. Steps 1 → 2 → 3 must be
-sequential.
+Steps 2a, 2b, and 2c are fully independent of each other. Steps 4a and 4b are independent. Steps 5a and 5b are independent.
+
+---
+
+## What Is NOT Changed
+
+The following existing components require zero modification for v1.3:
+
+- GSD wire protocol v1.2.0 node↔server messages (`ws/protocol.py`, `ws/router.py`)
+- `connection_manager.py`
+- Instance, Node, Team, User, AuditLog, StreamEvent, RefreshToken, WsTicket DB models
+- JWT auth flow, ws-ticket endpoint
+- Frontend `useWebSocket` hook
+- Frontend `StreamPanel`, `StreamEventRenderer` rendering for non-interactive events (read-only extension)
+- Frontend `ExecuteForm` (CommandPalette is a sibling, not a replacement)
 
 ---
 
 ## Sources
 
-- Source: `backend/app/services/auth_service.py` — rotation explicitly deferred with comment
-- Source: `backend/app/config.py` — `jwt_access_token_expire_minutes = 30` confirmed
-- Source: `backend/app/models/refresh_token.py` — `revoked` field confirmed, no migration needed
-- Source: `frontend/src/hooks/useWebSocket.ts` — `if (!res.ok) return` is INT-01 root cause
-- Source: `frontend/src/routes/dashboard/audit.tsx` — no `useWebSocket()` call confirms INT-02
-- Source: `frontend/src/lib/api.ts` — `refreshAccessToken` defined but not exported
-- Source: `frontend/src/routes/dashboard/route.tsx` — no WS hook in current layout
+- Direct codebase analysis: `backend/app/ws/handlers.py` — stream event pipeline, instance lifecycle hooks
+- Direct codebase analysis: `backend/app/ws/manager.py` — in-memory stream buffer, node connection registry
+- Direct codebase analysis: `backend/app/ws/frontend_manager.py` — fan-out pattern, queue-based broadcast
+- Direct codebase analysis: `backend/app/ws/frontend_router.py` — existing message handler structure (subscribe/unsubscribe reader loop)
+- Direct codebase analysis: `backend/app/ws/protocol.py` — all 10 protocol message types confirmed
+- Direct codebase analysis: `backend/app/ws/commands.py` — dispatch_execute() signature
+- Direct codebase analysis: `backend/app/models/` — all existing models reviewed
+- Direct codebase analysis: `frontend/src/stores/wsStore.ts` — existing Zustand slices
+- Direct codebase analysis: `frontend/src/types/protocol.ts`, `types/ndjson.ts` — existing WS and NDJSON types
+- Direct codebase analysis: `frontend/src/components/stream/StreamEventRenderer.tsx` — existing renderer structure
+- Spec files: `protocol-spec.md` (v1.2.0 — 10 message types, no stdin support confirmed)
+- Project context: `.planning/PROJECT.md` — "Node-side changes" out of scope for v1.3 confirmed
 
 ---
 
-*Architecture research for: GLSD Server v1.2 Ease of Access*
-*Researched: 2026-03-24*
+*Architecture research for: GLSD Server v1.3 GSD Integration*
+*Researched: 2026-03-25*

@@ -1,159 +1,203 @@
 # Project Research Summary
 
-**Project:** GLSD Server v1.2 — Ease of Access
-**Domain:** Remote node management dashboard — JWT auth hardening, WebSocket reliability, onboarding UX, execute form simplification
-**Researched:** 2026-03-24
+**Project:** GLSD Server v1.3 GSD Integration
+**Domain:** GSD-aware Claude CLI control plane — stream intelligence, interactive question UI, project management, auto mode, notifications
+**Researched:** 2026-03-25
 **Confidence:** HIGH
 
 ## Executive Summary
 
-GLSD Server v1.2 is an additive milestone on a functioning FastAPI + React 19 dashboard. The base stack, auth system, WebSocket infrastructure, and UI component library are all already installed and validated — no new dependencies are required for any of the five milestone features. Research confirms this is primarily a logic completion milestone: the backend already has a `RefreshToken` model with a `revoked` boolean and `create_refresh_token`/`store_refresh_token` functions; the frontend already has `refreshAccessToken()` in `api.ts`; TanStack Router's layout route already provides the correct boundary for lifting `useWebSocket`. The gap between current state and the v1.2 target is measured in lines-of-code, not packages or migrations. The component count is 1 new file, 7 modified files, 0 DB migrations.
+GLSD Server v1.3 transforms an already-working v1.2 Claude CLI relay into a GSD-aware control plane. The base stack (FastAPI, SQLAlchemy, React 19, TanStack Router/Query, Zustand, shadcn/ui) is locked and requires zero new dependencies — all v1.3 features are implemented by adding new modules, extending existing types, and writing one Alembic migration. The central technical discovery is that the existing `handle_stream_event` pipeline in `ws/handlers.py` already parses NDJSON via `json.loads(payload.data)`, making stream intelligence entirely a dict-inspection problem on the already-decoded `parsed_data`. No new parsing infrastructure is required.
 
-The recommended build order is sequential for the auth and WebSocket chain (backend rotation first, then frontend WS reconnect, then audit page WS fix) and parallel for the two independent UI features (onboarding guide page and simplified execute form). This order is dictated by a hard dependency: the WS token refresh fix (INT-01) must call `/auth/refresh` and expect a rotated response — if rotation is not in place, the reconnect fix will work intermittently on today's code and fail silently once rotation is enabled later.
+The recommended approach is to add a pure synchronous classifier (`stream_intelligence.py`) called inline in `handle_stream_event` after parsing, a server-side asyncio sequencer for auto mode, and four new WebSocket message types for frontend-to-server communication. Interactive question responses are dispatched as session-resuming execute commands via the existing protocol — no node-side changes are needed. The node-to-server wire protocol v1.2.0 remains entirely unchanged for this milestone. All enrichment and new message types live exclusively in the frontend-to-server channel.
 
-The key risk is concurrency: refresh token rotation introduces three separate race conditions that must be designed out before the feature ships, not retrofitted after user reports. All three have concrete, established prevention patterns (atomic SQL `UPDATE...RETURNING`, singleton refresh promise, always-fresh `getAccessToken()` call after async boundaries). These are not speculative risks — they are confirmed code-level gaps in the existing `auth_service.py` and `api.ts` implementations. Addressing them in Phase 1 eliminates downstream risk in Phases 2 and 3.
+The primary risks are: (1) silently breaking the frontend stream renderer by changing the shape of the forwarded `data` field when adding GSD classification, which TypeScript will not catch at runtime; (2) false-positive input-wait detection if only heuristic scanning is used instead of the reliable `AskUserQuestion` tool-use signal; and (3) auto mode state machine isolation failures when two users target the same node simultaneously. All three risks have clear prevention strategies that must be built into the initial implementation — they are not safe to defer as hardening steps.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new packages are required for v1.2. All five features are implementable with the already-installed stack: `PyJWT>=2.9.0` and `SQLAlchemy[asyncio]>=2.0.44` on the backend; `@tanstack/react-router`, `@tanstack/react-query`, `zustand`, and scaffolded shadcn/ui components (`Tabs`, `Progress`, `Select`) on the frontend. The only configuration change is `jwt_access_token_expire_minutes: int = 30` to `60` in `config.py`. See STACK.md for the full feature-by-feature breakdown.
+No new packages are required. The entire v1.3 milestone is built on the existing installed stack. The only required infrastructure change is a single Alembic migration creating three new tables (`projects`, `auto_sequences`, `auto_sequence_runs`). All Claude CLI NDJSON event types (`system`, `assistant`, `user`, `result`) are confirmed against official Agent SDK documentation with HIGH confidence. The `AskUserQuestion` detection pattern — inspecting `assistant` message content blocks for `tool_use` blocks where `name == "AskUserQuestion"` — is verified against the official Agent SDK user-input docs.
 
-**Core technologies relevant to v1.2:**
-- `PyJWT` + `SQLAlchemy async`: JWT creation/validation and `RefreshToken` DB model — rotation is additive to existing composable functions
-- `useWebSocket.ts` custom hook: manages WS lifecycle with exponential backoff — patch in-place, do not replace with a library
-- `TanStack Router` file-based routing: new onboarding route is a single new file; layout route is the correct WS hook boundary
-- `shadcn/ui` (`Tabs`, `Select`, `Progress`): already scaffolded in v1.1, consumed for the first time in v1.2
-- `navigator.clipboard.writeText()`: browser-native copy-to-clipboard — no npm package needed
+**Core technologies (existing, confirmed compatible):**
+- `FastAPI + SQLAlchemy[asyncio]`: New routers and models follow identical patterns to existing code — no migration risk
+- `asyncio` (stdlib): Auto mode sequencer uses `asyncio.Event` per instance_id — zero-polling, event-driven step advancement
+- `sonner v2.0.7` (already installed): In-app toast notifications; no new toast library needed
+- `Browser Notification API` (native, zero dep): Tab-unfocused notifications; Web Push / service worker explicitly not needed
+- `@base-ui/react` Dialog, Checkbox, RadioGroup (already scaffolded): Interactive question UI components are all available
+
+**Explicitly excluded:**
+- xterm.js, socket.io, @anthropic-ai/claude-agent-sdk (server-side), Web Push API, Celery, Redis — all rejected with clear rationale in STACK.md
 
 ### Expected Features
 
-**Must have (table stakes — all required for v1.2 milestone):**
-- Extended session duration (1hr access token + 7-day refresh rotation) — silent re-auth is baseline UX expectation; 15-minute tokens feel broken to users
-- WebSocket reconnect refreshes expired token (INT-01) — reconnect with expired token currently reads as "app is broken" on tab resume
-- Audit page WebSocket on direct navigation (INT-02) — bookmarks and deep links must work; this is table stakes for any web app
-- Node onboarding guide page at `/dashboard/onboarding` — no-node users have no path to getting started without this
-- Simplified execute form (preset prompts, project picker, plain-language labels) — blank form with machine-named fields fails non-technical users at first touch
+**Must have (table stakes) — v1.3 launch:**
+- GSD command palette (~20 buttons in 4 categories) — without this, users type every slash command manually
+- AskUserQuestion detection + interactive button/checkbox UI — without this, GSD autonomous mode blocks indefinitely
+- Completion and input-needed browser notifications — users cannot watch tabs indefinitely for long-running tasks
+- Session resume from instance list — GSD workflows span multiple sessions; continuity is a core primitive
+- Project management commands (new project, connect folder, clone GitHub repo)
 
-**Should have (add after v1.2 validation):**
-- Form state persistence for last-used node + project (localStorage) — eliminates repeated selection for returning users
-- Onboarding checklist auto-completion detection (detect first node connect) — closes the "did it work?" loop
-- Node-aware guide content showing real node IDs inline — reduces copy-paste errors from generic placeholders
+**Should have — add after P1 features are stable (v1.x):**
+- Auto mode sequential execution — high value, high complexity; defer until base GSD integration is solid
+- Freeform input wait detection — lower confidence heuristic; add after empirical testing against real GSD workflow runs
+- Auto mode sequence persistence — session-scoped first, DB-persisted if user demand justifies it
 
-**Defer to v2+:**
-- Personalized saved prompt presets (per-user CRUD) — requires DB table, API endpoints, management UI
-- Overlay onboarding tour (tooltip chain on dashboard) — wrong UX moment; static guide page covers same ground statelessly
-- OAuth/SSO login — explicitly out of scope in PROJECT.md
+**Defer (v2+):**
+- Multi-workstream tracking across nodes
+- Cost tracking dashboard (requires aggregate storage beyond ephemeral stream buffer)
 
 ### Architecture Approach
 
-The v1.2 architecture impact is narrow: 1 new file, 7 modified files, 0 DB migrations. The existing system is a single-worker FastAPI backend behind Nginx with a React SPA using file-based TanStack Router. The WS architecture uses a two-stage auth pattern (REST ticket request then WS upgrade with single-use ticket UUID) that must not change. Token rotation is entirely server-side in `auth_service.py`. The WS reconnect fix is a 10-line addition to `useWebSocket.ts` plus a one-word export change in `api.ts`. Moving `useWebSocket()` to the dashboard layout route fixes INT-02 in 2 lines and makes all current and future dashboard routes automatically WS-enabled. See ARCHITECTURE.md for exact file locations, data flow diagrams, and the validated build order.
+The v1.3 architecture is additive by design: the hot path (`handle_stream_event` → DB persist → in-memory buffer → frontend fan-out) is unchanged. Stream intelligence inserts a single synchronous classify call between parsing and the existing pipeline. All new server-side state lives in new modules (`stream_intelligence.py`, `auto_sequencer.py`) rather than embedded in the existing handler. Four new frontend-to-server WebSocket message types (`input_request`, `notification`, `sequence_status`, `node_input`) cover all new communication needs. The node-to-server protocol is frozen at v1.2.0 for this milestone.
 
-**Components and their change type:**
-1. `backend/app/config.py` — Modified: access token expiry config (1-line change)
-2. `backend/app/services/auth_service.py` — Modified: refresh token rotation logic (atomic revoke + insert)
-3. `frontend/src/lib/api.ts` — Modified: export `refreshAccessToken` + singleton refresh promise guard
-4. `frontend/src/hooks/useWebSocket.ts` — Modified: 401 retry path with token refresh before ticket re-fetch
-5. `frontend/src/routes/dashboard/route.tsx` — Modified: move `useWebSocket()` to layout (INT-02 fix)
-6. `frontend/src/components/execute/ExecuteForm.tsx` — Modified: preset prompts, project picker, label improvements
-7. `frontend/src/routes/__root.tsx` — Modified: add onboarding nav link
-8. `frontend/src/routes/dashboard/onboarding.tsx` — New: static step-by-step guide with copy-to-clipboard
+**Major components:**
+
+1. `ws/stream_intelligence.py` — pure synchronous classifier; detects `AskUserQuestion`, completion events; no I/O, no await; unit-testable in isolation
+2. `ws/auto_sequencer.py` — asyncio background task per sequence run; step advancement via `asyncio.Event` keyed on `instance_id`; keyed on `(node_id, sequence_id)` for multi-user isolation
+3. `ws/frontend_manager.py` (modified) — two new broadcast methods: `broadcast_input_request()` and `broadcast_notification()`
+4. `ws/frontend_router.py` (modified) — new `node_input` message handler; looks up instance, dispatches as session-resuming execute
+5. `models/project.py` + `models/auto_sequence.py` — server-managed project registry and sequence state, independent of the `node.projects` JSON array
+6. Frontend: `CommandPalette.tsx`, `InteractiveResponseUI.tsx`, `AutoModePanel.tsx`, `NotificationBadge.tsx`, `ProjectManager.tsx`
+
+**Build order dependency chain:** DB models → classifier (parallel with project router and CommandPalette) → modified handler + WS types → interactive UI + sequencer (parallel) → node_input router + sequences router (parallel) → AutoModePanel → ProjectManager → NotificationBadge.
 
 ### Critical Pitfalls
 
-1. **Non-atomic refresh token rotation** — Use a single `UPDATE refresh_tokens SET revoked=TRUE WHERE token_hash=:hash AND revoked=FALSE RETURNING user_id` statement; only issue a new token if `RETURNING` yields a row. Two separate writes allow concurrent calls to produce two live tokens. This is the same pattern already used correctly in `validate_ws_ticket` — replicate it exactly.
+1. **Forwarded `stream_event` shape change breaks frontend silently** — When adding GSD classification, add enrichment as a new sibling `gsd` field to the WS message; never mutate the existing `data` field. TypeScript's `as NdjsonEvent` cast will not catch runtime shape mismatches. Agree on the enriched message contract before writing any classification code.
 
-2. **Concurrent refresh calls racing on rotation** — Add a singleton `refreshPromise: Promise<boolean> | null` guard in `api.ts`. Without it, a WS reconnect and a TanStack Query 401-intercept firing simultaneously will both call `/auth/refresh`; the second call presents the now-rotated-away token, gets a 401, clears all tokens, and the user is logged out. This guard must be in place before rotation is enabled.
+2. **Input-wait detection false positives from heuristic-only approach** — Use two signals: (a) `AskUserQuestion` tool-use in stream = definitive; (b) no new `assistant` events for 3+ seconds after a question-ending turn = heuristic. Render interactive UI only on signal (a) for v1.3. Never fire notification on heuristic match alone.
 
-3. **Stale access token variable in WS reconnect path** — Always call `getAccessToken()` after `await refreshAccessToken()` completes, never before. A local variable capturing the token before the async refresh boundary holds the expired value and causes an infinite 401 loop on ticket retry.
+3. **Auto mode state machine cross-user collision** — Key all sequence registry entries on `(node_id, sequence_id)`, not `node_id` alone. Use `asyncio.Event` per `instance_id` (not per node). Cancel all sequences for a node when `handle_unexpected_disconnect` fires; broadcast `sequence_error` to affected users.
 
-4. **Duplicate `useWebSocket` hook as INT-02 workaround** — Do not add `useWebSocket()` to `audit.tsx`. Adding it to the page component creates two simultaneous WS connections and duplicated broadcast events. Moving the hook to the layout (`route.tsx`) is the correct and complete fix.
+4. **Stale interactive prompt after instance termination** — The `InteractiveResponseUI` component must subscribe to `instanceStatuses[instanceId]` in wsStore and render `null` when the instance reaches a terminal state. Implement this in the same PR as the prompt component — do not ship without it.
 
-5. **Missing DB indexes on `refresh_tokens` table** — Add indexes on `(expires_at)` and `(user_id, revoked)` in the same commit as 7-day tokens. Without these, query performance degrades as the table grows. Also add startup-time cleanup for expired rows (`DELETE FROM refresh_tokens WHERE expires_at < now()`). These ship with Phase 1, not as a follow-up.
+5. **Multi-tab duplicate response submission** — When `node_input` is received, broadcast a `prompt_answered` message to all of the user's connections before forwarding to the node. Each tab's interactive UI hides itself on receipt. Button must be disabled immediately on click (optimistic lock) regardless.
+
+6. **`work_dir` path traversal via project management form** — Validate all user-supplied paths: reject any path containing `..` after `os.path.normpath`; resolve paths from registered project roots in the DB, not from free-text input.
+
+---
 
 ## Implications for Roadmap
 
-Based on the dependency analysis in ARCHITECTURE.md and the phase-to-pitfall mapping in PITFALLS.md, a 3-phase structure is recommended.
+Based on the build-order dependency chain in ARCHITECTURE.md and the pitfall-to-phase mapping in PITFALLS.md, the following phase structure is recommended. Phases 2a/2b/2c can be parallelized; 4a/4b can be parallelized; 5a/5b can be parallelized.
 
-### Phase 1: Extended Sessions + Concurrency Safety
-**Rationale:** Everything else depends on this. INT-01 (WS reconnect) calls `/auth/refresh` and expects a rotated response. The singleton `refreshPromise` guard must exist before any concurrent-refresh scenario is possible. DB indexes must ship with 7-day tokens. This phase has the highest risk concentration — building on rotation code that lacks the concurrency guard would make Phase 2 untestable in realistic browser conditions.
-**Delivers:** Robust 1hr/7-day session lifecycle; atomic rotation; concurrent-refresh deduplication; DB indexes and expired-row cleanup; XSS pre-flight audit (`dangerouslySetInnerHTML` grep gate before enabling 7-day tokens)
-**Addresses:** Extended session duration (FEATURES.md — Must Have)
-**Files:** `config.py`, `auth_service.py`, `api.ts` (singleton guard + export)
-**Avoids:** Non-atomic rotation race (Pitfall 1), concurrent refresh race (Pitfall 2), missing indexes (Pitfall 5), localStorage XSS audit gate (Pitfall 6)
+### Phase 1: DB Foundation + Migration
 
-### Phase 2: WebSocket Reliability (INT-01 + INT-02)
-**Rationale:** With rotation live and the singleton guard in place, the WS reconnect fix is safe to implement. INT-02 (audit page) is a 2-line layout change. Both fixes land together as a "WS reliability" unit. The WS disconnection banner (non-blocking, driven by existing `wsStore.connected` state) should also land here — it directly addresses user confusion during the reconnect window.
-**Delivers:** WS reconnect survives token expiry without user-visible logout; audit page works on direct navigation and bookmarks; optional: non-blocking "reconnecting" banner when WS is disconnected
-**Addresses:** INT-01 and INT-02 (FEATURES.md — Must Have)
-**Files:** `useWebSocket.ts` (401 retry block), `route.tsx` (layout-level hook)
-**Avoids:** Stale token variable in retry path (Pitfall 3), duplicate hook misdiagnosis (Pitfall 4)
+**Rationale:** Everything else depends on the `projects`, `auto_sequences`, and `auto_sequence_runs` tables. This is a zero-risk phase — new tables only, no existing model changes. Must also resolve the existing tech debt of stream events not being persisted to DB (required for interactive history replay and auto mode step review).
 
-### Phase 3: UX Surface (Onboarding Guide + Execute Form)
-**Rationale:** Both features are fully independent of the auth/WS chain and carry the lowest technical risk. They can be developed in parallel with Phases 1-2 if staffing allows, or sequentially after them. The onboarding guide should include a contextual entry point from the node grid empty state (a low-cost addition that significantly improves discoverability). The session ID field in the simplified execute form must remain accessible via an "Advanced options" disclosure — never removed entirely.
-**Delivers:** `/dashboard/onboarding` step-by-step guide with copy-to-clipboard; simplified execute form with preset prompts, project picker, and plain-language labels; onboarding nav link in sidebar
-**Addresses:** Onboarding guide page, simplified execute form (FEATURES.md — Must Have)
-**Files:** `onboarding.tsx` (new), `__root.tsx` (nav link), `ExecuteForm.tsx`
-**Avoids:** Onboarding guide too long/unclear — maximum 5-6 numbered steps, task-framed preset labels (Pitfall UX section); session ID field inaccessible (Pitfall UX section)
+**Delivers:** Three new SQLAlchemy models, one Alembic migration, stream event DB persistence enabled.
+
+**Addresses:** Stream event persistence tech debt (PITFALLS.md Pitfall 5); foundational requirement for project management and auto mode phases.
+
+**Avoids:** Starting feature phases before the data layer is stable.
+
+### Phase 2: Stream Intelligence + GSD Command Palette
+
+**Rationale:** Stream intelligence is the critical path for all interactive features. The classifier must exist before the handler can be modified. The command palette has zero new dependencies and can ship immediately as a pure UI addition. Can parallelize: classifier backend (2a), project router scaffolding (2b), command palette frontend (2c).
+
+**Delivers:** `stream_intelligence.py` classifier; `handle_stream_event` hook; new WS message types in `frontend_manager.py`; `CommandPalette.tsx` with ~20 GSD commands; extended `protocol.ts` and `ndjson.ts` types.
+
+**Addresses:** GSD command palette (FEATURES.md P1); stream enrichment without shape change (PITFALLS.md Pitfall 1); two-signal input-wait detection design (PITFALLS.md Pitfall 2).
+
+**Avoids:** Adding I/O inside the classifier; mutating the forwarded `data` field shape.
+
+**Research flag:** The exact NDJSON system event subtype for freeform input wait is unconfirmed — needs empirical testing against real Claude CLI output before implementing the heuristic branch.
+
+### Phase 3: Interactive Question UI + Notifications
+
+**Rationale:** Depends on Phase 2 WS message types and broadcast infrastructure. `input_request` and `notification` broadcast methods must exist before `InteractiveResponseUI` and `NotificationBadge` can be built.
+
+**Delivers:** `InteractiveResponseUI.tsx` (buttons/checkbox/text rendering of `AskUserQuestion`); `frontend_router.py` `node_input` handler; session-resume execute dispatch; `NotificationBadge.tsx`; browser Notification API integration; Sonner toast integration for in-app alerts.
+
+**Addresses:** AskUserQuestion detection + interactive UI (FEATURES.md P1); completion and input-needed notifications (FEATURES.md P1); stale prompt cleanup (PITFALLS.md Pitfall 6); multi-tab duplicate response (PITFALLS.md Pitfall 8); notification team scoping (PITFALLS.md security section).
+
+**Avoids:** Shipping the prompt component without status-aware teardown; dispatching notifications to wrong team members.
+
+### Phase 4: Session Resume + Project Management
+
+**Rationale:** Session resume is a small, self-contained P1 feature (pre-fill `session_id` on instance row). Project management requires Phase 1 DB tables and can be built in parallel with Phase 3 interactive UI work. Both are independent of auto mode.
+
+**Delivers:** "Resume Session" button on instance rows; `ProjectManager.tsx`; `routers/projects.py` CRUD; project picker resolving to registered DB paths (not free-text).
+
+**Addresses:** Session resume (FEATURES.md P1); project management commands (FEATURES.md P1); `work_dir` path traversal prevention (PITFALLS.md Pitfall 7).
+
+**Avoids:** Accepting free-text path input; skipping path normalization on `work_dir`.
+
+### Phase 5: Auto Mode Sequential Execution
+
+**Rationale:** Highest complexity feature; deferred until P1 features are stable. Requires Phase 1 models (AutoSequence, AutoSequenceRun), Phase 3 notification infrastructure, and Phase 4 session resume. The sequencer is server-side only — never on the frontend.
+
+**Delivers:** `auto_sequencer.py`; `routers/sequences.py`; `AutoModePanel.tsx`; per-sequence asyncio task with `asyncio.Event` step advancement; node disconnect sequence cancellation; orphan recovery on server restart.
+
+**Addresses:** Auto mode sequential execution (FEATURES.md P2); sequence isolation (PITFALLS.md Pitfall 4); auto mode + node disconnect (PITFALLS.md integration gotcha).
+
+**Avoids:** Frontend-side sequencer; polling with `asyncio.sleep`; keying sequence registry on `node_id` alone.
+
+**Research flag:** Verify `asyncio.Event` dict cleanup on sequence cancellation does not leak memory for long-running servers. Also verify two-user simultaneous sequence isolation empirically before declaring the phase complete.
 
 ### Phase Ordering Rationale
 
-- Phase 1 must precede Phase 2 because the WS reconnect retry path calls `/auth/refresh` — rotation semantics must be live and tested before the retry path is merged
-- Phase 1's singleton `refreshPromise` guard must exist before Phase 2 because the WS reconnect and TanStack Query 401 interceptor can fire simultaneously on tab resume; without the guard, enabling the reconnect retry path with rotation active causes mass logout
-- Phase 3 is fully independent and can be developed in parallel with Phases 1-2; the nav link and route should land after Phase 1 is stable so that a working auth session is guaranteed when users visit the onboarding page
-- The PITFALLS.md "looks done but isn't" checklist should be treated as a Phase 1 exit gate — concurrent refresh deduplication and atomic rotation must be verified with targeted tests before Phase 2 builds on them
+- Phases 1 → 2 → 3 are strictly ordered by dependency (models, then classifier, then UI that uses classifier output).
+- Phase 4 (project management) is independent of Phases 3 and 5 but requires Phase 1 models; can start in parallel with Phase 3 once Phase 1 is complete.
+- Phase 5 (auto mode) is explicitly deferred to after P1 features are stable, as recommended in FEATURES.md.
+- The architecture's "additive only" pattern (new sibling fields, new modules, no hot-path modifications) is the organizing principle throughout — each phase adds without changing existing behavior.
 
 ### Research Flags
 
-Phases with well-documented patterns (research-phase not needed):
-- **Phase 2 (WS Reliability):** Both INT-01 and INT-02 have precise root causes and fix locations identified in the codebase. Implementation is code completion with confirmed patterns, not design work requiring further research.
-- **Phase 3 (UX Surface):** Static content, existing components, no new dependencies. Onboarding guide and execute form improvements follow established patterns. FEATURES.md includes curated preset prompt copy and UX pattern rationale.
+Phases needing deeper research during planning:
+- **Phase 2 (Stream Intelligence):** Freeform input wait — the exact NDJSON `system` event subtype for text-input wait is not confirmed in official docs (MEDIUM confidence only). Run a real GSD discuss-phase and capture raw NDJSON output before implementing this branch.
+- **Phase 5 (Auto Mode):** `asyncio.Event` registry memory management under long-running server conditions is not stress-tested. Verify cleanup paths are correct before shipping.
 
-Phases needing implementation-time verification (not additional research, but exit-gate testing):
-- **Phase 1 (Extended Sessions):** The atomicity constraint and singleton guard patterns are well-understood, but correctness must be verified with concurrent-call testing before Phase 2 proceeds. The "looks done but isn't" checklist in PITFALLS.md defines the specific test assertions required.
+Phases with standard patterns (skip research-phase):
+- **Phase 1 (DB Foundation):** Standard SQLAlchemy model + Alembic migration — well-documented, identical to existing models.
+- **Phase 3 (Notifications):** Browser Notification API + Sonner — both well-documented; no novel patterns.
+- **Phase 4 (Project Management):** Standard FastAPI CRUD + path validation — no novel patterns; path normalization is stdlib `os.path`.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Full source inspection confirmed all required packages are installed at compatible versions; no new dependencies identified; version compatibility table in STACK.md verified against package.json and requirements.txt |
-| Features | HIGH | Five features crisply defined in PROJECT.md; table stakes vs. defer categorization grounded in existing user mental models, official auth patterns, and codebase constraints |
-| Architecture | HIGH | Integration points confirmed by direct file inspection; component map (1 new file, 7 modified, 0 migrations) is based on actual code, not inference; build order validated against confirmed dependency chain |
-| Pitfalls | HIGH | All six critical pitfalls are code-grounded — pointing to specific lines and functions in `auth_service.py`, `api.ts`, and `useWebSocket.ts`; not generic advice |
+| Stack | HIGH | All packages verified against existing `package.json` and `requirements.txt`; no new deps needed; NDJSON schema confirmed against official Agent SDK docs and Go SDK source |
+| Features | HIGH | GSD command set inspected from local `~/.claude/get-shit-done/` installation; AskUserQuestion format confirmed from official Anthropic Agent SDK docs; auto mode design inferred from workflow files (MEDIUM for sequencing details) |
+| Architecture | HIGH | Based on direct codebase analysis of all relevant backend and frontend files; build order validated against actual dependency graph |
+| Pitfalls | HIGH | Code-grounded; derived directly from existing codebase architecture and specific integration surface; protocol constraints confirmed from `protocol-spec.md` |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **httpOnly cookie migration for refresh tokens:** Research confirms the `localStorage` pattern is a known risk amplified by 7-day tokens. The v1.2 mitigation is an audit gate (`dangerouslySetInnerHTML` grep) not a structural fix. Schedule httpOnly cookie migration as a v1.3 security hardening milestone — it requires CSRF token handling and is a non-trivial scope addition that should not be squeezed into v1.2.
-- **Token reuse detection (defense-in-depth):** PITFALLS.md recommends revoking all user tokens when a rotated-away token is presented (detecting potential session theft). This is beyond v1.2 MVP scope — flag for v1.3 alongside the httpOnly migration.
-- **WS disconnection banner:** The `wsStore.connected` state already enables a non-blocking banner. This is a low-cost addition that prevents user confusion when executing with a disconnected socket. Consider including in Phase 2 even if not in the original v1.2 feature spec.
-- **Visibility change reconnect trigger:** Adding a `visibilitychange` listener to trigger immediate WS reconnect when a backgrounded tab becomes visible is mentioned in PITFALLS.md. Not required for v1.2 but costs little to add during Phase 2 implementation.
+- **Freeform input wait NDJSON signal:** The exact `system` event subtype for text-input blocking is not confirmed in official docs. Resolve empirically by running a GSD discuss-phase and capturing raw stream output before implementing this detection branch. Do not ship the heuristic without this data.
+- **AskUserQuestion response via session resume:** The v1.3 approach dispatches a new execute with `session_id` as the answer delivery mechanism (Path A). The exact prompt format that Claude accepts as a satisfactory answer to an in-flight `AskUserQuestion` needs empirical validation. Test against a real GSD workflow before finalizing the response dispatch format.
+- **Stream event persistence tech debt:** PITFALLS.md and FEATURES.md both flag that stream events are currently not persisted to DB. This must be resolved in Phase 1, not deferred, because interactive history replay and auto mode step review both depend on it.
+- **True stdin relay (v1.4):** True stdin injection into a running Claude CLI process requires node-side changes (new protocol message type). Explicitly deferred to v1.4. Protocol v1.3.0 design should be tracked as a future milestone dependency.
+
+---
 
 ## Sources
 
-### Primary (HIGH confidence — direct codebase inspection)
-- `/backend/app/services/auth_service.py` — rotation deferred with comment confirmed; composable `create_refresh_token` / `store_refresh_token` functions confirmed; atomic `validate_ws_ticket` pattern confirmed as the model to replicate
-- `/backend/app/config.py` — `jwt_access_token_expire_minutes = 30` confirmed; `jwt_refresh_token_expire_days = 7` confirmed
-- `/backend/app/models/refresh_token.py` — `revoked` field and `expires_at` confirmed; no index on `expires_at` confirmed
-- `/frontend/src/lib/api.ts` — `refreshAccessToken` defined but not exported; no singleton concurrency guard
-- `/frontend/src/hooks/useWebSocket.ts` — `if (!res.ok) return` at line 26 confirmed as INT-01 root cause
-- `/frontend/src/routes/dashboard/route.tsx` — no `useWebSocket()` in layout confirmed as INT-02 root cause
-- `/frontend/src/routes/dashboard/audit.tsx` — no `useWebSocket()` call confirmed
-- `/frontend/package.json` — `tabs.tsx`, `progress.tsx`, `select.tsx` scaffolded; all required packages at current versions confirmed
+### Primary (HIGH confidence)
 
-### Secondary (HIGH confidence — official documentation)
-- Auth0: Refresh Tokens — httpOnly cookie pattern, rotation semantics
-- OWASP HTML5 Security Cheat Sheet — localStorage token storage risk assessment
-- MDN Web Docs: `navigator.clipboard.writeText()` — browser support confirmed (Chrome 66+, Firefox 63+, Safari 13.1+)
-- PyJWT 2.9.0 changelog — `jwt.encode()` / `jwt.decode()` API stable since 2.x
+- Official Agent SDK user-input docs — AskUserQuestion schema and response format: https://platform.claude.com/docs/en/agent-sdk/user-input
+- Official Agent SDK TypeScript reference — SDKMessage union types: https://platform.claude.com/docs/en/agent-sdk/typescript
+- Official Agent SDK streaming docs — StreamEvent, message flow: https://platform.claude.com/docs/en/agent-sdk/streaming-output
+- Official Claude CLI reference — `--output-format stream-json` flag: https://code.claude.com/docs/en/cli-reference
+- Local GSD installation — command catalog, autonomous workflow, do.md routing table: `~/.claude/get-shit-done/`
+- Existing codebase (v1.2 baseline): `backend/app/ws/handlers.py`, `backend/app/ws/frontend_manager.py`, `backend/app/ws/frontend_router.py`, `backend/app/ws/commands.py`, `backend/app/ws/manager.py`, `backend/app/ws/protocol.py`, `backend/app/models/`, `frontend/src/stores/wsStore.ts`, `frontend/src/types/protocol.ts`, `frontend/src/types/ndjson.ts`, `frontend/src/components/stream/StreamEventRenderer.tsx`
+- Protocol spec: `protocol-spec.md` v1.2.0 — 10 message types, no stdin support confirmed
+- Project context: `.planning/PROJECT.md` — out-of-scope constraints confirmed
 
-### Secondary (MEDIUM confidence — community and design sources)
-- The Developer's Guide to Refresh Token Rotation (Descope) — rotation implementation patterns, reuse detection
-- WebSocket Best Practices for Production Applications (WebSocket.org) — reconnect and auth token patterns
-- Onboarding UX Best Practices 2025 (UX Design Institute) — dedicated page vs. modal wizard patterns
-- Smart Interface Design Patterns: Onboarding UX — step count, checklist patterns, "first win" principle
+### Secondary (MEDIUM confidence)
+
+- Go SDK source — message type structs confirming NDJSON schema: https://pkg.go.dev/github.com/partio-io/claude-agent-sdk-go
+- GitHub issue #16712 — `tool_result` stdin injection constraint, `is_error` requirement: https://github.com/anthropics/claude-code/issues/16712
+- GitHub issue #24596 — stream-json event type documentation gaps: https://github.com/anthropics/claude-code/issues/24596
 
 ---
-*Research completed: 2026-03-24*
+
+*Research completed: 2026-03-25*
 *Ready for roadmap: yes*
