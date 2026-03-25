@@ -75,6 +75,7 @@ Plan: Not started
 | 260324-vml | Fix ExecuteForm TS null-safety errors for Docker build | 2026-03-25 | f39e628 | [260324-vml-fix-executeform-ts-null-safety-errors-fo](./quick/260324-vml-fix-executeform-ts-null-safety-errors-fo/) |
 | 260324-wyk | Fix node not visible in frontend; fix logout-on-refresh; increase stale threshold | 2026-03-25 | 0532a8d | [260324-wyk-fix-node-not-visible-in-frontend-fix-log](./quick/260324-wyk-fix-node-not-visible-in-frontend-fix-log/) |
 | 260325-009 | Fix node visibility: move NodeTeam auto-assign to run unconditionally after node upsert | 2026-03-25 | 5165704 | [260325-009-fix-node-visibility-frontend-not-showing](./quick/260325-009-fix-node-visibility-frontend-not-showing/) |
+| 260325-0bc | Fix SelectRootContext missing error in ExecuteForm; audit all frontend components | 2026-03-25 | ab0ca9c | [260325-0bc-fix-selectrootcontext-missing-error-and-](./quick/260325-0bc-fix-selectrootcontext-missing-error-and-/) |
 
 ---
 | Phase 11-extended-sessions P01 | 12 | 2 tasks | 5 files |
@@ -85,7 +86,7 @@ Plan: Not started
 
 ## Session Continuity
 
-**Last session:** 2026-03-25T07:00:19Z
-**Stopped at:** Completed quick/260325-009
+**Last session:** 2026-03-25T07:13:37Z
+**Stopped at:** Completed quick/260325-0bc
 
-Last activity: 2026-03-25 - Completed quick task 260325-009: Fix node visibility - frontend not showing connected nodes despite API logs confirming connection
+Last activity: 2026-03-25 - Completed quick task 260325-0bc: Fix SelectRootContext missing error and audit frontend components
