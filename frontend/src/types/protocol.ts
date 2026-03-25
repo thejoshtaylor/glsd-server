@@ -5,7 +5,11 @@ export type WsIncomingMessage =
   | { type: 'node_status_update'; node_id: string; status: 'connected' | 'stale' | 'disconnected' }
   | { type: 'instance_status'; instance_id: string; status: 'pending' | 'running' | 'finished' | 'errored' }
   | { type: 'new_node_alert'; node_id: string }
+  | { type: 'prompt_claimed'; instance_id: string; is_mine: boolean }
+  | { type: 'prompt_answered'; instance_id: string }
 
 export type WsOutgoingMessage =
   | { type: 'subscribe'; instance_id: string }
   | { type: 'unsubscribe'; instance_id: string }
+  | { type: 'claim_prompt'; instance_id: string }
+  | { type: 'submit_answer'; instance_id: string; prompt: string; session_id: string }
