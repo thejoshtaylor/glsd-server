@@ -12,6 +12,7 @@
 - ✅ **v1.0 MVP** — Phases 1-7 (shipped 2026-03-23) — [archive](milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1 Cyberpunk Beautification** — Phases 8-10 (shipped 2026-03-25) — [archive](milestones/v1.1-ROADMAP.md)
 - ✅ **v1.2 Ease of Access** — Phases 11-13 (shipped 2026-03-25) — [archive](milestones/v1.2-ROADMAP.md)
+- 🚧 **v1.3 GSD Integration** — Phases 14-17 (in progress)
 
 ## Phases
 
@@ -63,7 +64,8 @@
 | 11. Extended Sessions | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 12. WebSocket Reliability | v1.2 | 1/1 | Complete | 2026-03-25 |
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
+| 14. Project Management | v1.3 | 1/2 | In Progress | — |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — v1.2 Ease of Access shipped*
+*Last updated: 2026-03-25 — Phase 14 Plan 01 complete (project management backend)*

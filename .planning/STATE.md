@@ -18,14 +18,14 @@ last_updated: "2026-03-25T06:55:00.000Z"
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and stream results back to users in real time
-**Current focus:** Phase 13 — UX Surface
+**Current focus:** Phase 14 — Project Management
 
 ---
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
+Phase: 14
+Plan: 2
 
 ## Performance Metrics
 
@@ -48,6 +48,9 @@ Plan: Not started
 - **Naive UTC datetimes** — all DB columns use TIMESTAMP WITHOUT TIME ZONE; use `utcnow()` helper, never `datetime.now(timezone.utc)`
 - **No `motion` library** — all animations via `tw-animate-css` and CSS `@keyframes` only
 - **Admin bootstrap** — `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD` env vars seed admin on startup; flush User before Team (FK ordering)
+- **skip_project_check=True** — bypass `conn.projects` check in `dispatch_execute` for project setup commands (clone/bootstrap) where project not yet registered on node
+- **connect endpoint no-dispatch** — POST /api/projects/connect writes DB row only, no execute; `instance_id=None` in response
+- **pg INSERT ON CONFLICT for project upsert** — re-registering same (node_id, name) pair updates work_dir; avoids UniqueConstraint error on reconnect
 
 ### Technical Pitfalls
 
@@ -82,10 +85,11 @@ Plan: Not started
 | Phase 12-websocket-reliability P01 | 8 | 2 tasks | 6 files |
 | Phase 13-ux-surface P02 | 8 | 1 tasks | 1 files |
 | Phase 13-ux-surface P01 | 8 | 2 tasks | 5 files |
+| Phase 14-project-management P01 | 3min | 2 tasks | 8 files |
 
 ## Session Continuity
 
-**Last session:** 2026-03-25T07:00:19Z
-**Stopped at:** Completed quick/260325-009
+**Last session:** 2026-03-25T08:32:10Z
+**Stopped at:** Completed 14-project-management-01-PLAN.md
 
-Last activity: 2026-03-25 - Completed quick task 260325-009: Fix node visibility - frontend not showing connected nodes despite API logs confirming connection
+Last activity: 2026-03-25 - Completed Phase 14 Plan 01: Backend project management layer (connect/clone/bootstrap endpoints, Project model, Alembic migration 0006, project_service, skip_project_check)
