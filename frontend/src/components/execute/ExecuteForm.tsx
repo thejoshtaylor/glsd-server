@@ -113,7 +113,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
               <SelectValue placeholder="This node has no projects listed. Start the node and reconnect." />
             </SelectTrigger>
           ) : (
-            <Select value={project} onValueChange={setProject}>
+            <Select value={project} onValueChange={(val) => { if (val) setProject(val); }}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a project..." />
               </SelectTrigger>
@@ -130,7 +130,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
         <div className="space-y-1">
           <label className="text-sm font-semibold">Quick Start</label>
           <p className="text-sm text-muted-foreground">Choose a task or write your own below</p>
-          <Select value={preset} onValueChange={(val) => { setPreset(val); const entry = PRESET_PROMPTS.find(p => p.value === val); if (entry) setPrompt(entry.prompt); }}>
+          <Select value={preset} onValueChange={(val) => { if (!val) return; setPreset(val); const entry = PRESET_PROMPTS.find(p => p.value === val); if (entry) setPrompt(entry.prompt); }}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Choose a starting point..." />
             </SelectTrigger>
