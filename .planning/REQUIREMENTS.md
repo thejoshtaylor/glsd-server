@@ -9,10 +9,10 @@ Requirements for GSD Integration milestone. Each maps to roadmap phases.
 
 ### Project Management
 
-- [ ] **PROJ-01**: User can connect an existing folder on a node as a project
-- [ ] **PROJ-02**: User can clone a GitHub repo into a chosen directory on a node
-- [ ] **PROJ-03**: User can create a new project folder and bootstrap with /gsd:new-project
-- [ ] **PROJ-04**: User can see a list of projects per node with project-scoped command dispatch
+- [x] **PROJ-01**: User can connect an existing folder on a node as a project
+- [x] **PROJ-02**: User can clone a GitHub repo into a chosen directory on a node
+- [x] **PROJ-03**: User can create a new project folder and bootstrap with /gsd:new-project
+- [x] **PROJ-04**: User can see a list of projects per node with project-scoped command dispatch
 
 ### GSD Command Palette
 
@@ -86,10 +86,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROJ-01 | Phase 14 | Pending |
-| PROJ-02 | Phase 14 | Pending |
-| PROJ-03 | Phase 14 | Pending |
-| PROJ-04 | Phase 14 | Pending |
+| PROJ-01 | Phase 14 | Complete |
+| PROJ-02 | Phase 14 | Complete |
+| PROJ-03 | Phase 14 | Complete |
+| PROJ-04 | Phase 14 | Complete |
 | CMD-01 | Phase 15 | Pending |
 | CMD-02 | Phase 15 | Pending |
 | CMD-03 | Phase 15 | Pending |
