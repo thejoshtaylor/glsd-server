@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # Auth
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 30
+    jwt_access_token_expire_minutes: int = 60  # SES-01: 1 hour access token
     jwt_refresh_token_expire_days: int = 7
 
     # Node auth — static Bearer token nodes authenticate with
