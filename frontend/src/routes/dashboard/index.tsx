@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { NodeGrid } from '@/components/nodes/NodeGrid'
 import { NewNodeAlerts } from '@/components/alerts/NewNodeAlert'
-import { useWebSocket } from '@/hooks/useWebSocket'
 import { Server } from '@/lib/icons'
 
 export const Route = createFileRoute('/dashboard/')({
@@ -9,8 +8,6 @@ export const Route = createFileRoute('/dashboard/')({
 })
 
 function DashboardPage() {
-  useWebSocket()
-
   return (
     <div className="p-6 space-y-4 animate-in fade-in duration-150 fill-mode-both">
       <NewNodeAlerts />
