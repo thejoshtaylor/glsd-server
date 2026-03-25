@@ -86,39 +86,39 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROJ-01 | — | Pending |
-| PROJ-02 | — | Pending |
-| PROJ-03 | — | Pending |
-| PROJ-04 | — | Pending |
-| CMD-01 | — | Pending |
-| CMD-02 | — | Pending |
-| CMD-03 | — | Pending |
-| CMD-04 | — | Pending |
-| STRM-01 | — | Pending |
-| STRM-02 | — | Pending |
-| STRM-03 | — | Pending |
-| STRM-04 | — | Pending |
-| RESP-01 | — | Pending |
-| RESP-02 | — | Pending |
-| RESP-03 | — | Pending |
-| RESP-04 | — | Pending |
-| RESP-05 | — | Pending |
-| NOTF-01 | — | Pending |
-| NOTF-02 | — | Pending |
-| NOTF-03 | — | Pending |
-| NOTF-04 | — | Pending |
-| AUTO-01 | — | Pending |
-| AUTO-02 | — | Pending |
-| AUTO-03 | — | Pending |
-| AUTO-04 | — | Pending |
-| AUTO-05 | — | Pending |
-| AUTO-06 | — | Pending |
+| PROJ-01 | Phase 14 | Pending |
+| PROJ-02 | Phase 14 | Pending |
+| PROJ-03 | Phase 14 | Pending |
+| PROJ-04 | Phase 14 | Pending |
+| CMD-01 | Phase 15 | Pending |
+| CMD-02 | Phase 15 | Pending |
+| CMD-03 | Phase 15 | Pending |
+| CMD-04 | Phase 15 | Pending |
+| STRM-01 | Phase 15 | Pending |
+| STRM-02 | Phase 15 | Pending |
+| STRM-03 | Phase 15 | Pending |
+| STRM-04 | Phase 15 | Pending |
+| RESP-01 | Phase 16 | Pending |
+| RESP-02 | Phase 16 | Pending |
+| RESP-03 | Phase 16 | Pending |
+| RESP-04 | Phase 16 | Pending |
+| RESP-05 | Phase 16 | Pending |
+| NOTF-01 | Phase 16 | Pending |
+| NOTF-02 | Phase 16 | Pending |
+| NOTF-03 | Phase 16 | Pending |
+| NOTF-04 | Phase 16 | Pending |
+| AUTO-01 | Phase 17 | Pending |
+| AUTO-02 | Phase 17 | Pending |
+| AUTO-03 | Phase 17 | Pending |
+| AUTO-04 | Phase 17 | Pending |
+| AUTO-05 | Phase 17 | Pending |
+| AUTO-06 | Phase 17 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 27 total
-- Mapped to phases: 0
-- Unmapped: 27 ⚠️
+- Mapped to phases: 27
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-25*
-*Last updated: 2026-03-25 after initial definition*
+*Last updated: 2026-03-25 — traceability complete after roadmap creation*

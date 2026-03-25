@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: GSD Integration
-status: defining_requirements
-stopped_at: Milestone v1.3 started
+status: roadmap_defined
+stopped_at: Roadmap created — ready to plan Phase 14
 last_updated: "2026-03-25T12:00:00.000Z"
 ---
 
@@ -18,21 +18,23 @@ last_updated: "2026-03-25T12:00:00.000Z"
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and stream results back to users in real time
-**Current focus:** Defining requirements for v1.3 GSD Integration
+**Current focus:** v1.3 GSD Integration — roadmap defined, ready to plan Phase 14
 
 ---
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 14 — Project Management (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-25 — Milestone v1.3 started
+Status: Ready to plan
+Last activity: 2026-03-25 — v1.3 roadmap created
+
+Progress bar: Phase 14 of 17 defined [ ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░ ]
 
 ## Performance Metrics
 
 **Plans executed:** 29 (v1.0: 21, v1.1: 8)
-**Phases completed:** 10 (v1.0: 7, v1.1: 3)
+**Phases completed:** 13 (v1.0: 7, v1.1: 3, v1.2: 3)
 **Timeline:** 6 days (2026-03-20 → 2026-03-25)
 
 ---
@@ -50,6 +52,10 @@ Last activity: 2026-03-25 — Milestone v1.3 started
 - **Naive UTC datetimes** — all DB columns use TIMESTAMP WITHOUT TIME ZONE; use `utcnow()` helper, never `datetime.now(timezone.utc)`
 - **No `motion` library** — all animations via `tw-animate-css` and CSS `@keyframes` only
 - **Admin bootstrap** — `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD` env vars seed admin on startup; flush User before Team (FK ordering)
+- **v1.3: Additive stream enrichment only** — classification added as `gsd` sibling field on WS message; existing `data` field shape NEVER mutated
+- **v1.3: AskUserQuestion via session-resume execute** — answer dispatch uses existing execute protocol with `session_id`; no new node-side protocol changes
+- **v1.3: Auto sequencer on server, not frontend** — `asyncio.Event` per `instance_id`; keyed on `(node_id, sequence_id)` to isolate concurrent users
+- **v1.3: Path validation on all project work_dir input** — `os.path.normpath` + reject `..`; never accept free-text path for dispatch
 
 ### Technical Pitfalls
 
@@ -63,6 +69,14 @@ Last activity: 2026-03-25 — Milestone v1.3 started
 - **v1.2 critical:** Add `refreshPromise` singleton guard in `api.ts` BEFORE Phase 12 WS reconnect fix
 - **v1.2 critical:** Always call `getAccessToken()` AFTER `await refreshAccessToken()` — never capture token in local var before async boundary
 - **v1.2 critical:** Move `useWebSocket()` to layout route (`route.tsx`) to fix INT-02 — do NOT add it to `audit.tsx`
+- **v1.3 critical:** Ship `InteractiveResponseUI` with status-aware teardown in the same PR — never ship prompt component without `instanceStatuses[instanceId]` nil-guard
+- **v1.3 critical:** Broadcast `prompt_answered` to all user connections BEFORE forwarding `node_input` to node — prevents multi-tab duplicate submission
+- **v1.3 critical:** Cancel all auto sequences for a node in `handle_unexpected_disconnect` — broadcast `sequence_error` to affected users
+
+### Research Flags (v1.3)
+
+- **Phase 15 (Stream Intelligence):** Freeform input wait — exact `system` event subtype for text-input blocking is MEDIUM confidence only. Capture raw NDJSON from a real `gsd discuss-phase` run before implementing the heuristic branch. Do not ship heuristic detection without this data.
+- **Phase 17 (Auto Mode):** `asyncio.Event` registry memory management under long-running server not stress-tested. Verify cleanup paths on sequence cancellation before shipping.
 
 ### Blockers
 
@@ -88,7 +102,7 @@ Last activity: 2026-03-25 — Milestone v1.3 started
 
 ## Session Continuity
 
-**Last session:** 2026-03-25T07:13:37Z
-**Stopped at:** Completed quick/260325-0bc
+**Last session:** 2026-03-25T12:00:00Z
+**Stopped at:** v1.3 roadmap created — ready to plan Phase 14
 
-Last activity: 2026-03-25 - Completed quick task 260325-0bc: Fix SelectRootContext missing error and audit frontend components
+Last activity: 2026-03-25 - v1.3 GSD Integration roadmap defined (4 phases, 27 requirements mapped)
