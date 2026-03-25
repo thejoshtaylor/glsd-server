@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Cyberpunk Beautification
+milestone: v1.2
+milestone_name: Ease of Access
 status: unknown
-stopped_at: Completed 10-animations-and-login-treatment-02-PLAN.md
-last_updated: "2026-03-25T01:13:02.707Z"
+stopped_at: Completed 13-ux-surface-01-PLAN.md
+last_updated: "2026-03-25T05:24:20.632Z"
 progress:
   total_phases: 3
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # STATE: GLSD Server
@@ -20,23 +20,23 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-24)
+See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and stream results back to users in real time
-**Current focus:** Phase 10 — animations-and-login-treatment
+**Current focus:** Phase 13 — UX Surface
 
 ---
 
 ## Current Position
 
-Phase: 10
+Phase: 13
 Plan: Not started
 
 ## Performance Metrics
 
-**Plans executed:** 21 (v1.0)
-**Phases completed:** 7 (v1.0)
-**Timeline:** 4 days (2026-03-20 → 2026-03-23)
+**Plans executed:** 29 (v1.0: 21, v1.1: 8)
+**Phases completed:** 10 (v1.0: 7, v1.1: 3)
+**Timeline:** 6 days (2026-03-20 → 2026-03-25)
 
 ---
 
@@ -48,17 +48,24 @@ Plan: Not started
 - **asyncpg + SQLAlchemy 2 async** — blocking DB calls cascade into node timeouts; async-only
 - **PyJWT 2.x + pwdlib** — python-jose and passlib are abandoned; do not use them
 - **TanStackRouterVite first in plugins** — must precede react() and tailwindcss()
-- **v1.1 is frontend-only** — no backend changes; all work in `frontend/` directory
-- **No `motion` library in v1.1** — all animations via `tw-animate-css` and CSS `@keyframes` only
 - **OKLCH tokens in `:root`/`.dark` only** — never in `@theme inline` block (avoids dark mode breakage bug #18296)
 - **Lucide imports via `src/lib/icons.ts`** — direct paths only; barrel import slows dev server 5-8x
+- **Naive UTC datetimes** — all DB columns use TIMESTAMP WITHOUT TIME ZONE; use `utcnow()` helper, never `datetime.now(timezone.utc)`
+- **No `motion` library** — all animations via `tw-animate-css` and CSS `@keyframes` only
+- **Admin bootstrap** — `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD` env vars seed admin on startup; flush User before Team (FK ordering)
 
-### v1.1 Technical Pitfalls
+### Technical Pitfalls
 
 - `@theme inline` bakes static values at build — add new tokens in `:root`/`.dark` raw CSS blocks only
 - Animating `box-shadow` directly causes repaints — use pseudo-element opacity animation instead
 - shadcn uses `data-slot` selectors — read component source before overriding; edit source directly
 - Never add mount animations to stream output rows — causes animation queuing at >5 events/sec
+- `SELECT DISTINCT` fails with JSON columns — use `.scalars().unique()` for Python-side dedup instead
+- `session.add()` flush order is undefined — explicit `session.flush()` when FK ordering matters
+- **v1.2 critical:** Refresh token rotation MUST use `UPDATE...RETURNING` (atomic); never two separate writes
+- **v1.2 critical:** Add `refreshPromise` singleton guard in `api.ts` BEFORE Phase 12 WS reconnect fix
+- **v1.2 critical:** Always call `getAccessToken()` AFTER `await refreshAccessToken()` — never capture token in local var before async boundary
+- **v1.2 critical:** Move `useWebSocket()` to layout route (`route.tsx`) to fix INT-02 — do NOT add it to `audit.tsx`
 
 ### Blockers
 
@@ -72,16 +79,13 @@ Plan: Not started
 | 260324-pu8 | Add env variables for initial admin bootstrap on startup | 2026-03-25 | 4a2ce06 | [260324-pu8-add-env-variables-for-establishing-an-in](./quick/260324-pu8-add-env-variables-for-establishing-an-in/) |
 
 ---
-| Phase 08-color-system-and-foundation P01 | 5m | 2 tasks | 5 files |
-| Phase 08-color-system-and-foundation P02 | 3 | 2 tasks | 4 files |
-| Phase 08-color-system-and-foundation P03 | 8min | 2 tasks | 14 files |
-| Phase 09-component-upgrades-and-icon-pass P01 | 3 | 3 tasks | 16 files |
-| Phase 09-component-upgrades-and-icon-pass P02 | 15 | 2 tasks | 8 files |
-| Phase 09-component-upgrades-and-icon-pass P03 | 5 | 2 tasks | 3 files |
-| Phase 10-animations-and-login-treatment P01 | 112 | 3 tasks | 8 files |
-| Phase 10-animations-and-login-treatment P02 | 5m | 1 tasks | 1 files |
+| Phase 11-extended-sessions P01 | 12 | 2 tasks | 5 files |
+| Phase 11-extended-sessions P02 | 3min | 2 tasks | 1 files |
+| Phase 12-websocket-reliability P01 | 8 | 2 tasks | 6 files |
+| Phase 13-ux-surface P02 | 8 | 1 tasks | 1 files |
+| Phase 13-ux-surface P01 | 8 | 2 tasks | 5 files |
 
 ## Session Continuity
 
-**Last session:** 2026-03-25
-**Stopped at:** Completed quick task 260324-pu8: Add env variables for initial admin bootstrap on startup
+**Last session:** 2026-03-25T05:16:32.485Z
+**Stopped at:** Completed 13-ux-surface-01-PLAN.md

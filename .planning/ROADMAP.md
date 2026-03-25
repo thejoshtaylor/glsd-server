@@ -11,6 +11,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1-7 (shipped 2026-03-23) — [archive](milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1 Cyberpunk Beautification** — Phases 8-10 (shipped 2026-03-25) — [archive](milestones/v1.1-ROADMAP.md)
+- ✅ **v1.2 Ease of Access** — Phases 11-13 (shipped 2026-03-25) — [archive](milestones/v1.2-ROADMAP.md)
 
 ## Phases
 
@@ -36,6 +37,15 @@
 
 </details>
 
+<details>
+<summary>✅ v1.2 Ease of Access (Phases 11-13) — SHIPPED 2026-03-25</summary>
+
+- [x] Phase 11: Extended Sessions (2/2 plans) — completed 2026-03-25
+- [x] Phase 12: WebSocket Reliability (1/1 plan) — completed 2026-03-25
+- [x] Phase 13: UX Surface (2/2 plans) — completed 2026-03-25
+
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -50,7 +60,10 @@
 | 8. Color System and Foundation | v1.1 | 3/3 | Complete | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
+| 11. Extended Sessions | v1.2 | 2/2 | Complete | 2026-03-25 |
+| 12. WebSocket Reliability | v1.2 | 1/1 | Complete | 2026-03-25 |
+| 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — v1.1 shipped*
+*Last updated: 2026-03-25 — v1.2 Ease of Access shipped*

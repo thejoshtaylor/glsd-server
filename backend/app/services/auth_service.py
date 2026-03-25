@@ -1,6 +1,7 @@
 """Auth service: business logic for registration, login, token management, and WS tickets."""
 
 import hashlib
+import secrets
 import uuid
 from datetime import datetime, timedelta
 
@@ -8,7 +9,6 @@ from app.utils.time import utcnow
 
 import jwt
 from fastapi import HTTPException, status
-from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,12 +48,9 @@ def create_access_token(user_id: str, settings: Settings) -> str:
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-def create_refresh_token(user_id: str, settings: Settings) -> str:
-    expire = utcnow() + timedelta(
-        days=settings.jwt_refresh_token_expire_days
-    )
-    payload = {"sub": user_id, "type": "refresh", "exp": expire}
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+def create_refresh_token() -> str:
+    """Generate a cryptographically secure opaque 32-byte hex refresh token."""
+    return secrets.token_hex(32)
 
 
 # ---------------------------------------------------------------------------
@@ -89,8 +86,9 @@ async def register_user(
 
     # Issue tokens
     access_token = create_access_token(user_id, settings)
-    refresh_token_str = create_refresh_token(user_id, settings)
-    await store_refresh_token(user_id, refresh_token_str, settings, db)
+    refresh_token_str = create_refresh_token()
+    family_id = str(uuid.uuid4())
+    await store_refresh_token(user_id, refresh_token_str, family_id, settings, db)
 
     return TokenResponse(access_token=access_token, refresh_token=refresh_token_str)
 
@@ -119,7 +117,7 @@ async def authenticate_user(
 
 
 async def store_refresh_token(
-    user_id: str, token_str: str, settings: Settings, db: AsyncSession
+    user_id: str, token_str: str, family_id: str, settings: Settings, db: AsyncSession
 ) -> None:
     """Hash and persist a refresh token record."""
     token_hash = hashlib.sha256(token_str.encode()).hexdigest()
@@ -131,69 +129,88 @@ async def store_refresh_token(
             token_id=str(uuid.uuid4()),
             user_id=user_id,
             token_hash=token_hash,
+            family_id=family_id,
             expires_at=expires_at,
         )
     )
 
 
-async def refresh_access_token(
+async def rotate_refresh_token(
     refresh_token_str: str, db: AsyncSession, settings: Settings
 ) -> TokenResponse:
-    """Validate a refresh token and issue a new access token.
-
-    Returns the same refresh token (no rotation) — rotation is a v2 enhancement.
-    """
-    try:
-        payload = jwt.decode(
-            refresh_token_str,
-            settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
-        )
-    except InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired refresh token",
-        )
-
-    token_type = payload.get("type", "")
-    user_id: str | None = payload.get("sub")
-    if token_type != "refresh" or user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired refresh token",
-        )
-
+    """Atomically rotate a refresh token: revoke old, issue new (SES-02, SES-03, SES-04)."""
     token_hash = hashlib.sha256(refresh_token_str.encode()).hexdigest()
-    now = utcnow()
 
+    # Atomic revoke-and-read: UPDATE...RETURNING (SES-03)
     result = await db.execute(
-        select(RefreshToken).where(
-            RefreshToken.token_hash == token_hash,
-            RefreshToken.user_id == user_id,
-            RefreshToken.revoked == False,  # noqa: E712
-        )
+        text("""
+            UPDATE refresh_tokens
+            SET revoked = TRUE
+            WHERE token_hash = :token_hash
+              AND revoked = FALSE
+              AND expires_at > now()
+            RETURNING user_id, family_id
+        """),
+        {"token_hash": token_hash},
     )
-    stored = result.scalar_one_or_none()
+    row = result.fetchone()
 
-    if stored is None or stored.expires_at < now:
+    if row is not None:
+        user_id, family_id = row[0], row[1]
+        # Issue new token pair in the same family
+        new_refresh = create_refresh_token()
+        await store_refresh_token(user_id, new_refresh, family_id, settings, db)
+        new_access = create_access_token(user_id, settings)
+        return TokenResponse(access_token=new_access, refresh_token=new_refresh)
+
+    # Row was None — token not found as valid. Check for reuse (SES-04).
+    reuse_check = await db.execute(
+        select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+    )
+    existing = reuse_check.scalar_one_or_none()
+    if existing is not None and existing.revoked:
+        # Reuse detected — revoke entire family
+        await db.execute(
+            text("UPDATE refresh_tokens SET revoked = TRUE WHERE family_id = :fid"),
+            {"family_id": existing.family_id},
+        )
+        await db.flush()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired refresh token",
+            detail="Refresh token reuse detected",
         )
 
-    new_access_token = create_access_token(user_id, settings)
-    return TokenResponse(access_token=new_access_token, refresh_token=refresh_token_str)
+    # Token simply doesn't exist or is expired
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired refresh token",
+    )
 
 
-async def revoke_refresh_token(refresh_token_str: str, db: AsyncSession) -> None:
-    """Mark a refresh token as revoked (logout)."""
+async def revoke_refresh_token_family(refresh_token_str: str, db: AsyncSession) -> None:
+    """Revoke all tokens in the same family as the provided token (logout)."""
     token_hash = hashlib.sha256(refresh_token_str.encode()).hexdigest()
     result = await db.execute(
         select(RefreshToken).where(RefreshToken.token_hash == token_hash)
     )
     stored = result.scalar_one_or_none()
     if stored is not None:
-        stored.revoked = True
+        await db.execute(
+            text("UPDATE refresh_tokens SET revoked = TRUE WHERE family_id = :fid"),
+            {"family_id": stored.family_id},
+        )
+
+
+async def cleanup_expired_tokens(user_id: str, db: AsyncSession) -> None:
+    """Delete revoked and expired tokens for a user (keeps table lean)."""
+    await db.execute(
+        text("""
+            DELETE FROM refresh_tokens
+            WHERE user_id = :uid
+              AND (revoked = TRUE OR expires_at < now())
+        """),
+        {"uid": user_id},
+    )
 
 
 # ---------------------------------------------------------------------------

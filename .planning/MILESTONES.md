@@ -1,5 +1,19 @@
 # Milestones
 
+## v1.2 Ease of Access (Shipped: 2026-03-25)
+
+**Phases completed:** 3 phases, 5 plans, 5 tasks
+
+**Key accomplishments:**
+
+- Opaque hex refresh tokens with atomic UPDATE...RETURNING rotation, family-based reuse detection, and family-scoped logout revocation replacing the previous no-rotation JWT approach
+- Frontend refresh deduplication via singleton promise guard, proactive 80%-lifetime timer, and tab-restore visibility listener in api.ts
+- One-liner:
+- Onboarding page
+- shadcn Select project picker, 5-option preset prompt selector, plain-language labels, and Advanced details disclosure replacing raw HTML form elements in ExecuteForm
+
+---
+
 ## v1.1 Cyberpunk Beautification (Shipped: 2026-03-25)
 
 **Phases completed:** 3 phases, 8 plans, 15 tasks

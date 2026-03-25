@@ -49,7 +49,7 @@ async def frontend_ws_endpoint(websocket: WebSocket, ticket: str) -> None:
 
     if user_id is None:
         # Invalid, expired, or already-used ticket — reject before accepting
-        await websocket.close(code=1008)  # Policy Violation
+        await websocket.close(code=4001)  # Authentication failure — expired or invalid ticket
         return
 
     # Step 2: Accept the WebSocket connection now that auth is confirmed

@@ -5,6 +5,7 @@ export {
   ArrowLeft,
   ArrowDown,
   LogOut,
+  BookOpen,
   // Status / node badges
   Activity,       // Connected / Running
   Clock,          // Stale / Pending
@@ -16,6 +17,7 @@ export {
   Square,         // Kill / Stop recording
   Mic,            // Voice
   Filter,         // Audit filter
+  Copy,           // Copy to clipboard
   // Stream / tools
   ChevronRight,
   ChevronDown,
