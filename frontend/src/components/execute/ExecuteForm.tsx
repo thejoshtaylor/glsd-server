@@ -42,6 +42,8 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
   const [pendingInstanceId, setPendingInstanceId] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
+  const projects = node.projects ?? []
+
   const projectsQuery = useQuery({
     queryKey: ['projects', node.node_id],
     queryFn: () => api<ProjectResponse[]>(`/api/nodes/${node.node_id}/projects`),
@@ -105,7 +107,6 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
     },
   })
 
-  const projects = node.projects ?? []
   const canExecute = project && prompt.trim() && node.status === 'connected'
 
 
