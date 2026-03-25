@@ -117,7 +117,7 @@ Plans:
   5. When auto mode is off, the server notifies the user on each step completion and waits for manual advancement; when on, it auto-advances without prompting
 **Plans**: 3 plans
 Plans:
-- [ ] 17-01-PLAN.md — Backend: SequenceRegistry, run_sequence coroutine, handler/router wiring
+- [x] 17-01-PLAN.md — Backend: SequenceRegistry, run_sequence coroutine, handler/router wiring
 - [x] 17-02-PLAN.md — Frontend: Protocol types, wsStore sequence state, preset sequences
 - [ ] 17-03-PLAN.md — Frontend: AutoModeToggle, SequenceBuilder, SequenceProgress components
 **UI hint**: yes
@@ -142,7 +142,7 @@ Plans:
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
 | 15. Stream Intelligence and Command Palette | v1.3 | 2/2 | Complete    | 2026-03-25 |
 | 16. Interactive Response and Notifications | v1.3 | 3/3 | Complete    | 2026-03-25 |
-| 17. Auto Mode | v1.3 | 1/3 | In Progress|  |
+| 17. Auto Mode | v1.3 | 2/3 | In Progress|  |
 
 ---
 *Roadmap created: 2026-03-20*
