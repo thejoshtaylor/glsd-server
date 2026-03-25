@@ -13,7 +13,10 @@ export {
   CheckCircle,    // Finished (instances)
   Monitor,        // Node card
   // Actions
+  Command,        // Command palette section heading
+  Info,           // When-to-use tooltip
   Play,           // Execute button
+  Rocket,         // Dispatch button
   Square,         // Kill / Stop recording
   Mic,            // Voice
   Filter,         // Audit filter

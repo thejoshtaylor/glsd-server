@@ -6,6 +6,7 @@ import { NodeStatusBadge } from '@/components/nodes/NodeStatusBadge'
 import { InstanceList } from '@/components/nodes/InstanceList'
 import { ExecuteForm } from '@/components/execute/ExecuteForm'
 import { ProjectManager } from '@/components/projects/ProjectManager'
+import { CommandPalette } from '@/components/execute/CommandPalette'
 import { StreamPanel } from '@/components/stream/StreamPanel'
 import { HistoryStreamPanel } from '@/components/stream/HistoryStreamPanel'
 import { StaleWarning } from '@/components/alerts/StaleWarning'
@@ -123,6 +124,11 @@ function NodeDetailPage() {
 
               <ProjectManager
                 nodeId={nodeId}
+                onInstanceCreated={handleInstanceCreated}
+              />
+
+              <CommandPalette
+                node={node}
                 onInstanceCreated={handleInstanceCreated}
               />
 
