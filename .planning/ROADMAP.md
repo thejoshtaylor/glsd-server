@@ -51,7 +51,7 @@
 
 - [x] **Phase 14: Project Management** — Users can register and manage GSD projects on nodes (completed 2026-03-25)
 - [x] **Phase 15: Stream Intelligence and Command Palette** — Server classifies GSD stream events; users dispatch GSD commands from a palette (completed 2026-03-25)
-- [ ] **Phase 16: Interactive Response and Notifications** — Users answer GSD questions inline and receive alerts when attention is needed
+- [x] **Phase 16: Interactive Response and Notifications** — Users answer GSD questions inline and receive alerts when attention is needed (completed 2026-03-25)
 - [ ] **Phase 17: Auto Mode** — Users run sequential GSD command workflows that advance automatically
 
 ## Phase Details
@@ -101,7 +101,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 16-01-PLAN.md — Backend prompt claiming protocol + frontend WS types and wsStore prompt state
-- [ ] 16-02-PLAN.md — InteractiveResponseUI component for AskUserQuestion and freeform input
+- [x] 16-02-PLAN.md — InteractiveResponseUI component for AskUserQuestion and freeform input
 - [x] 16-03-PLAN.md — Browser notifications, Sonner toasts, and NotificationSettings dashboard UI
 **UI hint**: yes
 
@@ -136,7 +136,7 @@ Plans:
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
 | 15. Stream Intelligence and Command Palette | v1.3 | 2/2 | Complete    | 2026-03-25 |
-| 16. Interactive Response and Notifications | v1.3 | 2/3 | In Progress|  |
+| 16. Interactive Response and Notifications | v1.3 | 3/3 | Complete   | 2026-03-25 |
 | 17. Auto Mode | v1.3 | 0/? | Not started | — |
 
 ---

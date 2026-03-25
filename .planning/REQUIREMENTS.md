@@ -30,9 +30,9 @@ Requirements for GSD Integration milestone. Each maps to roadmap phases.
 
 ### Interactive Response UI
 
-- [ ] **RESP-01**: User sees AskUserQuestion rendered as clickable option buttons (single-select)
-- [ ] **RESP-02**: User sees multi-select questions rendered as checkbox lists
-- [ ] **RESP-03**: User can type freeform text responses when input wait is detected
+- [x] **RESP-01**: User sees AskUserQuestion rendered as clickable option buttons (single-select)
+- [x] **RESP-02**: User sees multi-select questions rendered as checkbox lists
+- [x] **RESP-03**: User can type freeform text responses when input wait is detected
 - [x] **RESP-04**: User's answer is submitted as a session-resume execute dispatch to the node
 - [x] **RESP-05**: Multi-tab prompt claiming prevents duplicate answer submissions
 
@@ -98,9 +98,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STRM-02 | Phase 15 | Complete |
 | STRM-03 | Phase 15 | Complete |
 | STRM-04 | Phase 15 | Complete |
-| RESP-01 | Phase 16 | Pending |
-| RESP-02 | Phase 16 | Pending |
-| RESP-03 | Phase 16 | Pending |
+| RESP-01 | Phase 16 | Complete |
+| RESP-02 | Phase 16 | Complete |
+| RESP-03 | Phase 16 | Complete |
 | RESP-04 | Phase 16 | Complete |
 | RESP-05 | Phase 16 | Complete |
 | NOTF-01 | Phase 16 | Complete |
