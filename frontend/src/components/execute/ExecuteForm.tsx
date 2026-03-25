@@ -109,9 +109,9 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
           <label className="text-sm font-semibold">Project</label>
           <p className="text-sm text-muted-foreground">Which project should Claude work in?</p>
           {projects.length === 0 ? (
-            <SelectTrigger disabled className="w-full opacity-50 cursor-not-allowed">
-              <SelectValue placeholder="This node has no projects listed. Start the node and reconnect." />
-            </SelectTrigger>
+            <div className="flex w-full items-center rounded-lg border border-input bg-transparent py-2 px-2.5 text-sm h-8 opacity-50 cursor-not-allowed text-muted-foreground">
+              This node has no projects listed. Start the node and reconnect.
+            </div>
           ) : (
             <Select value={project} onValueChange={(val) => { if (val) setProject(val); }}>
               <SelectTrigger className="w-full">
