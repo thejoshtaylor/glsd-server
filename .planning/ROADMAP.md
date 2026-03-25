@@ -33,7 +33,7 @@
 
 - [x] **Phase 8: Color System and Foundation** - OKLCH neon palette, glow utilities, and typography tokens that all other v1.1 work depends on (completed 2026-03-24)
 - [x] **Phase 9: Component Upgrades and Icon Pass** - Status badges, full Lucide icon coverage, shadcn additions, loading states, and component-level cyberpunk overrides (completed 2026-03-25)
-- [ ] **Phase 10: Animations and Login Treatment** - Page transitions, recording state feedback, NodeCard pulse, stream live indicator, login cyberpunk treatment, and reduced-motion compliance
+- [x] **Phase 10: Animations and Login Treatment** - Page transitions, recording state feedback, NodeCard pulse, stream live indicator, login cyberpunk treatment, and reduced-motion compliance (completed 2026-03-25)
 
 ## Phase Details
 
@@ -84,7 +84,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 10-01-PLAN.md — CSS keyframes, animation utilities, reduced-motion block, component animations, page fade-ins
-- [ ] 10-02-PLAN.md — Login page cyberpunk treatment (grid bg, gradient border, title glow, glitch)
+- [x] 10-02-PLAN.md — Login page cyberpunk treatment (grid bg, gradient border, title glow, glitch)
 **UI hint**: yes
 
 ## Progress
@@ -103,7 +103,7 @@ Phases execute in numeric order: 8 -> 9 -> 10
 | 7. Audit UI & Dashboard Auth Guard | v1.0 | 2/2 | Complete | 2026-03-23 |
 | 8. Color System and Foundation | v1.1 | 0/3 | Complete    | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 0/3 | Complete    | 2026-03-25 |
-| 10. Animations and Login Treatment | v1.1 | 1/2 | In Progress|  |
+| 10. Animations and Login Treatment | v1.1 | 2/2 | Complete   | 2026-03-25 |
 
 ---
 *Roadmap created: 2026-03-20*

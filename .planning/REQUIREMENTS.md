@@ -50,10 +50,10 @@ Requirements for the Cyberpunk Beautification milestone. Each maps to roadmap ph
 
 ### Login Page
 
-- [ ] **LGN-01**: Login page uses cyberpunk grid background pattern
-- [ ] **LGN-02**: Login card has gradient border treatment
-- [ ] **LGN-03**: Login title has neon glow effect
-- [ ] **LGN-04**: Successful login triggers brief glitch animation before redirect
+- [x] **LGN-01**: Login page uses cyberpunk grid background pattern
+- [x] **LGN-02**: Login card has gradient border treatment
+- [x] **LGN-03**: Login title has neon glow effect
+- [x] **LGN-04**: Successful login triggers brief glitch animation before redirect
 
 ## Future Requirements
 
@@ -113,10 +113,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ANI-03 | Phase 10 | Complete |
 | ANI-04 | Phase 10 | Complete |
 | ANI-05 | Phase 10 | Complete |
-| LGN-01 | Phase 10 | Pending |
-| LGN-02 | Phase 10 | Pending |
-| LGN-03 | Phase 10 | Pending |
-| LGN-04 | Phase 10 | Pending |
+| LGN-01 | Phase 10 | Complete |
+| LGN-02 | Phase 10 | Complete |
+| LGN-03 | Phase 10 | Complete |
+| LGN-04 | Phase 10 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 30 total
