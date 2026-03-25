@@ -9,10 +9,10 @@ Requirements for the Ease of Access milestone. Each maps to roadmap phases.
 
 ### Session Security
 
-- [ ] **SES-01**: Access token expires after 1 hour (up from current ~30min)
-- [ ] **SES-02**: Refresh token expires after 7 days and silently rotates on use
-- [ ] **SES-03**: Refresh token rotation uses atomic SQL (UPDATE...RETURNING) to prevent race conditions
-- [ ] **SES-04**: Reuse detection revokes all user refresh tokens when a rotated-out token is replayed
+- [x] **SES-01**: Access token expires after 1 hour (up from current ~30min)
+- [x] **SES-02**: Refresh token expires after 7 days and silently rotates on use
+- [x] **SES-03**: Refresh token rotation uses atomic SQL (UPDATE...RETURNING) to prevent race conditions
+- [x] **SES-04**: Reuse detection revokes all user refresh tokens when a rotated-out token is replayed
 - [ ] **SES-05**: Frontend uses singleton promise guard to deduplicate concurrent refresh calls
 
 ### WebSocket Reliability
@@ -65,10 +65,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SES-01 | Phase 11 | Pending |
-| SES-02 | Phase 11 | Pending |
-| SES-03 | Phase 11 | Pending |
-| SES-04 | Phase 11 | Pending |
+| SES-01 | Phase 11 | Complete |
+| SES-02 | Phase 11 | Complete |
+| SES-03 | Phase 11 | Complete |
+| SES-04 | Phase 11 | Complete |
 | SES-05 | Phase 11 | Pending |
 | WSR-01 | Phase 12 | Pending |
 | WSR-02 | Phase 12 | Pending |

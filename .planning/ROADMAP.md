@@ -58,7 +58,7 @@
   4. Presenting a previously rotated refresh token revokes all of that user's refresh tokens and forces re-login
 **Plans**: 2 plans
 Plans:
-- [ ] 11-01-PLAN.md — Backend token rotation with atomic SQL, reuse detection, and family-scoped revocation
+- [x] 11-01-PLAN.md — Backend token rotation with atomic SQL, reuse detection, and family-scoped revocation
 - [ ] 11-02-PLAN.md — Frontend singleton promise guard, proactive refresh, and tab visibility refresh
 
 ### Phase 12: WebSocket Reliability
@@ -96,7 +96,7 @@ Plans:
 | 8. Color System and Foundation | v1.1 | 3/3 | Complete | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
-| 11. Extended Sessions | v1.2 | 0/2 | Not started | - |
+| 11. Extended Sessions | v1.2 | 1/2 | In Progress|  |
 | 12. WebSocket Reliability | v1.2 | 0/? | Not started | - |
 | 13. UX Surface | v1.2 | 0/? | Not started | - |
 
