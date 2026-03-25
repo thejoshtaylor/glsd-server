@@ -98,7 +98,11 @@ Plans:
   4. If two tabs are open, only one can submit an answer — the other sees the prompt disappear on first submission
   5. User receives a browser notification (when tab is unfocused) and an in-app toast (Sonner) when a node needs input or an instance completes or errors
   6. User can grant or deny notification permissions from the dashboard without leaving the page
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 16-01-PLAN.md — Backend prompt claiming protocol + frontend WS types and wsStore prompt state
+- [ ] 16-02-PLAN.md — InteractiveResponseUI component for AskUserQuestion and freeform input
+- [ ] 16-03-PLAN.md — Browser notifications, Sonner toasts, and NotificationSettings dashboard UI
 **UI hint**: yes
 
 ### Phase 17: Auto Mode
@@ -132,9 +136,9 @@ Plans:
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
 | 15. Stream Intelligence and Command Palette | v1.3 | 2/2 | Complete    | 2026-03-25 |
-| 16. Interactive Response and Notifications | v1.3 | 0/? | Not started | — |
+| 16. Interactive Response and Notifications | v1.3 | 0/3 | Not started | — |
 | 17. Auto Mode | v1.3 | 0/? | Not started | — |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — Phase 15 planned (2 plans)*
+*Last updated: 2026-03-25 — Phase 16 planned (3 plans)*
