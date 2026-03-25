@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import { NodeStatusBadge } from '@/components/nodes/NodeStatusBadge'
 import { InstanceList } from '@/components/nodes/InstanceList'
 import { ExecuteForm } from '@/components/execute/ExecuteForm'
+import { CommandPalette } from '@/components/execute/CommandPalette'
 import { StreamPanel } from '@/components/stream/StreamPanel'
 import { HistoryStreamPanel } from '@/components/stream/HistoryStreamPanel'
 import { StaleWarning } from '@/components/alerts/StaleWarning'
@@ -118,6 +119,11 @@ function NodeDetailPage() {
                 node={node}
                 onInstanceCreated={handleInstanceCreated}
                 defaultSessionId={resumeSessionId}
+              />
+
+              <CommandPalette
+                node={node}
+                onInstanceCreated={handleInstanceCreated}
               />
 
               <div>
