@@ -218,3 +218,91 @@
         opacity: 1;
     }
 }
+
+@layer utilities {
+    /* ANI-01: NodeCard connected pulse glow */
+    .pulse-glow-cyan {
+        position: relative;
+        isolation: isolate;
+    }
+    .pulse-glow-cyan::after {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        border-radius: inherit;
+        background: transparent;
+        box-shadow: 0 0 10px 3px oklch(0.75 0.18 195 / 70%);
+        animation: glowPulse 2s ease-in-out infinite;
+        pointer-events: none;
+        z-index: -1;
+    }
+
+    /* ANI-02: Stream live dot */
+    .live-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 9999px;
+        background: oklch(0.75 0.18 195);
+        animation: liveDotPulse 1.5s ease-in-out infinite;
+        vertical-align: middle;
+    }
+
+    /* ANI-03: VoiceButton recording pulse ring */
+    .pulse-ring-magenta {
+        position: relative;
+    }
+    .pulse-ring-magenta::after {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        border-radius: 9999px;
+        border: 2px solid oklch(0.70 0.25 330 / 80%);
+        animation: pulseRing 1s ease-out infinite;
+        pointer-events: none;
+    }
+
+    /* LGN-02: Login card gradient border wrapper */
+    .login-card-border {
+        border-radius: var(--radius);
+        padding: 1px;
+        background: linear-gradient(135deg, oklch(0.75 0.18 195), oklch(0.70 0.25 330));
+    }
+
+    /* LGN-04: Glitch one-shot animation class */
+    .glitch-once {
+        animation: glitch 300ms linear 1 forwards;
+    }
+}
+
+@keyframes glowPulse {
+    0%, 100% { opacity: 0.3; }
+    50%       { opacity: 1.0; }
+}
+
+@keyframes liveDotPulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1.0; }
+}
+
+@keyframes pulseRing {
+    0%   { transform: scale(1);    opacity: 1; }
+    100% { transform: scale(1.15); opacity: 0; }
+}
+
+@keyframes glitch {
+    0%   { transform: translateX(0);    text-shadow: none; }
+    20%  { transform: translateX(-4px); text-shadow: -3px 0 oklch(0.65 0.22 25), 3px 0 oklch(0.75 0.18 195); }
+    40%  { transform: translateX(4px);  text-shadow: 3px 0 oklch(0.65 0.22 25), -3px 0 oklch(0.75 0.18 195); }
+    60%  { transform: translateX(-2px); text-shadow: -2px 0 oklch(0.65 0.22 25); }
+    80%  { transform: translateX(2px);  text-shadow: 2px 0 oklch(0.75 0.18 195); }
+    100% { transform: translateX(0);    text-shadow: none; }
+}
+
+/* ANI-05: Disable all animations when OS prefers reduced motion — MUST be last rule */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
