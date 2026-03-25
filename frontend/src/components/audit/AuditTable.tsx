@@ -18,10 +18,10 @@ interface AuditTableProps {
 }
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  execute: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  kill: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  instance_finished: 'bg-green-500/20 text-green-400 border-green-500/30',
-  instance_error: 'bg-red-500/20 text-red-400 border-red-500/30',
+  execute: 'bg-[oklch(0.75_0.18_195/15%)] text-[oklch(0.75_0.18_195)] border-[oklch(0.75_0.18_195/30%)]',
+  kill: 'bg-[oklch(0.70_0.25_330/15%)] text-[oklch(0.70_0.25_330)] border-[oklch(0.70_0.25_330/30%)]',
+  instance_finished: 'bg-muted/30 text-muted-foreground border-muted-foreground/20',
+  instance_error: 'bg-[oklch(0.65_0.22_25/15%)] text-[oklch(0.65_0.22_25)] border-[oklch(0.65_0.22_25/30%)]',
 }
 
 const SKELETON_ROWS = Array.from({ length: 8 }, (_, i) => i)
@@ -64,12 +64,12 @@ export function AuditTable({ entries, isLoading, isError }: AuditTableProps) {
         {!isLoading && !isError && entries.length === 0 && (
           <TableRow>
             <TableCell colSpan={5} className="text-center">
-              <span className="text-sm text-gray-500">No audit entries found.</span>
+              <span className="text-sm text-muted-foreground">No audit entries found.</span>
             </TableCell>
           </TableRow>
         )}
         {!isLoading && !isError && entries.map((entry) => (
-          <TableRow key={entry.id} className="hover:bg-gray-800">
+          <TableRow key={entry.id} className="hover:bg-muted">
             <TableCell>
               <span title={entry.timestamp}>
                 {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
@@ -90,7 +90,7 @@ export function AuditTable({ entries, isLoading, isError }: AuditTableProps) {
             <TableCell>
               {entry.details != null
                 ? JSON.stringify(entry.details)
-                : <span className="text-sm text-gray-500">—</span>}
+                : <span className="text-sm text-muted-foreground">—</span>}
             </TableCell>
           </TableRow>
         ))}

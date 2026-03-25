@@ -11,8 +11,9 @@ import { StaleWarning } from '@/components/alerts/StaleWarning'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useWsStore } from '@/stores/wsStore'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Layers } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { NodeResponse, InstanceResponse } from '@/types/api'
 import type { WsOutgoingMessage } from '@/types/protocol'
 
@@ -72,33 +73,47 @@ function NodeDetailPage() {
   // Determine if we should show live stream or history
   const isLiveInstance = activeInstanceStatus === 'running' || activeInstanceStatus === 'pending'
 
-  if (isLoading) return <div className="p-6 text-gray-400">Loading...</div>
+  if (isLoading) return (
+    <div className="p-6 space-y-4">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-7 w-16" />
+        <Skeleton className="h-6 w-1/3" />
+        <Skeleton className="h-5 w-24" />
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-full" />
+      </div>
+      <Skeleton className="h-64 w-full rounded-lg" />
+    </div>
+  )
   if (error || !node) return <div className="p-6 text-red-400">Node not found</div>
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full animate-in fade-in duration-150 fill-mode-both">
       <div className="p-6 pb-4 space-y-4">
         <div className="flex items-center gap-4">
           <Link to="/dashboard">
-            <Button variant="ghost" size="sm" className="text-gray-400">
+            <Button variant="ghost" size="sm" className="text-muted-foreground">
               <ArrowLeft className="h-4 w-4 mr-1" /> Back
             </Button>
           </Link>
-          <h2 className="text-xl font-semibold text-white">{node.node_id}</h2>
+          <h2 className="text-xl font-semibold font-heading text-foreground">{node.node_id}</h2>
           <NodeStatusBadge status={node.status} />
         </div>
 
         {node.status === 'stale' && <StaleWarning nodeId={node.node_id} />}
 
         <div className="grid grid-cols-3 gap-4 text-sm">
-          <div><span className="text-gray-500">Platform:</span> <span className="text-gray-200">{node.platform}</span></div>
-          <div><span className="text-gray-500">Version:</span> <span className="text-gray-200">{node.version}</span></div>
-          <div><span className="text-gray-500">Projects:</span> <span className="text-gray-200">{node.projects?.join(', ') || 'None'}</span></div>
+          <div><span className="text-muted-foreground">Platform:</span> <span className="text-foreground font-mono">{node.platform}</span></div>
+          <div><span className="text-muted-foreground">Version:</span> <span className="text-foreground font-mono">{node.version}</span></div>
+          <div><span className="text-muted-foreground">Projects:</span> <span className="text-foreground font-mono">{node.projects?.join(', ') || 'None'}</span></div>
         </div>
       </div>
 
       <div className="flex-1 min-h-0 px-6 pb-6">
-        <ResizablePanelGroup orientation="horizontal" className="h-full rounded-lg border border-gray-700">
+        <ResizablePanelGroup orientation="horizontal" className="h-full rounded-lg border border-border">
           <ResizablePanel defaultSize={40} minSize={25}>
             <div className="flex flex-col h-full overflow-y-auto p-4 space-y-4">
               <ExecuteForm
@@ -108,7 +123,10 @@ function NodeDetailPage() {
               />
 
               <div>
-                <h3 className="text-sm font-medium text-gray-300 mb-2">Instances</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-widest inline-flex items-center gap-1.5">
+                  <Layers size={20} className="text-primary" />
+                  Instances
+                </h3>
                 <InstanceList
                   nodeId={nodeId}
                   onSelectInstance={handleSelectInstance}
@@ -121,7 +139,7 @@ function NodeDetailPage() {
           <ResizableHandle withHandle />
 
           <ResizablePanel defaultSize={60} minSize={30}>
-            <div className="h-full bg-gray-900/30">
+            <div className="h-full bg-card/30">
               {activeInstanceId ? (
                 isLiveInstance ? (
                   <StreamPanel
@@ -133,7 +151,7 @@ function NodeDetailPage() {
                   <HistoryStreamPanel instanceId={activeInstanceId} />
                 )
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                   Select or create an instance to view stream output
                 </div>
               )}

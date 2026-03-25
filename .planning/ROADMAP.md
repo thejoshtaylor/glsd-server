@@ -10,6 +10,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1-7 (shipped 2026-03-23) — [archive](milestones/v1.0-ROADMAP.md)
+- ✅ **v1.1 Cyberpunk Beautification** — Phases 8-10 (shipped 2026-03-25) — [archive](milestones/v1.1-ROADMAP.md)
 
 ## Phases
 
@@ -26,6 +27,15 @@
 
 </details>
 
+<details>
+<summary>✅ v1.1 Cyberpunk Beautification (Phases 8-10) — SHIPPED 2026-03-25</summary>
+
+- [x] Phase 8: Color System and Foundation (3/3 plans) — completed 2026-03-24
+- [x] Phase 9: Component Upgrades and Icon Pass (3/3 plans) — completed 2026-03-25
+- [x] Phase 10: Animations and Login Treatment (2/2 plans) — completed 2026-03-25
+
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -37,7 +47,10 @@
 | 5. Voice and Audit | v1.0 | 3/3 | Complete | 2026-03-23 |
 | 6. Frontend Production Deployment | v1.0 | 1/1 | Complete | 2026-03-23 |
 | 7. Audit UI & Dashboard Auth Guard | v1.0 | 2/2 | Complete | 2026-03-23 |
+| 8. Color System and Foundation | v1.1 | 3/3 | Complete | 2026-03-24 |
+| 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
+| 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-23 — v1.0 milestone archived*
+*Last updated: 2026-03-25 — v1.1 shipped*

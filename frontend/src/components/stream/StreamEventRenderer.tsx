@@ -18,6 +18,6 @@ export function StreamEventRenderer({ event }: { event: NdjsonEvent }) {
     case 'result':
       return <ResultSummary event={event} />
     default:
-      return <div className="text-xs text-gray-600 pl-3">[unknown event]</div>
+      return <div className="text-xs text-muted-foreground pl-3">[unknown event]</div>
   }
 }

@@ -1,229 +1,190 @@
 # Project Research Summary
 
-**Project:** GLSD Server — WebSocket command-and-control plane for distributed Claude CLI nodes
-**Domain:** Real-time WebSocket node management server with React dashboard
-**Researched:** 2026-03-20
+**Project:** GLSD Server v1.1 — Cyberpunk UI Beautification
+**Domain:** Visual polish and theming for an existing React 19 + shadcn/ui + Tailwind v4 operations dashboard
+**Researched:** 2026-03-24
 **Confidence:** HIGH
 
 ## Executive Summary
 
-GLSD Server is a WebSocket-based command-and-control plane that manages a fleet of distributed GSD nodes (Go agents running Claude CLI). The server has two distinct client populations: GSD nodes that maintain long-lived outbound WebSocket connections and browser users who interact via a React dashboard. The recommended approach is a single FastAPI process with two separate WebSocket endpoints (`/ws/node` for nodes, `/ws/frontend` for browsers), an in-memory connection registry backed by PostgreSQL for durability, and a clean domain core (NodeRegistry, InstanceStore, EventRouter, CommandBus) that all transport layers share. The entire system is scoped to a single-instance Docker Compose deployment for v1.
+GLSD Server is a feature-complete real-time node management dashboard with a FastAPI/PostgreSQL backend and a React 19 frontend. The v1.1 milestone is a pure visual uplift: converting the existing achromatic dark theme into a cyberpunk aesthetic using the technology stack already in place. The dashboard's data layer — WebSocket node management, instance lifecycle streaming, JWT auth, audit log, voice input — is fully built and must not regress. The entire cyberpunk visual transformation can be accomplished through targeted Tailwind v4 CSS variable overrides plus two small npm installs (`motion` and `@fontsource-variable/orbitron`). No architectural changes are required.
 
-The most important architectural decision is the single-worker constraint: the in-memory `ConnectionManager` mapping `node_id` to WebSocket objects cannot be shared across processes, so v1 must run exactly one Uvicorn worker. This is not a limitation to fix later — it is the correct v1 design, with a clear migration path to Redis pub/sub when horizontal scaling is needed. All other technology choices flow from the async-first requirement: FastAPI with asyncpg and SQLAlchemy 2 async for the backend, with React 19 + TanStack Query + Zustand for the frontend. The state split between TanStack Query (REST/server state) and Zustand (live WebSocket state) is the correct pattern for a real-time dashboard.
+The recommended implementation sequence is color system first, components second, animations third. This order is non-negotiable: every other visual feature references OKLCH color tokens. Doing component work before the palette is set means touching every component twice. The color system change is also the lowest-risk entry point — overriding CSS variables in `.dark` propagates automatically to all 10 existing shadcn components without per-component edits.
 
-The primary risks cluster around async correctness and multi-tenancy enforcement. Blocking calls in the event loop cascade into node timeouts and are difficult to retrofit. Team ownership checks must be applied at every query from day one — a missing `WHERE team_id = ?` is invisible in single-tenant tests. The stream event data structure requires double JSON parsing (the outer envelope is JSON; the `data` field is a JSON-encoded NDJSON string), and getting this wrong at the start costs significant debugging time. Build the persistence layer and async database patterns before any WebSocket code to establish the correct patterns early.
-
----
+The primary technical risks are infrastructure-level, not aesthetic. Tailwind v4's `@theme inline` has a confirmed bug (issue #18296) where dark-mode-responsive tokens silently bake to static values if added incorrectly. Animation choices on a real-time WebSocket dashboard require discipline: box-shadow keyframe animations cause continuous repaints that stack with live data updates, and entrance animations on stream output rows will visibly jank at greater than 5 events per second. Both pitfalls have clear prevention strategies and must be addressed at the phase level, not patched after the fact.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The backend is FastAPI 0.115+ on Python 3.12 with asyncpg as the PostgreSQL driver (2-5x faster than alternatives under concurrent async load), SQLAlchemy 2.x async ORM, and Alembic for migrations. Authentication uses PyJWT 2.x and pwdlib — both are the FastAPI project's current recommendations; python-jose and passlib are abandoned and must not be used. Voice transcription uses the official `openai` Python SDK's async client for Whisper API calls. The deployment target is a single Uvicorn worker under Gunicorn, behind a reverse proxy for TLS termination.
-
-The frontend is React 19 + TypeScript + Vite 8 with TanStack Router for type-safe routing, TanStack Query for REST server state, and Zustand 5 for real-time WebSocket state. UI is built with shadcn/ui on Tailwind CSS v4. The state split is deliberate and load-bearing: TanStack Query owns paginated node lists, instance history, and user/team data; Zustand owns live connection status, stream buffers, and pending command state.
+The existing stack requires only two new npm packages for v1.1. Everything else — Tailwind v4, shadcn/ui CLI, `tw-animate-css`, `class-variance-authority`, `lucide-react` — is already installed and correctly configured. No dev tooling changes are needed.
 
 **Core technologies:**
-- FastAPI 0.115+: ASGI framework — first-class async WebSocket support, Pydantic v2 built-in, handles REST and WS on same port
-- asyncpg 0.31+: PostgreSQL async driver — 2-5x faster than psycopg2/3 under concurrent WebSocket load
-- SQLAlchemy 2.0+ async: ORM — fully typed `Mapped[]` API, async session management, shares Alembic migrations
-- PyJWT 2.x: JWT auth — FastAPI's officially recommended replacement for abandoned python-jose
-- pwdlib 0.2+: Password hashing — FastAPI's officially recommended replacement for abandoned passlib
-- TanStack Query 5.x: Server state — REST caching, integrates with WebSocket via `queryClient.setQueryData()`
-- Zustand 5.x: WebSocket state — lightweight, pairs cleanly with TanStack Query for live stream buffers
-- React 19 + Vite 8: Frontend — latest stable React, 10-30x faster builds vs webpack
+
+- **`motion` (^12.38.0):** JS-driven animation for entrance/exit, spring physics, and AnimatePresence for unmounting elements. `tw-animate-css` handles CSS class-based transitions but cannot animate unmounting DOM elements or layout shifts. Import from `"motion/react"`. React 19 explicitly supported as of Motion v12.
+- **`@fontsource-variable/orbitron` (^5.x):** Display/heading font for cyberpunk typography hierarchy. The canonical futuristic typeface; variable font covers the full weight range. Pairs with existing Geist body font. Self-hosted via Fontsource, consistent with how Geist is already loaded.
+- **`@fontsource-variable/jetbrains-mono` (conditional):** Monospace for stream panel output. Only needed if stream panels require improved readability — Geist is proportional and unsuitable for aligned NDJSON output.
+- **Tailwind v4 OKLCH CSS variables (no install):** The entire cyberpunk color system — neon palette, glow effects, gradient text, animation keyframes — is implemented via CSS variable overrides in `index.css`. Zero new packages needed.
+- **shadcn CLI (already installed):** Four new components recommended — `dialog`, `tooltip`, `progress`, `tabs` — scaffolded via `npx shadcn add`. No npm installs.
+
+GSAP, animejs, three.js, canvas particle systems, and third-party cyberpunk CSS frameworks are explicitly ruled out. They add bundle weight, create Tailwind utility conflicts, or carry commercial licenses incompatible with a revenue product.
 
 ### Expected Features
 
-The v1 MVP is well-defined by the project spec. The eight core features form a dependency chain from auth to execution to streaming output. Voice transcription via Whisper is explicitly called out as a v1 must-have, not a differentiator.
+**Must have (table stakes — without these it reads as "dark mode," not "cyberpunk"):**
 
-**Must have (table stakes):**
-- Node registration with Bearer token auth — gate for all other node functionality
-- Node list with live connected/stale/disconnected status — users must see fleet health at a glance
-- Execute command dispatch with project selection — core value of the product
-- Kill running instance — users need a stop mechanism
-- Live stream output panel — streaming Claude CLI output in real time
-- JWT-based user auth with team membership — nodes scoped to teams, no unauthenticated access
-- Voice input via Whisper — explicitly required by PROJECT.md for v1
-- Persistent PostgreSQL state with reconnect reconciliation — survive server restarts
-- Audit trail for commands and events — append-only, low cost, required for ops
+- Cyberpunk OKLCH color palette — void-black background (`oklch(0.07 0.008 280)`), neon cyan primary (`oklch(0.75 0.18 195)`), magenta accent (`oklch(0.65 0.26 330)`), faint cyan borders
+- Neon glow utility classes — 3-layer `box-shadow` pattern for `.glow-cyan` and `.glow-magenta` in `@layer utilities`
+- Status badge neon colors — `connected` = cyan, `stale` = amber, `disconnected` = red with glow; updates to `statusConfig` in `NodeStatusBadge.tsx` and `EVENT_TYPE_COLORS` in `AuditTable.tsx`
+- Monospace font token — `--font-mono` applied to stream panels, instance IDs, audit timestamps, version strings
+- Full Lucide icon coverage — approximately 15 icons mapped to existing components across the dashboard (see icon map in FEATURES.md)
+- NodeCard connected pulse — CSS keyframe pulsing border-glow on connected nodes using pseudo-element pattern
+- Stream panel live indicator — animated dot in StreamPanel header when `isRunning`
+- Loading state polish — replace bare `<div className="p-6 text-gray-400">Loading...</div>` in `$nodeId.tsx` with skeleton components
+- Scroll FAB cyberpunk color fix — one-liner update in `StreamPanel.tsx` from `bg-blue-600` to neon cyan with glow
 
-**Should have (differentiators):**
-- NDJSON structured rendering — display assistant text, tool use, and errors distinctly rather than raw JSON
-- Session resume via `session_id` capture — continue a previous Claude conversation from instance history
-- Reconnect state reconciliation UI — surface "lost" vs "recovered" instances after node crash
-- New node alert — security notice when an unrecognized node_id connects
-- Rate limit visibility — distinguish "rate limited" errors from other instance failures
+**Should have (differentiators — meaningful polish, low regression risk):**
+
+- Typography uppercase hierarchy — section headings as uppercase + tracked letters throughout dashboard
+- Page enter animations — `animate-in fade-in` via `tw-animate-css` on route transitions (150ms)
+- Login page cyberpunk treatment — CSS grid background, gradient border on Card, glow on title, one-shot glitch animation on successful login
+- VoiceButton recording state — pulsing magenta ring while mic is active
 
 **Defer (v2+):**
-- Instance history/output replay — unbounded storage growth risk; needs TTL policy decision
-- Structured per-project cost dashboards — significant parsing and aggregation complexity
-- Multi-team node assignment — single team per node covers all v1 use cases
-- Token rotation UI — manual config change is acceptable for v1
-- Real-time collaboration (multiple users watching same stream) — requires broadcast fan-out beyond v1 scope
+
+- `motion` for scroll-linked or gesture animations — only if product adds drag-reorder interactions
+- Canvas grid background — only if performance budget is confirmed adequate on target hardware
+- Gradient borders on resizable panels — medium complexity, lower priority than core palette work
+- Full light/dark theme switcher — not in scope; lock to `.dark` for v1.1
+- Scanline overlays — acceptable only on decorative areas with no readable text layered over them
+- xterm.js terminal replacement — explicitly out-of-scope per PROJECT.md; Claude CLI output is NDJSON, not PTY
 
 ### Architecture Approach
 
-The system is organized as a single FastAPI process containing two transport gateways (Node WS and Frontend WS), a domain core (NodeRegistry, InstanceStore, EventRouter, CommandBus), a REST API layer, and a persistence layer backed by PostgreSQL. The EventRouter is the internal message bus: it receives events from the Node WS Gateway and pushes to per-connection asyncio queues on the Frontend WS Gateway, decoupling routing from network I/O. Stream events are never persisted to PostgreSQL — only terminal state (instance created, started, finished/errored) is written to the database, keeping DB load proportional to lifecycle transitions rather than streaming throughput.
+The v1.1 milestone does not touch the backend architecture. The frontend is a React 19 SPA with TanStack Router, TanStack Query for REST state, Zustand for live WebSocket state, and shadcn/ui on Tailwind v4. This architecture is stable and v1.1 changes nothing in it.
 
-**Major components:**
-1. Node WS Gateway (`/ws/node`) — Bearer token auth before `accept()`, protocol envelope handling, ping/pong tracking
-2. Frontend WS Gateway (`/ws/frontend`) — JWT auth, subscription management, asyncio queue per connection
-3. NodeRegistry — in-memory `node_id → WebSocket` mapping + PostgreSQL node metadata, connection lifecycle, per-node locks for reconciliation safety
-4. InstanceStore — instance lifecycle state machine, reconciliation algorithm (server-spec Section 6), session_id capture
-5. EventRouter — team-scoped fan-out from node events to subscribed frontend queues; never writes to WebSockets directly
-6. CommandBus — validates node is `connected` before dispatch, routes execute/kill/status_request to node connections
-7. REST API Layer — login, node/instance CRUD, execute/kill dispatch, Whisper transcription endpoint
-8. Persistence Layer — SQLAlchemy 2 async + asyncpg, shared connection pool, Alembic migrations
-9. Health Monitor — FastAPI lifespan background task, scans `last_heartbeat` every 30s, marks stale nodes and errored instances
+The cyberpunk visual system is implemented as a CSS-variable layer in `index.css`. All shadcn components reference `--primary`, `--accent`, `--ring`, and `--border` tokens — updating those tokens in the `.dark` block is the single highest-leverage change in the entire milestone. Component-level edits are then surgical overrides for components that have hardcoded colors outside the token system.
+
+**Major components relevant to v1.1 visual work:**
+
+1. **`index.css` / Tailwind theme** — color token definitions, glow utilities, keyframe animations, font registrations; the foundation everything else builds on
+2. **NodeCard** — highest-visibility surface; hosts the connected pulse animation and is the primary cyberpunk showcase component
+3. **StreamPanel / HistoryStreamPanel** — real-time output rendering; requires monospace font upgrade; must not have entrance animations on stream rows
+4. **NodeStatusBadge / InstanceRow** — status indicators; require neon color mapping in `statusConfig` and `EVENT_TYPE_COLORS`
+5. **LoginPage** — first-impression surface; priority for full cyberpunk treatment including one-shot glitch animation
+6. **AuditTable / AuditFilters** — data-dense; monospace for IDs and timestamps; icon additions
+7. **VoiceButton / KillButton / ExecuteForm** — action surfaces; icon additions and recording state visual feedback
 
 ### Critical Pitfalls
 
-1. **Multiple Uvicorn workers split the in-memory connection registry** — enforce `--workers 1` in `docker-compose.yml` from day one; document the constraint; never use auto-scaling worker configs like `tiangolo/uvicorn-gunicorn-fastapi`
-2. **Blocking calls in the async event loop cascade into node timeouts** — use asyncpg/async SQLAlchemy, `httpx.AsyncClient` for OpenAI, `asyncio.sleep()` not `time.sleep()`; one 50ms blocking DB call starves all concurrent WebSocket message handling
-3. **WebSocket auth accepted before `accept()` call** — validate Bearer token or JWT before calling `await websocket.accept()`; use close code 4001 on failure; FastAPI's `Depends(oauth2_scheme)` does not work cleanly here
-4. **Reconciliation race on concurrent reconnects** — use a per-node `asyncio.Lock` keyed by `node_id`; acquire before any read-then-write in reconciliation; without this, rapid reconnects produce duplicate or inconsistent instance state
-5. **`stream_event.data` is double-encoded JSON** — the `data` field is a JSON-encoded string containing NDJSON; always `json.loads(payload.data)` before any server-side inspection or frontend forwarding; define a Pydantic model for the inner Claude event structure
-6. **Missing multi-tenancy filters at query level** — every DB query for nodes, instances, and users must include `WHERE team_id = ?`; this is invisible in single-tenant unit tests and can expose cross-team data silently
+1. **`@theme inline` breaks dark mode for new tokens** — Adding cyberpunk OKLCH tokens to the `@theme inline` block bakes static values at build time; dark/light toggling does not propagate. Prevention: Add new tokens as raw CSS variables in `:root` and `.dark` blocks only. Use `var(--token)` or Tailwind arbitrary values (`bg-[var(--cp-neon-cyan)]`). Address in Phase 1 before any component work.
 
----
+2. **Animating `box-shadow` in continuous keyframes causes repaints** — On a real-time WebSocket dashboard, painting on every animation frame visually stutters when active streams are running. Prevention: Use pseudo-element opacity animation instead. Apply static `box-shadow` to a `::before` element and animate its `opacity`. GPU-composited; zero repaint. Hover glow transitions under 200ms are acceptable as-is.
+
+3. **shadcn `data-slot` override confusion** — The Tailwind v4 era shadcn distribution uses `data-slot` attribute selectors to style component internals. Adding `className` overrides targets the outer wrapper only. Prevention: Read component source in `src/components/ui/` before touching any shadcn component; edit the source directly as intended.
+
+4. **Entrance animations on high-frequency stream rows** — Stream output arrives multiple times per second during active runs. Adding `AnimatePresence` mount animations to stream rows causes animation queuing and CPU spikes. Prevention: Never add mount animations to the stream output view. Motion is appropriate for node/instance lists (human-paced), dialogs, and page transitions only.
+
+5. **Lucide barrel imports slow dev server significantly** — Importing from the `lucide-react` barrel triggers resolution of approximately 1,600 icons in Vite's dev module graph, increasing cold start from under 1 second to 5-8 seconds. Prevention: Import from direct paths (`lucide-react/icons/terminal`) and centralize via `src/lib/icons.ts`. Establish this pattern at the start of icon work.
 
 ## Implications for Roadmap
 
-The architecture research defines a clear dependency order of 11 build steps. The pitfalls research reinforces this order by identifying which mistakes are expensive to retrofit (async patterns, auth placement, single-worker constraint) vs. which can be addressed later (pool size tuning, stream rendering). The roadmap should follow the architectural build order closely.
+The feature set, dependency graph, and pitfall-to-phase mapping from research point clearly to a 3-phase implementation sequence. The ordering is dictated by hard dependencies: color tokens must exist before component work, component structure must be stable before layering animations.
 
-### Phase 1: Foundation — Persistence Layer and Project Scaffold
-**Rationale:** Every other component depends on the database schema and async session patterns. Establishing the correct async patterns (asyncpg, SQLAlchemy 2 async engine, `get_db` dependency) here prevents the most expensive pitfall (blocking event loop) from entering the codebase. Alembic migrations at startup eliminate schema drift.
-**Delivers:** PostgreSQL schema (nodes, instances, users, teams, team_members, audit_log), SQLAlchemy async models with `Mapped[]` typing, Alembic migration runner, FastAPI project scaffold with Docker Compose (single worker enforced), pydantic-settings config.
-**Addresses:** All persistent state features (audit trail, state survival across restarts)
-**Avoids:** Blocking DB calls (establishes async-only patterns from start), connection pool exhaustion (configures pool explicitly), multiple-worker pitfall (Docker Compose locked to `--workers 1` here)
-**Research flag:** Standard patterns — well-documented FastAPI + SQLAlchemy 2 async setup. Skip `/gsd:research-phase`.
+### Phase 1: Color System and Foundation
 
-### Phase 2: Node WebSocket Gateway and NodeRegistry
-**Rationale:** The GSD wire protocol is the normative interface; get it right before building business logic on top. The two most critical security pitfalls (auth before `accept()`, per-node reconnect lock) must be addressed here. This phase can be tested with a real or mock GSD node independently of all user-facing features.
-**Delivers:** `/ws/node` endpoint with pre-accept Bearer token validation, `node_register` first-frame enforcement, Envelope deserialization/serialization, NodeRegistry with in-memory connection map and DB upsert, connection lifecycle (connect/disconnect/status transitions), per-node `asyncio.Lock` for reconciliation safety.
-**Addresses:** Node registration, node list with live status
-**Avoids:** Auth accepted after `websocket.accept()`, reconciliation race condition, single-worker connection state split
-**Research flag:** GSD wire protocol is normative (in-repo spec). No external research needed. Skip `/gsd:research-phase`.
+**Rationale:** Every subsequent visual feature references OKLCH tokens. Performing any component work before the palette is set means revisiting all color decisions twice. This phase also addresses the highest-risk technical pitfall (the `@theme inline` dark mode breakage) at a point where no other code depends on it yet.
 
-### Phase 3: CommandBus, InstanceStore, and Instance Lifecycle
-**Rationale:** With nodes connected and tracked, the core execution loop can be built. This phase implements the full execute → ack → instance_started → stream → finish/error lifecycle and the state reconciliation algorithm from server-spec Section 6.
-**Delivers:** CommandBus (execute/kill/status_request dispatch with node connectivity validation), InstanceStore (instance lifecycle state machine, session_id capture, reconciliation logic), all inbound event handlers, REST endpoints for execute and kill (without frontend push yet), `projects` validation before dispatch.
-**Addresses:** Execute command dispatch, kill running instance, persistent state reconciliation on reconnect
-**Avoids:** `stream_event.data` double JSON encoding (define Pydantic Claude event model here), missing terminal event handlers (both `instance_finished` and `instance_error` paths)
-**Research flag:** Standard patterns for the state machine; reconciliation algorithm is fully specified in server-spec.md. Skip `/gsd:research-phase`.
+**Delivers:** Void-black background and neon cyan/magenta palette live in `.dark` block; `.glow-cyan` / `.glow-magenta` utility classes; monospace font token (`--font-mono`); Orbitron heading font wired into `@theme inline`; base typography scale (uppercase, letter-spacing on headings); skeleton shimmer color override.
 
-### Phase 4: Health Monitor and Stale Detection
-**Rationale:** Stale node detection is a background concern that is trivial to add here (after core lifecycle) but expensive to retrofit. NAT-dropped connections never fire a disconnect event — only the background heartbeat monitor catches them.
-**Delivers:** FastAPI lifespan background task scanning `last_heartbeat` every 30s, stale-node marking at >90s, cascading instance → `errored`/lost status for stale node's running instances, DB writes for status transitions.
-**Addresses:** Health indicator staleness warning, error surfacing for lost instances
-**Avoids:** Stale node detection not event-driven (zombie `running` instances), missing `lifespan` registration for the background task
-**Research flag:** Standard asyncio background task pattern. Skip `/gsd:research-phase`.
+**Addresses features:** Cyberpunk OKLCH palette (P1), neon glow utilities (P1), void-black background (P1), monospace font (P1), typography hierarchy (P2)
 
-### Phase 5: JWT Auth, User Management, and Team Scoping
-**Rationale:** All human-facing features require auth. This phase establishes the JWT issuance/validation middleware, user CRUD, team management, and — critically — enforces team ownership at the query level on all existing endpoints. Multi-tenancy gaps are the most insidious security pitfall.
-**Delivers:** `POST /api/auth/login` (JWT issue), user/team CRUD APIs, team-node association, JWT middleware on all protected routes, team ownership checks on execute/kill dispatch, every DB query filtered by `team_id`.
-**Addresses:** JWT user auth, team membership and node scoping, node-to-team ownership enforcement
-**Avoids:** Multi-tenancy gaps in queries (add team_id filters here across all queries), Whisper endpoint unauthenticated (JWT required in this phase), execute dispatch without team ownership check
-**Research flag:** Standard JWT + FastAPI patterns. PyJWT 2.x auth is well-documented. Skip `/gsd:research-phase`.
+**Avoids pitfalls:** `@theme inline` dark mode breakage — establish the CSS variable strategy here before any component references tokens; gradient text accessibility — set the fallback color pattern from the start.
 
-### Phase 6: Frontend WebSocket Gateway and EventRouter
-**Rationale:** The full real-time push path is built once the backend state machine is stable. The EventRouter's asyncio queue pattern (rather than direct `websocket.send_text()`) must be implemented here — it cannot be retrofitted cleanly.
-**Delivers:** `/ws/frontend` endpoint with JWT pre-accept validation, EventRouter with per-connection asyncio queues and dedicated writer coroutines, subscription management (subscribe to node_id/instance_id), team-scoped event delivery (only route to connections with team access), short-lived WebSocket ticket endpoint (`POST /api/auth/ws-token`) for browser WS auth.
-**Addresses:** Live stream forwarding to browser, team-scoped event visibility
-**Avoids:** Blocking WebSocket write in EventRouter (asyncio queue pattern), cross-team data leakage via subscription (team membership validation on subscribe)
-**Research flag:** EventRouter asyncio queue pattern has nuance. Consider `/gsd:research-phase` for the queue fan-out implementation if the team is new to this pattern.
+**Research flag:** Standard patterns. Tailwind v4 OKLCH CSS variable overrides are well-documented in official docs and the shadcn theming guide. Skip deep research.
 
-### Phase 7: React Dashboard
-**Rationale:** Build the UI once the full backend API surface is stable. The state split between TanStack Query and Zustand is the key architectural decision here.
-**Delivers:** React 19 + TypeScript + Vite 8 SPA, TanStack Router with typed routes, TanStack Query for REST calls (node list, instance history, login), Zustand for WebSocket connection state and live stream buffers, node list with live status badges, execute/kill UI with proper button-disable-on-dispatch UX, live stream output panel, JWT login flow.
-**Addresses:** Node list, per-node instance list, execute dispatch UI, kill UI, live stream output, error surfacing, health indicator
-**Avoids:** Double-click execute dispatch (disable button on first click, re-enable on ack/error), showing stale node as "connected" (distinguish all three states visually), stream output rendered as raw NDJSON (parse `stream_event.data` in frontend)
-**Research flag:** TanStack Router + TanStack Query + Zustand integration for real-time dashboards. Consider `/gsd:research-phase` for the useWebSocket hook pattern and real-time state sync architecture.
+### Phase 2: Component Upgrades and Icon Pass
 
-### Phase 8: Whisper Voice Input
-**Rationale:** Voice transcription is a self-contained REST translation layer (audio → text → execute path). It has no upstream WebSocket dependencies and can be built after the execute path exists. Building it last allows the team to focus on the stateful core before adding the external API dependency.
-**Delivers:** `POST /api/transcribe` (JWT required, 25 MB size guard), OpenAI async Whisper client (`AsyncOpenAI`), browser MediaRecorder integration, "Transcribing..." spinner UX, transcribed text populating the execute prompt field.
-**Addresses:** Voice input via Whisper (v1 must-have per PROJECT.md)
-**Avoids:** Unauthenticated Whisper endpoint (JWT required, tested), sync OpenAI client blocking event loop (use `AsyncOpenAI`), missing file size validation (return 413 before calling OpenAI)
-**Research flag:** Whisper API integration is well-documented. Browser MediaRecorder codec variance (webm vs ogg) may need a quick check. Skip `/gsd:research-phase`.
+**Rationale:** With the color system in place, every shadcn component referencing `--primary`, `--accent`, `--ring`, `--border` is already cyberpunk. This phase applies targeted overrides to components with hardcoded colors outside the token system, adds the full Lucide icon set via `src/lib/icons.ts`, and upgrades loading states. Each component change must be a separate commit to preserve real-time behavior isolation.
 
-### Phase 9: Audit Trail, Hardening, and Observability
-**Rationale:** Cross-cutting concerns are added last once all paths exist. The audit log is append-only and non-blocking — it can be wired into all command/event paths in a single pass.
-**Delivers:** `audit_log` writes on all execute/kill dispatch and terminal instance event paths, pending-instance timeout (no ack within 10s → mark `errored`), rate limit middleware on `/api/transcribe`, final security review against PITFALLS.md checklist, structured NDJSON stream rendering in frontend (tool use, text responses, error events rendered distinctly).
-**Addresses:** Audit trail, error surfacing improvements, pending instance stuck state, NDJSON structured rendering
-**Avoids:** Missing audit coverage on any command path
-**Research flag:** Standard patterns. Skip `/gsd:research-phase`.
+**Delivers:** Status badges with neon colors and glow; full Lucide icon coverage centralized in `src/lib/icons.ts`; NodeCard connected pulse (CSS keyframe using pseudo-element pattern); stream panel live indicator; VoiceButton recording state; scroll FAB color fix; loading skeleton replacement; login page cyberpunk treatment; shadcn `dialog`, `tooltip`, `progress`, `tabs` components added via CLI.
+
+**Addresses features:** Status badge neon colors (P1), full icon coverage (P1), NodeCard pulse (P1), stream live indicator (P1), scroll FAB fix (P1), loading state polish (P1), VoiceButton recording state (P2), login treatment (P2)
+
+**Avoids pitfalls:** `data-slot` confusion — read component source before each touch; real-time regressions — live node smoke test after every component commit; Lucide barrel imports — `src/lib/icons.ts` established at the start.
+
+**Research flag:** Standard patterns for icon centralization and shadcn source editing. The login page glitch animation is the highest-complexity item; a quick reference check on CSS keyframe glitch techniques during task planning is worthwhile.
+
+### Phase 3: Animation Layer
+
+**Rationale:** Animations are the highest regression-risk layer. Applying them after component structure is stable means any animation bug is trivially isolated to the animation change. This phase also installs `motion` for unmount animations (dialogs, page transitions) that `tw-animate-css` cannot handle.
+
+**Delivers:** `npm install motion`; page enter fade animations on route transitions via `tw-animate-css`; dialog open/close with AnimatePresence; NodeCard entrance animation (Motion `initial/animate`) on the node list only; full `@media (prefers-reduced-motion: no-preference)` wrapping on all keyframe animations.
+
+**Addresses features:** Page enter animations (P2)
+
+**Avoids pitfalls:** AnimatePresence on high-frequency stream rows — explicitly excluded in scope; box-shadow keyframe repaints — pseudo-element pattern already established in Phase 1/2; reduced motion — wrapped at the CSS layer in this phase.
+
+**Research flag:** Standard Motion/React animation patterns. All use cases here (page transitions, list entrance, dialog) are in official docs. Skip deep research.
 
 ### Phase Ordering Rationale
 
-- Persistence first: async DB patterns established before any WebSocket code prevents the most expensive retrofit
-- Node gateway before auth: the GSD wire protocol can be validated against real nodes without any user-facing complexity
-- CommandBus/InstanceStore before JWT: the execution lifecycle is testable as a node-to-server integration before adding the human auth layer
-- Health monitor before user-facing features: stale detection is trivial to add here, nearly impossible to add after the fact without test coverage
-- JWT auth before frontend WS: team scoping must be enforced before any browser client can subscribe to real-time events
-- React after full backend API: avoids building UI against unstable API contracts
-- Whisper last: purely additive, no structural dependencies on WebSocket state
+- **Color before components:** The OKLCH token system is a hard dependency. Every shadcn component that references `--primary`, `--accent`, `--ring`, or `--border` benefits automatically once the `.dark` block is updated. Reversing the order means re-examining every component color decision after the palette stabilizes.
+- **Components before animations:** Structural component changes can silently break Zustand store bindings, TanStack Query subscriptions, and WebSocket event handlers. Adding animation wrappers to an already-stable component structure isolates regression risk entirely to the animation layer.
+- **`tw-animate-css` before `motion`:** The existing CSS animation library handles all pure CSS effects (pulse, fade, slide). Install Motion only in Phase 3 when it is actually needed for unmount animations. This keeps Phase 1 and 2 dependency surfaces minimal.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 6 (EventRouter):** asyncio queue fan-out with per-connection writer coroutines is a nuanced async pattern — worth a research pass if the team is new to Python asyncio concurrency
-- **Phase 7 (React Dashboard):** TanStack Router v1 + TanStack Query v5 + Zustand v5 real-time integration has limited combined examples; useWebSocket hook design for live stream buffering warrants a focused research pass
+- **Phase 2 (login page glitch animation):** The one-shot CSS keyframe glitch technique is somewhat niche. A 15-minute reference pass during task planning is worthwhile to confirm timing and property choices before implementation.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1:** FastAPI + SQLAlchemy 2 async is well-documented with official examples
-- **Phase 2:** GSD wire protocol is normative spec in-repo; FastAPI WebSocket auth pattern is documented
-- **Phase 3:** State machine and reconciliation algorithm fully specified in server-spec.md
-- **Phase 4:** asyncio background task via FastAPI lifespan is standard
-- **Phase 5:** PyJWT + FastAPI JWT middleware is the current official pattern
-- **Phase 8:** Whisper API integration is straightforward REST; file validation is standard
-- **Phase 9:** Audit log writes and rate limiting are standard patterns
-
----
+- **Phase 1:** Tailwind v4 CSS variable overrides and OKLCH theming are extensively documented in official docs and the shadcn theming guide.
+- **Phase 2 (icon integration):** Direct-path Lucide imports and `src/lib/icons.ts` pattern are established and benchmarked in published sources.
+- **Phase 3:** Motion/React animation patterns are well-documented; all required use cases are covered in the official docs.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Core backend stack verified against official FastAPI docs and migration PRs; asyncpg performance delta confirmed against benchmarks; frontend stack verified against library release notes |
-| Features | HIGH | Project has explicit spec documents (server-spec.md, protocol-spec.md, PROJECT.md); feature set derived from normative specs rather than inference |
-| Architecture | HIGH | Architecture grounded in wire protocol spec and server spec; validated against FastAPI WebSocket patterns and SQLAlchemy async docs |
-| Pitfalls | HIGH | Critical pitfalls verified against official documentation and known framework issues (abandoned libraries, multi-worker WebSocket state split are documented failure modes) |
+| Stack | HIGH | Existing packages verified against `frontend/package.json`; new packages confirmed via npm registry; Motion React 19 compatibility explicitly stated in Motion v12 documentation |
+| Features | HIGH | Existing codebase inspected directly; shadcn/ui + Tailwind v4 OKLCH patterns verified via official docs; cyberpunk design patterns cross-referenced across multiple sources including usability critiques |
+| Architecture | HIGH | Backend architecture is stable and unchanged for this milestone; frontend component map is grounded in the actual source tree |
+| Pitfalls | HIGH | `@theme inline` bug confirmed via GitHub issue #18296; animation performance claims verified against MDN and browser vendor documentation; Lucide import benchmark sourced from published measurement with specific numbers |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Stream event storage policy:** Research deliberately deferred the question of whether to persist `stream_event` data for replay. The current recommendation is not to persist stream events in v1. If instance history/replay is promoted to v1 scope, a storage design decision is needed (Redis Streams vs append-only file vs scoped PostgreSQL table with TTL) before Phase 3 begins.
-- **Browser WebSocket audio codec variance:** Browser MediaRecorder produces `audio/webm` with Opus codec on Chrome/Firefox but `audio/ogg` on some configurations. Whisper supports both, but explicit `Content-Type` handling in the transcription endpoint should be validated during Phase 8 implementation.
-- **Connection pool sizing:** The default `pool_size=5, max_overflow=10` (15 total connections) is explicitly flagged as dangerous under load in PITFALLS.md. The correct pool size depends on expected concurrent connected nodes and should be made a configurable environment variable rather than hardcoded.
-- **`node_id` binding to token:** PITFALLS.md flags that a malicious node can impersonate another by sending a different `node_id` in `node_register`. The server spec should be reviewed for whether token-to-node_id binding is required or whether `node_id` is always trusted from the token's registered identity.
-
----
+- **VoiceButton recording state implementation:** FEATURES.md flags this as MEDIUM complexity and notes the current VoiceButton state management needs to be confirmed before implementing the pulsing magenta ring. Read `VoiceButton.tsx` at the start of Phase 2 to verify the recording flag is accessible from the component's render context.
+- **Gradient border on resizable panels (deferred to v1.x):** The pseudo-element gradient border technique on `ResizablePanelGroup` has a subtle z-index interaction with the resize handle. When this is undeferred, it needs a focused spike before full implementation.
+- **`prefers-reduced-motion` plus manual toggle:** Research recommends a manual reduce-motion toggle in settings as a UX improvement but explicitly deferred it for v1.1. If accessibility requirements are stricter than assumed, revisit before Phase 3 ships. The OS-level `@media (prefers-reduced-motion)` wrapping in Phase 3 is the minimum viable implementation.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `server-spec.md` — normative server behavior, reconciliation algorithm (Section 6), security requirements (Section 9), Whisper integration (Section 8)
-- `protocol-spec.md` — GSD Node Wire Protocol v1.2.0, message catalog, lifecycle flows
-- `PROJECT.md` — explicit v1 scope, out-of-scope items, active requirements
-- FastAPI official docs (https://fastapi.tiangolo.com/advanced/websockets/) — WebSocket auth patterns
-- FastAPI PyJWT migration PR #11589 (https://github.com/fastapi/fastapi/pull/11589) — confirmed python-jose deprecation
-- FastAPI full-stack template migration (https://github.com/fastapi/full-stack-fastapi-template/pull/1203) — confirmed pwdlib recommendation
-- SQLAlchemy 2.0 async docs (https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html) — AsyncSession patterns
+
+- https://ui.shadcn.com/docs/theming — CSS variable structure, OKLCH semantics
+- https://ui.shadcn.com/docs/tailwind-v4 — `@theme inline` pattern, v4 migration
+- https://motion.dev/docs/react — React 19 compatibility, AnimatePresence, import path `"motion/react"`
+- https://www.npmjs.com/package/motion — version 12.38.0 confirmed current as of 2026-03-24
+- https://lucide.dev/guide/packages/lucide-react — individual import pattern, tree-shaking
+- https://github.com/tailwindlabs/tailwindcss/issues/18296 — `@theme inline` dark mode bug confirmed
+- https://tobiasahlin.com/blog/how-to-animate-box-shadow/ — box-shadow repaint analysis
+- https://christopher.engineering/en/blog/lucide-icons-with-vite-dev-server — direct-path import benchmark (1,637 modules reduced to 35; 5.6s to 0.784s build time)
 
 ### Secondary (MEDIUM confidence)
-- asyncpg vs psycopg comparison (https://fernandoarteaga.dev/blog/psycopg-vs-asyncpg/) — performance benchmarks
-- TanStack Router vs React Router for dashboards (https://medium.com/ekino-france/tanstack-router-vs-react-router-v7-32dddc4fcd58) — routing decision rationale
-- TestDriven.io FastAPI + Postgres + WebSockets (https://testdriven.io/blog/fastapi-postgres-websockets/) — architecture patterns
-- WebSocket scaling with Redis (https://medium.com/@philipokiokio/broadcasting-websockets-messages-across-instances-and-workers-with-fastapi-9a66d42cb30a) — horizontal scaling migration path
 
-### Tertiary (MEDIUM-LOW confidence)
-- UX Strategies for Real-Time Dashboards — Smashing Magazine — dashboard UX patterns (auto-scroll, delta indicators)
-- RMM feature analysis — DevOpsSchool — table stakes cross-reference from comparable category
-- Multi-tenant auth best practices — Auth0 — team-scoped access control patterns
+- https://www.shadcn.io/theme/cyberpunk — OKLCH values for cyberpunk palette reference
+- https://tweakcn.com/ — interactive shadcn theme generator with cyberpunk presets
+- https://evilmartians.com/chronicles/better-dynamic-themes-in-tailwind-with-oklch-color-magic — OKLCH theming patterns for Tailwind
+- https://interfaceingame.com/articles/cyberpunk-2077-ux-ui-critique/ — anti-patterns: when overdone effects hurt usability
+- https://dev.to/raajaryan/react-animation-libraries-in-2025-what-companies-are-actually-using-3lik — bundle cost analysis for animation library selection
+
+### Tertiary (LOW confidence)
+
+- https://dev.to/sebyx07/introducing-cybercore-css-a-cyberpunk-design-framework-for-futuristic-uis-2e6c — cyberpunk component patterns for reference only; the framework itself is not being used
 
 ---
-*Research completed: 2026-03-20*
+*Research completed: 2026-03-24*
 *Ready for roadmap: yes*

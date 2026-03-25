@@ -1,5 +1,5 @@
 import { useWsStore } from '@/stores/wsStore'
-import { X, AlertTriangle } from 'lucide-react'
+import { X, AlertTriangle } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 
 export function NewNodeAlerts() {

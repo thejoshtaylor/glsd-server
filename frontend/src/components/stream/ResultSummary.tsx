@@ -7,10 +7,10 @@ export function ResultSummary({ event }: { event: ResultEvent }) {
       <div className={`text-sm font-medium ${isError ? 'text-red-400' : 'text-green-400'}`}>
         {isError ? 'Error' : 'Completed'}
       </div>
-      {event.result && <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono mt-1">{event.result}</pre>}
+      {event.result && <pre className="text-sm text-foreground whitespace-pre-wrap font-mono mt-1">{event.result}</pre>}
       {event.error && <pre className="text-sm text-red-300 whitespace-pre-wrap font-mono mt-1">{event.error}</pre>}
       {event.cost_usd != null && (
-        <div className="text-xs text-gray-500 mt-1">Cost: ${event.cost_usd.toFixed(4)}</div>
+        <div className="text-xs text-muted-foreground mt-1">Cost: ${event.cost_usd.toFixed(4)}</div>
       )}
     </div>
   )

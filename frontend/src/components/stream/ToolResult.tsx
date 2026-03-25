@@ -9,7 +9,7 @@ export function ToolResult({ event }: { event: ToolResultEvent }) {
     <div className="border-l-2 border-purple-500 pl-3 py-1">
       <div className="text-xs text-purple-400 mb-1">Tool result</div>
       {textBlocks.map((text, i) => (
-        <pre key={i} className="text-xs text-gray-300 whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">{text}</pre>
+        <pre key={i} className="text-xs text-foreground whitespace-pre-wrap font-mono max-h-40 overflow-y-auto">{text}</pre>
       ))}
     </div>
   )

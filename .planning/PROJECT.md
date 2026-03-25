@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A central management server for GSD nodes — remote agents that run Claude CLI instances. The server accepts inbound WebSocket connections from nodes, dispatches commands (execute, kill, status), streams real-time output, and provides a full web dashboard for team-based management. It includes voice-to-text input via OpenAI Whisper so users can speak prompts that get transcribed and dispatched to nodes.
+A central management server for GSD nodes — remote agents that run Claude CLI instances. The server accepts inbound WebSocket connections from nodes, dispatches commands (execute, kill, status), streams real-time output, and provides a polished cyberpunk-themed web dashboard for team-based management. It includes voice-to-text input via OpenAI Whisper so users can speak prompts that get transcribed and dispatched to nodes.
 
 ## Core Value
 
@@ -10,13 +10,13 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 
 ## Current State
 
-Shipped v1.0 MVP with ~6,300 LOC (3,600 Python + 2,700 TypeScript).
+Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,600 LOC Python backend.
 
 **Tech stack:** Python 3.12 FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL 16 (backend), React 19 + TanStack Router + TanStack Query + Zustand + shadcn/ui + Tailwind v4 (frontend), Nginx (reverse proxy), Docker Compose (deployment).
 
-**Architecture:** Two WebSocket endpoints (`/ws/node` for GSD nodes, `/ws/frontend` for browser clients), in-memory ConnectionManager with PostgreSQL persistence, EventRouter with asyncio queue fan-out, single Uvicorn worker constraint.
+**Frontend features (v1.1):** OKLCH cyberpunk color palette, Orbitron display font, Lucide icons throughout, skeleton loading states, CSS animations (node pulse, stream live dot, recording ring, page transitions, login glitch), reduced-motion compliance.
 
-**Known tech debt:** WebSocket reconnect doesn't refresh expired tokens (INT-01, high priority for v1.1). Audit page missing WebSocket on direct navigation (INT-02, low). 4 browser/mic features need human UAT.
+**Known tech debt:** WebSocket reconnect doesn't refresh expired tokens (INT-01). 3 orphaned CSS glow utilities (glow-amber, glow-red, glow-magenta — infrastructure for future use). 4 scaffolded shadcn components not yet consumed (dialog, tooltip, progress, tabs). Residual hardcoded color classes in error contexts.
 
 ## Requirements
 
@@ -35,15 +35,21 @@ Shipped v1.0 MVP with ~6,300 LOC (3,600 Python + 2,700 TypeScript).
 - ✓ JWT authentication for frontend users — v1.0
 - ✓ Stream event forwarding to frontend in real time — v1.0
 - ✓ Full web dashboard: node list, instance management, live streaming output — v1.0
-- ✓ OpenAI Whisper voice transcription — v1.0 (human UAT pending for browser mic tests)
+- ✓ OpenAI Whisper voice transcription — v1.0
 - ✓ Audit trail logging for commands and events — v1.0
 - ✓ Frontend production deployment via Nginx in Docker Compose — v1.0
 - ✓ Audit trail UI with filterable, paginated log — v1.0
 - ✓ Dashboard auth guard redirecting unauthenticated users to login — v1.0
+- ✓ Cyberpunk OKLCH color palette across all views — v1.1
+- ✓ Lucide icon integration with consistent iconography — v1.1
+- ✓ shadcn/ui component upgrades and skeleton loading states — v1.1
+- ✓ CSS animations with reduced-motion compliance — v1.1
+- ✓ Cyberpunk login page treatment — v1.1
+- ✓ Typography system (Orbitron, monospace, uppercase headings) — v1.1
 
 ### Active
 
-(None yet — define with `/gsd:new-milestone`)
+(None — planning next milestone)
 
 ### Out of Scope
 
@@ -57,7 +63,7 @@ Shipped v1.0 MVP with ~6,300 LOC (3,600 Python + 2,700 TypeScript).
 
 ## Context
 
-- The GSD node implementation already exists (v1.2.0, written in Go). The server is the missing piece — now shipped.
+- The GSD node implementation already exists (v1.2.0, written in Go). The server is shipped.
 - Wire protocol is fully specified in `protocol-spec.md` — 10 message types, JSON over WebSocket.
 - Server spec is in `server-spec.md`.
 - Nodes connect outbound to the server (NAT-friendly). The server never connects to nodes.
@@ -86,23 +92,27 @@ Shipped v1.0 MVP with ~6,300 LOC (3,600 Python + 2,700 TypeScript).
 | EventRouter asyncio queues | Per-connection queues with dedicated writer coroutines | ✓ Good — decouples routing from network I/O |
 | Stream events not persisted to DB | Only terminal state transitions in PostgreSQL | ⚠️ Revisit — frontend-side buffer only |
 | No refresh token rotation v1 | Simplicity; rotation is a v2 enhancement | ⚠️ Revisit for security hardening |
+| OKLCH tokens in :root/.dark only | @theme inline bakes static values — dark mode bug #18296 | ✓ Good — v1.1 confirmed |
+| Pseudo-element glow, not box-shadow | Direct box-shadow animation causes repaints | ✓ Good — smooth animations |
+| Lucide via icons.ts barrel | Barrel import from lucide-react slows dev 5-8x | ✓ Good — centralized re-exports |
+| No motion library in v1.1 | tw-animate-css + CSS @keyframes covers all needs | ✓ Good — zero extra deps |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
-**After each phase transition** (via `/gsd:transition`):
+**After each phase transition:**
 1. Requirements invalidated? → Move to Out of Scope with reason
 2. Requirements validated? → Move to Validated with phase reference
 3. New requirements emerged? → Add to Active
 4. Decisions to log? → Add to Key Decisions
 5. "What This Is" still accurate? → Update if drifted
 
-**After each milestone** (via `/gsd:complete-milestone`):
+**After each milestone:**
 1. Full review of all sections
 2. Core Value check — still the right priority?
 3. Audit Out of Scope — reasons still valid?
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-23 after v1.0 milestone completion*
+*Last updated: 2026-03-25 after v1.1 milestone completion*

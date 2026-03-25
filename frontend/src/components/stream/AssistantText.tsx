@@ -8,7 +8,7 @@ export function AssistantText({ event }: { event: AssistantTextEvent }) {
   return (
     <div className="border-l-2 border-blue-500 pl-3 py-1">
       {textBlocks.map((text, i) => (
-        <pre key={i} className="text-sm text-gray-200 whitespace-pre-wrap font-mono">{text}</pre>
+        <pre key={i} className="text-sm text-foreground whitespace-pre-wrap font-mono">{text}</pre>
       ))}
     </div>
   )

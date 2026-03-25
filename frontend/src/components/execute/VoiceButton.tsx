@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Mic, Square } from 'lucide-react'
+import { Mic, Square } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { useVoiceRecorder, type RecorderState } from '@/hooks/useVoiceRecorder'
 import { toast } from 'sonner'
@@ -51,7 +51,7 @@ export function VoiceButton({ onTranscript, onStateChange, disabled }: VoiceButt
         size="icon"
         onClick={handleClick}
         disabled={disabled || state === 'processing'}
-        className={state === 'recording' ? 'border-red-500 text-red-400' : ''}
+        className={state === 'recording' ? 'border-red-500 text-red-400 pulse-ring-magenta' : ''}
         title={state === 'recording' ? 'Stop recording' : state === 'processing' ? 'Transcribing...' : 'Record voice prompt'}
       >
         {state === 'recording' ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Square } from 'lucide-react'
+import { Square } from '@/lib/icons'
 
 interface KillButtonProps {
   nodeId: string

@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import { AuditFilters } from '@/components/audit/AuditFilters'
 import { AuditTable } from '@/components/audit/AuditTable'
 import { Button } from '@/components/ui/button'
+import { Shield } from '@/lib/icons'
 import type { NodeResponse, AuditLogResponse } from '@/types/api'
 
 export const Route = createFileRoute('/dashboard/audit')({
@@ -63,8 +64,11 @@ function AuditPage() {
   const hasNoNodes = !isLoadingNodes && (!nodes || nodes.length === 0)
 
   return (
-    <div className="p-6 space-y-4">
-      <h2 className="text-xl font-semibold text-white">Audit Log</h2>
+    <div className="p-6 space-y-4 animate-in fade-in duration-150 fill-mode-both">
+      <h2 className="text-xl font-semibold font-heading text-foreground inline-flex items-center gap-2">
+        <Shield size={20} className="text-primary" />
+        Audit Log
+      </h2>
 
       <AuditFilters
         nodes={nodes ?? []}
@@ -77,7 +81,7 @@ function AuditPage() {
       />
 
       {hasNoNodes ? (
-        <p className="text-sm text-gray-500">No nodes found. Connect a node to see audit entries.</p>
+        <p className="text-sm text-muted-foreground">No nodes found. Connect a node to see audit entries.</p>
       ) : (
         <>
           <AuditTable
@@ -97,7 +101,7 @@ function AuditPage() {
             >
               Previous
             </Button>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               {entries && entries.length > 0
                 ? `Showing ${offset + 1}\u2013${offset + entries.length} results`
                 : ''}
