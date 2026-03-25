@@ -56,7 +56,10 @@
   2. Resuming the app after 6+ hours silently refreshes the session without a login redirect
   3. Two simultaneous refresh calls (e.g., tab restore + background query) result in exactly one new token pair, not a logged-out state
   4. Presenting a previously rotated refresh token revokes all of that user's refresh tokens and forces re-login
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 11-01-PLAN.md — Backend token rotation with atomic SQL, reuse detection, and family-scoped revocation
+- [ ] 11-02-PLAN.md — Frontend singleton promise guard, proactive refresh, and tab visibility refresh
 
 ### Phase 12: WebSocket Reliability
 **Goal**: WebSocket connection recovers automatically after token expiry, and all dashboard routes including Audit work when navigated to directly
@@ -93,10 +96,10 @@
 | 8. Color System and Foundation | v1.1 | 3/3 | Complete | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
-| 11. Extended Sessions | v1.2 | 0/? | Not started | - |
+| 11. Extended Sessions | v1.2 | 0/2 | Not started | - |
 | 12. WebSocket Reliability | v1.2 | 0/? | Not started | - |
 | 13. UX Surface | v1.2 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — v1.2 Ease of Access roadmap added*
+*Last updated: 2026-03-25 — Phase 11 plans created*
