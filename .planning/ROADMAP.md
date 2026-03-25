@@ -83,7 +83,7 @@ Plans:
   5. All animations are absent (no motion, no pulse) when the OS has prefers-reduced-motion enabled
 **Plans**: 2 plans
 Plans:
-- [ ] 10-01-PLAN.md — CSS keyframes, animation utilities, reduced-motion block, component animations, page fade-ins
+- [x] 10-01-PLAN.md — CSS keyframes, animation utilities, reduced-motion block, component animations, page fade-ins
 - [ ] 10-02-PLAN.md — Login page cyberpunk treatment (grid bg, gradient border, title glow, glitch)
 **UI hint**: yes
 
@@ -103,7 +103,7 @@ Phases execute in numeric order: 8 -> 9 -> 10
 | 7. Audit UI & Dashboard Auth Guard | v1.0 | 2/2 | Complete | 2026-03-23 |
 | 8. Color System and Foundation | v1.1 | 0/3 | Complete    | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 0/3 | Complete    | 2026-03-25 |
-| 10. Animations and Login Treatment | v1.1 | 0/2 | Not started | - |
+| 10. Animations and Login Treatment | v1.1 | 1/2 | In Progress|  |
 
 ---
 *Roadmap created: 2026-03-20*

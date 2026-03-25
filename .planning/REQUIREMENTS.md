@@ -42,11 +42,11 @@ Requirements for the Cyberpunk Beautification milestone. Each maps to roadmap ph
 
 ### Animations
 
-- [ ] **ANI-01**: Connected node cards display subtle pulsing glow animation
-- [ ] **ANI-02**: Stream panel shows animated live dot when output is actively streaming
-- [ ] **ANI-03**: VoiceButton displays pulsing magenta ring while recording
-- [ ] **ANI-04**: Page transitions use fade-in animation on route changes
-- [ ] **ANI-05**: All animations respect `prefers-reduced-motion` OS setting
+- [x] **ANI-01**: Connected node cards display subtle pulsing glow animation
+- [x] **ANI-02**: Stream panel shows animated live dot when output is actively streaming
+- [x] **ANI-03**: VoiceButton displays pulsing magenta ring while recording
+- [x] **ANI-04**: Page transitions use fade-in animation on route changes
+- [x] **ANI-05**: All animations respect `prefers-reduced-motion` OS setting
 
 ### Login Page
 
@@ -108,11 +108,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CMP-06 | Phase 9 | Complete |
 | CMP-07 | Phase 9 | Complete |
 | CMP-08 | Phase 9 | Complete |
-| ANI-01 | Phase 10 | Pending |
-| ANI-02 | Phase 10 | Pending |
-| ANI-03 | Phase 10 | Pending |
-| ANI-04 | Phase 10 | Pending |
-| ANI-05 | Phase 10 | Pending |
+| ANI-01 | Phase 10 | Complete |
+| ANI-02 | Phase 10 | Complete |
+| ANI-03 | Phase 10 | Complete |
+| ANI-04 | Phase 10 | Complete |
+| ANI-05 | Phase 10 | Complete |
 | LGN-01 | Phase 10 | Pending |
 | LGN-02 | Phase 10 | Pending |
 | LGN-03 | Phase 10 | Pending |
