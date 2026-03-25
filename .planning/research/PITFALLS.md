@@ -1,160 +1,170 @@
 # Pitfalls Research
 
-**Domain:** Ease-of-access additions to an existing FastAPI + React dashboard — JWT refresh rotation, WebSocket token refresh on reconnect, onboarding guide UX, simplified execute form
-**Researched:** 2026-03-24
-**Confidence:** HIGH (code-grounded; pitfalls derived directly from the existing codebase implementation rather than generic advice)
+**Domain:** Adding GSD-aware stream parsing, interactive question UI, project management, auto mode, and notifications to an existing NDJSON WebSocket relay — v1.3 GSD Integration
+**Researched:** 2026-03-25
+**Confidence:** HIGH (code-grounded; derived directly from the existing codebase architecture and the specific integration surface for v1.3)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Refresh Token Rotation Creates a Replay Window Without Atomic DB Swap
+### Pitfall 1: Double-Encoded JSON Parsed Only Once — Silent Data Loss
 
 **What goes wrong:**
-Token rotation means: when `/api/auth/refresh` is called, issue a new refresh token AND revoke the old one in the same request. The current `refresh_access_token` in `auth_service.py` returns the same refresh token without rotation. When rotation is added, a naive implementation revokes the old token and inserts the new one as two separate DB writes. Under a mobile tab sleep + resume, a slow network retry, or a React StrictMode double-invoke, the client can call `/refresh` twice with the same token before the first call has committed. The second call sees the token as still valid (revoke hasn't committed yet), issues a second new token, and both tokens are now live with different claims. The old token is then marked revoked, but the second-issued token from the racy call is still active and orphaned from any local state.
+The `stream_event` payload's `data` field is a JSON string containing another JSON object (protocol-spec Section 3.1.3: "data contains a JSON-serialized ClaudeEvent object as a string"). The existing `handle_stream_event` in `handlers.py` correctly calls `json.loads(payload.data)` to unwrap this. However, v1.3 stream intelligence code will add a second parsing layer to inspect event types (`AskUserQuestion`, `result`, `system`, etc.). If the new parser receives the already-decoded Python dict instead of a raw string, it works fine. But if any intermediate step re-serializes the dict and the parser is called on a string that hasn't been through the first `json.loads`, you get the raw string including escape sequences. In the frontend Zustand store, `handleMessage` in `wsStore.ts` calls `get().appendStreamEvent(msg.instance_id, msg.data as NdjsonEvent)` — if the server-side forward changes the shape of `data` (e.g., adding a wrapper or changing the forwarded value), the frontend cast `msg.data as NdjsonEvent` will silently accept a malformed value. TypeScript does not validate at runtime.
 
 **Why it happens:**
-The existing code already handles single-use WS tickets correctly with `UPDATE...WHERE used=FALSE RETURNING` (atomic SQL). That pattern was not applied to refresh token rotation because the current system doesn't rotate. Developers adding rotation often reach for the simple "revoke old, insert new" approach without recognizing the race.
+Two layers of JSON encoding are easy to lose track of. Adding stream intelligence means touching `handle_stream_event` and the fan-out path. A developer writing GSD event classification touches the same data the frontend already depends on and inadvertently changes the forwarded shape without a type-system complaint.
 
 **How to avoid:**
-Use a single atomic SQL statement for the rotation: `UPDATE refresh_tokens SET revoked=TRUE WHERE token_hash=:old_hash AND revoked=FALSE RETURNING user_id`. Only proceed with issuing the new token if `RETURNING` yields a row. If no row is returned, the token was already revoked — respond 401. This is exactly the same pattern as `validate_ws_ticket`. Add the new refresh token record in the same DB transaction before committing. Never revoke and insert in separate transactions.
+Parse once in `handle_stream_event`, attach the classification result as a separate field in the forwarded message, never re-wrap the parsed data. Define a typed backend schema for the enriched stream event and a matching TypeScript type in the frontend that both teams agree on before coding begins. In Python: `{"type": "stream_event", "instance_id": ..., "data": parsed_dict, "gsd": {"kind": "ask_user_question", ...}}`. In TypeScript: add a `gsd?: GsdClassification` field to the `WsIncomingMessage` type. The `data` field shape must not change — additive only.
 
 **Warning signs:**
-- Two simultaneous `/refresh` calls both return 200 with different access tokens
-- A user gets logged out unexpectedly on mobile despite having a valid refresh token
-- Database has two active (non-revoked) refresh tokens for the same user after a network blip
+- Frontend stream panel shows garbled output after v1.3 deploy (escaped JSON strings appearing as raw text)
+- `StreamEventRenderer` receives an object where it expected a specific `NdjsonEvent` union type
+- `msg.data as NdjsonEvent` throws a runtime error when a new field is added to the message shape
 
-**Phase to address:** Phase 1 (Extended Sessions). The atomicity constraint must be designed in before any rotation code is written. Retrofitting it after the fact requires the same effort as doing it right the first time.
+**Phase to address:** Stream intelligence phase — establish the enriched message schema contract before writing any classification code.
 
 ---
 
-### Pitfall 2: WS Reconnect Token Refresh Race — Multiple Concurrent Refresh Calls
+### Pitfall 2: Input-Wait Detection Based on Message Content Alone Is Unreliable
 
 **What goes wrong:**
-The current `useWebSocket` hook calls `/api/auth/ws-ticket` on each reconnect attempt. When the access token is expired, that call returns 401. The fix for INT-01 must: (1) detect the 401, (2) call `/api/auth/refresh`, (3) retry the ticket request. The race: the dashboard has a single WS connection (`useWebSocket` is mounted once in the layout), but the `api()` function in `api.ts` already has its own 401 → refresh → retry logic for REST calls. If any other REST query (TanStack Query invalidation fires on WS reconnect, which it does via `queryClient.invalidateQueries` in `wsStore.ts`) simultaneously detects a 401, both the WS reconnect path and the REST interceptor will call `/api/auth/refresh` concurrently. With rotation enabled, the first call rotates the token. The second call uses the now-invalidated old refresh token and gets a 401, which clears tokens and redirects to `/login` — logging the user out despite having a valid session.
+Claude CLI emits structured NDJSON events but does not emit a dedicated "waiting for input" event type in the standard stream. GSD detects user prompts via heuristic matching on `assistant` message content and by checking for specific `system` subtypes. A common approach is to scan the last `assistant` text event for question-like patterns (ends with `?`, contains choice options, etc.) or to wait for a `result` event with a specific subtype. The problem: Claude CLI can emit an `assistant` event containing a question that is purely rhetorical (Claude summarizing what it asked in a previous turn), or it can pause mid-stream before emitting the question text. If the server treats every trailing question in an `assistant` event as an input-wait signal, it will fire false notifications and render phantom prompt UIs while Claude is still typing. If it waits for a `result` event to confirm the wait, it may have already forwarded all text events to the frontend with no signal that the last one requires a response.
 
 **Why it happens:**
-`api.ts` has a simple `refreshAccessToken()` function that is not guarded against concurrent calls. Each caller independently reads `getStoredRefreshToken()`, sends a refresh request, and writes back with `setTokens()`. There is no in-flight promise deduplication. With rotation, the first write invalidates the token the second caller just read.
+Claude CLI's NDJSON format was designed for display, not for program-to-program control flow detection. Input-wait state is implicit in the process (stdin is blocked), not explicit in the stream. Developers assume they can reconstruct the interactive state purely from output events.
 
 **How to avoid:**
-Add a singleton refresh promise to `api.ts`. When `refreshAccessToken()` is called while a refresh is already in-flight, return the existing promise instead of starting a new fetch. Example pattern:
-
-```typescript
-let refreshPromise: Promise<boolean> | null = null
-
-async function refreshAccessToken(): Promise<boolean> {
-  if (refreshPromise) return refreshPromise
-  refreshPromise = doRefresh().finally(() => { refreshPromise = null })
-  return refreshPromise
-}
-```
-
-This ensures exactly one `/refresh` call runs at a time. All concurrent callers await the same result. Apply this fix in Phase 1 before rotation is enabled, because the bug is latent even without rotation — but rotation makes it catastrophic rather than merely suboptimal.
+Use a two-signal approach: (1) GSD sends `AskUserQuestion` tool invocations in the stream when it wants structured input — look for a `tool_use` event where `name` is `AskUserQuestion` as the primary, reliable signal. (2) For freeform input waits (e.g., Claude pausing for a yes/no), use a debounced heuristic: no new `assistant` events for N seconds AND the last `assistant` text ends with a question mark or option list. N should be at least 3 seconds. Never fire the interactive UI on the first heuristic match alone — combine with the absence of subsequent events. Treat the heuristic as "probably waiting" and the `AskUserQuestion` tool call as "definitely waiting." These two states should drive different UI treatments.
 
 **Warning signs:**
-- User is redirected to `/login` immediately after a tab comes back from sleep
-- Network tab shows two simultaneous `POST /api/auth/refresh` requests on WS reconnect
-- `clearTokens()` is called while the user still has a valid session (add a console.warn to detect this during development)
+- Interactive prompt UI appears mid-stream while Claude is still generating text
+- Users see question UI for completed instances (false positive from a question in the final summary)
+- Notification fires while Claude is actively writing a multi-paragraph response
 
-**Phase to address:** Phase 1 (Extended Sessions) — the singleton refresh guard must be in place before rotation is enabled. Also Phase 2 (WS Token Refresh) — the WS reconnect path must use the same guard.
+**Phase to address:** Stream intelligence phase — the classification logic must be designed with the two-signal approach from the start. Do not defer the debounce mechanism to a later phase.
 
 ---
 
-### Pitfall 3: WS Ticket Fetch After Token Refresh Uses Stale In-Memory Token
+### Pitfall 3: stdin Relay Through WebSocket Chain Has No Flow Control or Timeout
 
 **What goes wrong:**
-`useWebSocket` reads the access token with `getAccessToken()` at the start of the `connect()` function. When the WS reconnect path detects a 401 from the ticket endpoint and refreshes the access token, `accessToken` in `api.ts` is updated in memory. However, if the reconnect path is written as:
-
-```typescript
-const accessToken = getAccessToken()  // captured before refresh
-const refreshed = await refreshAccessToken()
-// then uses old `accessToken` variable, not the updated in-memory value
-const res = await fetch('/api/auth/ws-ticket', {
-  headers: { Authorization: `Bearer ${accessToken}` }  // stale!
-})
-```
-
-The ticket request after refresh still uses the old expired token because the local variable was captured before the refresh. The request will 401 again, triggering infinite reconnect attempts.
+Sending user responses back to a running Claude CLI instance requires: (1) frontend sends a message to the backend via the frontend WebSocket, (2) backend forwards it to the node via the node WebSocket as a new protocol message type, (3) node writes to the Claude CLI subprocess stdin. The current protocol (v1.2.0) has no `stdin_input` message type. Adding it means adding a new server-to-node message. The failure mode: the frontend sends an `stdin_input` message, the backend forwards it, but the instance has already terminated (natural finish or kill in flight), the node writes to a closed stdin, and the write silently fails. The server has no acknowledgment mechanism for stdin delivery. The user thinks their answer was received; the instance is actually gone. Worse: if the user clicks a response button twice (double-click, network lag), two stdin writes are sent. Claude CLI does not deduplicate stdin.
 
 **Why it happens:**
-JavaScript closure captures the value of `accessToken` at declaration time. `getAccessToken()` returns the current in-memory value — but the captured local variable does not update when `api.ts` writes a new value to its module-scoped `accessToken`.
+The existing protocol is fire-and-forget from the server side (no ACK for execute delivery to stdin is required because the node sends `ack` back). A new `stdin_input` type added ad-hoc without a corresponding ack mechanism inherits the same fire-and-forget semantics, which are acceptable for command dispatch but dangerous for interactive state transitions.
 
 **How to avoid:**
-Always call `getAccessToken()` immediately before the fetch that uses it, never in a captured variable that may go stale across an async boundary. In the WS reconnect path: call `getAccessToken()` after awaiting `refreshAccessToken()`, not before. The ticket fetch helper should be written as:
-
-```typescript
-const token = getAccessToken()  // read AFTER refresh completes
-const res = await fetch('/api/auth/ws-ticket', {
-  headers: { Authorization: `Bearer ${token}` }
-})
-```
+The node must send an `ack` for every `stdin_input` message received, reusing the same envelope `id` correlation mechanism already defined in the protocol for `execute`. The frontend must disable the response button immediately on click (optimistic lock, not on ack receipt) to prevent double-submit. If no `ack` arrives within 5 seconds, the backend marks the input as failed and notifies the frontend. On the node side, the `stdin_input` handler must check that the target instance is still running before writing — if not running, respond with `instance_error` using a clear message like `"instance not running: cannot deliver stdin"`. The new protocol message type must be added to `MSG_TYPES` in `protocol.py` and the node's Go implementation simultaneously.
 
 **Warning signs:**
-- Browser Network tab shows the ws-ticket request after a refresh still sends an expired Bearer token
-- WS reconnect loop runs indefinitely even after successful token refresh (401 on every ticket attempt)
-- `reconnectAttempt` counter keeps climbing even though `/auth/refresh` is succeeding
+- User answers a question but Claude continues to wait — no stdin was delivered
+- Instance enters an unexpected state after a terminal event races with a stdin delivery
+- Two `stdin_input` messages arrive for the same question (double-click)
 
-**Phase to address:** Phase 2 (WS Token Refresh / INT-01 fix).
+**Phase to address:** stdin relay phase — the ACK requirement must be in the protocol design document before any implementation starts. Do not ship stdin relay without ack tracking.
 
 ---
 
-### Pitfall 4: Audit Page WS Fix (INT-02) Triggers Double Ticket Fetch on Tab Switch
+### Pitfall 4: Auto Mode State Machine Has No Instance-Level Isolation
 
 **What goes wrong:**
-INT-02 is that the audit page doesn't establish a WS connection on direct navigation. The fix is likely to ensure `useWebSocket` is mounted when the audit route is active. The current `useWebSocket` hook is already mounted in the dashboard layout (`routes/dashboard/route.tsx`), so all dashboard sub-routes should have it. The INT-02 bug is more specifically about the audit page not receiving live WS updates when navigated to directly (e.g., bookmark or deep link). A common fix attempt is to add a second `useWebSocket` call in the audit component itself "just to be safe." This causes two simultaneous WS connections for the same user, two ticket fetches, two `/ws/frontend` connections registered in `FrontendConnectionManager`, and broadcast duplication — every node status update fires twice.
+Auto mode dispatches a sequence of GSD commands with `/clear` between steps. The state machine is: dispatch command 1, wait for `instance_finished`, dispatch `/clear`, wait for finish, dispatch command 2, etc. The current `dispatch_execute` in `commands.py` creates a new instance ID per call and returns immediately. If auto mode is implemented as a backend asyncio task keyed on `node_id` only (not `node_id + sequence_id`), two users dispatching auto mode on the same node will have their state machines share instance-tracking state. User A's instance_finished event could advance User B's sequence. Or, if a node disconnects mid-sequence, the auto mode task is orphaned — the reconnect path does not know about in-flight auto sequences, so on reconnect the sequence is silently abandoned with no error to the user.
 
 **Why it happens:**
-Developers diagnose "WS doesn't work on audit page" as "WS hook isn't running on audit page" and fix it by adding the hook to the component. The actual cause is usually that the WS hook effect deps array fires on mount but the access token isn't yet available (initial load from localStorage), or that the WS store state is initialized before the route is fully mounted.
+Auto mode looks like "just run a loop of execute calls," so developers implement it as a simple `for` loop with `await wait_for_terminal_event(instance_id)`. The `wait_for_terminal_event` primitive is often implemented as an asyncio.Event per instance_id, which is correct for isolation. The cross-user collision only manifests when two users target the same node simultaneously, which doesn't happen in solo testing.
 
 **How to avoid:**
-Keep `useWebSocket` in exactly one place: the dashboard layout. Debug INT-02 by instrumenting the existing hook to confirm whether it is connecting at all on direct navigation (check the Network tab for the `/ws/frontend` connection attempt). The likely real cause: `getAccessToken()` returns null on first render because the token hasn't been rehydrated from localStorage yet, so the `connect()` function returns early. Fix by adding token rehydration from localStorage before the first WS connect attempt, not by duplicating the hook.
+Each auto mode sequence must have a unique `sequence_id` (a UUID). The state machine task must be keyed on `(node_id, sequence_id)` in a registry, not just `node_id`. The `wait_for_terminal_event` mechanism must use per-instance asyncio.Event or asyncio.Queue (one per `instance_id`), not a shared dict keyed on `node_id`. When a node disconnects, all auto mode sequences for that node must be cancelled and the user must receive a `sequence_error` notification. The sequence registry must be cleaned up on node disconnect in `handle_unexpected_disconnect`. Use the existing `_instance_streams` pattern in `ConnectionManager` as a model for per-instance state.
 
 **Warning signs:**
-- Network tab shows two simultaneous `GET /ws/frontend?ticket=...` WebSocket connections for the same user
-- Audit page receives every WS event twice (visible if logging WS messages to the console)
-- `FrontendConnectionManager` logs show the same `user_id` with two registered connections
+- Auto mode completes steps out of order when two users both run it on the same node
+- Node disconnect during auto mode leaves the UI in "running" state indefinitely
+- A sequence continues after a kill command was sent to one of its instances
 
-**Phase to address:** Phase 3 (Audit Page WS Fix / INT-02).
+**Phase to address:** Auto mode phase — the sequence_id isolation design must be locked down before any implementation. Verify behavior with a two-user simultaneous test before declaring the phase complete.
 
 ---
 
-### Pitfall 5: 7-Day Refresh Token Accumulates Stale Records Without Cleanup
+### Pitfall 5: In-Memory Stream Buffer Not Cleared on New Instance for Same Session
 
 **What goes wrong:**
-The current `RefreshToken` model has no index on `expires_at` and no cleanup job. With 30-minute access tokens, users rarely needed refresh tokens to persist long. With 7-day rotation, every login, every tab open, and every rotation event writes a new `refresh_tokens` row. Users who log in and out daily will accumulate ~7 revoked rows per week. This is manageable at small scale but compounds with the `token_hash` lookup on every refresh call — a full table scan if the index is missing. More importantly, if cleanup is never added, a year of usage produces thousands of rows per user, and the `WHERE token_hash = :hash AND revoked = FALSE` query degrades.
+`ConnectionManager._instance_streams` stores events per `instance_id`. Each auto mode step spawns a new instance ID, so each step's buffer is isolated. However, if a user calls `/clear` (dispatched as an execute command), the cleared instance also gets an `instance_finished` event. `handle_instance_finished` calls `connection_manager.clear_stream_events(instance_id)`. The next instance (command 2 in the sequence) starts accumulating in a fresh buffer. This is correct. But: if the user reopens the stream panel for the *previous* instance, `get_stream_events` returns an empty buffer (cleared at finish). If the DB was configured with `STREAM_EVENTS_PERSIST = False` (the current tech debt note in PROJECT.md: "Stream events not persisted to DB"), there is no replay source. The user sees a blank panel for a completed instance. This is confusing but not a corruption. The real danger: if `clear_stream_events` is called *before* all frontend queue writes have drained, a subscriber that receives the clear after an in-flight fan-out may show a partial event set.
 
 **Why it happens:**
-The model was built for short-lived tokens where accumulation wasn't a concern. Token cleanup is treated as "later" work because it doesn't affect correctness immediately.
+The fan-out path is: `fan_out_stream_event` puts events into per-connection queues, the writer coroutine drains them asynchronously. `clear_stream_events` is called synchronously in the terminal event handler, before the writer has necessarily drained the queue. There is no barrier between "event enqueued" and "event delivered."
 
 **How to avoid:**
-Add a database migration that: (1) adds an index on `refresh_tokens(expires_at)` and (2) adds an index on `refresh_tokens(user_id, revoked)`. These are needed for the existing query `WHERE token_hash = :hash AND user_id = :user_id AND revoked = FALSE` to remain fast. In the same migration, add a cleanup trigger or background task that deletes rows where `expires_at < now() - interval '1 day'`. The simplest implementation: add a FastAPI startup hook that runs `DELETE FROM refresh_tokens WHERE expires_at < now()` on server start. A production system would use a periodic task (APScheduler or a cron), but the startup hook is sufficient for v1.
+`clear_stream_events` in `handle_instance_finished` is safe because the queue is per-connection and the buffer is separate from the queue — the buffer is only for replay on new subscriptions, not for in-flight delivery. Verify this does not become a problem when the auto mode sequence replays buffered events to a newly subscribed frontend. The rule: clear the in-memory buffer only after confirming the instance is in a terminal state AND all subscribers have unsubscribed (or on a short delay after the terminal event). For v1.3, the immediate fix is to persist stream events to the DB — this removes the dependency on the in-memory buffer for history and makes replay reliable.
 
 **Warning signs:**
-- `refresh_tokens` table row count grows unboundedly — check with `SELECT COUNT(*) FROM refresh_tokens`
-- Refresh endpoint latency increases as the table grows (missing index)
-- Database size increases faster than expected relative to user count
+- Reopening a completed instance stream shows no events despite the instance having produced output
+- Auto mode history panel shows empty steps for instances that ran successfully
+- A frontend subscription during the `/clear` step shows zero events despite the /clear producing stream output
 
-**Phase to address:** Phase 1 (Extended Sessions). The migration with indexes and cleanup must ship with the 7-day token change, not as a follow-up.
+**Phase to address:** Stream intelligence phase (relies on stream event history); also the tech debt note about stream event persistence should be resolved in this milestone.
 
 ---
 
-### Pitfall 6: Frontend Token Storage Exposes Refresh Token to XSS via localStorage
+### Pitfall 6: Interactive UI Renders Stale Question After Instance Terminates
 
 **What goes wrong:**
-The current `api.ts` stores the refresh token in `localStorage` (`localStorage.setItem('refresh_token', refresh)`). With 30-minute access tokens, a stolen refresh token gives an attacker 30-minute sessions indefinitely. With 7-day refresh tokens, a stolen refresh token is a 7-day persistent credential. Any XSS vulnerability anywhere in the application — including injected content from node output rendered in the stream panel — gives an attacker full persistent access.
+When the stream parser detects an `AskUserQuestion` tool call, the frontend renders a response UI (buttons or text input). If the instance terminates before the user responds (e.g., timeout, kill, node disconnect), the response UI remains on screen. If the user then submits a response, the `stdin_input` message is sent to the backend, which tries to forward to a node for a dead instance. Depending on the error handling, the user either sees a silent failure or gets a generic error. The response UI never clears itself because it was driven by the stream event, and no "cancel the interactive prompt" message arrives.
 
 **Why it happens:**
-`localStorage` is the simplest storage mechanism and is already in use. The risk is proportional to token lifetime — short tokens make the tradeoff more acceptable. The jump to 7-day tokens changes the risk calculus significantly.
+The interactive UI state is derived from the stream buffer (a `tool_use` event with name `AskUserQuestion`). The stream buffer is not retroactively modified when the instance terminates. The UI component checks stream events but does not subscribe to the `instance_status` state for the same instance.
 
 **How to avoid:**
-The full fix (httpOnly cookies for refresh tokens) is a backend change with meaningful scope. For v1.2, the minimum viable mitigation is: ensure the stream panel renders node output as text (not as HTML) so injected script tags cannot execute. The codebase already uses React's JSX rendering for stream events (`AssistantText.tsx`, `ToolUse.tsx`), which escapes HTML by default — verify none of these components use `dangerouslySetInnerHTML`. Add this check to the "looks done but isn't" phase checklist. Defer httpOnly cookie migration to v1.3 as a dedicated security hardening milestone — it is a non-trivial change requiring CSRF token handling.
+The interactive prompt component must subscribe to both the stream buffer (for the question content) and the `instanceStatuses` map in `wsStore` (for termination state). When `instanceStatuses[instanceId]` becomes `finished` or `errored`, the interactive prompt must be hidden and replaced with a "Claude finished before receiving your response" message. This is a single conditional on the render: `if (instanceStatus === 'finished' || instanceStatus === 'errored') return null`. Implement this in the same PR as the interactive prompt component — do not ship the prompt without the cleanup path.
 
 **Warning signs:**
-- Any component using `dangerouslySetInnerHTML` with stream event data
-- Node names, prompt text, or Claude output rendered via `innerHTML` assignment
-- A future security audit flags the `localStorage` refresh token pattern
+- Interactive buttons remain visible after stream ends
+- Clicking a response button after instance finishes shows an error toast but leaves the UI unchanged
+- Browser console shows `WebSocket is already in CLOSED state` error when submitting a response
 
-**Phase to address:** Phase 1 (Extended Sessions) — audit for `dangerouslySetInnerHTML` usage as a gate before enabling 7-day tokens. Flag httpOnly cookie migration as v1.3 scope.
+**Phase to address:** Interactive question UI phase — the status-aware rendering must be part of the initial implementation, not a follow-up fix.
+
+---
+
+### Pitfall 7: Project Management Commands Require Path Validation on Remote Filesystem
+
+**What goes wrong:**
+Project management features (create project, connect existing folder, clone GitHub repo) require the backend to send commands that reference filesystem paths on the node. The `execute` command has a `work_dir` field. For project creation, the work_dir is the new directory. For connecting an existing folder, it is an existing path the user provides in the UI. The backend currently validates that `project` is in `conn.projects` (the list reported by the node). But `conn.projects` is a list of *project names*, not filesystem paths. The `work_dir` is passed through without validation. A user can enter `../../../../etc/passwd` as a work_dir, and the backend will forward it to the node. The node runs Claude CLI with that working directory. Whether this causes harm depends on the node environment, but it is a path traversal risk.
+
+**Why it happens:**
+The current `dispatch_execute` validation in `commands.py` checks project name membership but has no path sanitization: `if project not in conn.projects: raise ValueError(...)`. The `work_dir` field was designed to be provided by the server, not user-supplied. For v1.3 project management, `work_dir` will be user-supplied from the project form.
+
+**How to avoid:**
+For server-side project management, the backend must normalize and validate `work_dir` before forwarding: (1) reject any path containing `..` sequences after normalization, (2) require the path to start with a known safe prefix (configurable per team or node), or (3) accept only project-relative paths and resolve them to absolute paths on the node using a registered project root. The simplest safe approach for v1.3: require `work_dir` to match the project's registered root path (stored in the DB when the project is created) rather than accepting arbitrary user-provided paths. User-facing forms should present a project picker that resolves to the registered path, not a free-text path field.
+
+**Warning signs:**
+- `work_dir` field in the execute form accepts free-text input without validation
+- A path containing `../` passes through `dispatch_execute` without error
+- Node executes Claude CLI in an unexpected directory (check the `cwd` field in `instance_started` if added)
+
+**Phase to address:** Project management phase — path validation must be a first-class requirement, not a hardening step.
+
+---
+
+### Pitfall 8: Notification System Cannot Distinguish Tabs — Duplicate Alerts
+
+**What goes wrong:**
+The notification requirement says "notify when nodes need input or complete work." The existing `FrontendConnectionManager` stores connections per `user_id` — a single user can have multiple connections (multiple tabs). When a notification is sent via `fan_out_stream_event` or `broadcast_instance_status`, it goes to all tabs. For status updates, this is correct — all tabs should know the node is done. For interactive prompts specifically, the user only needs to respond once. If the notification fires in all tabs and the user responds from tab A, tab B still shows the response UI. If the user then responds from tab B, a second `stdin_input` is sent. The node may have moved on; the second stdin write either errors or corrupts the next prompt.
+
+**Why it happens:**
+The fan-out model treats all connections for a user as equivalent. For read-only state updates, this is correct. For action-requiring prompts, it is wrong — exactly one response should be solicited.
+
+**How to avoid:**
+Introduce a concept of "claiming" an interactive prompt. When a user submits a response from any tab, the backend marks the prompt as `answered` for that `instance_id + prompt_sequence_number`. All subsequent tabs that try to render the response UI should check this `answered` state via a small REST endpoint or a new WebSocket message type (`prompt_answered`) broadcast to all of the user's connections. The simplest implementation: when `stdin_input` is received from the frontend, the backend broadcasts a `prompt_answered` message to all of the user's connections before forwarding to the node. Each tab's interactive UI component listens for this and hides itself. This is idempotent: if the user has only one tab, the broadcast goes to that one tab, which already submitted and will ignore the message.
+
+**Warning signs:**
+- Two browser tabs both show the interactive prompt for the same instance
+- Submitting a response from one tab does not clear the prompt in the other tab
+- Two `stdin_input` messages arrive at the backend within seconds of each other for the same prompt
+
+**Phase to address:** Interactive question UI phase AND notification phase — must be designed together, as the fan-out model for prompts differs from status broadcasts.
 
 ---
 
@@ -162,12 +172,12 @@ The full fix (httpOnly cookies for refresh tokens) is a backend change with mean
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| `refreshPromise` singleton not added before rotation | Simpler initial implementation | Concurrent refresh calls revoke valid tokens on rotation; invisible during testing, catastrophic in production | Never — add the singleton guard atomically with rotation |
-| Cleanup job deferred beyond v1.2 | Less scope | `refresh_tokens` table grows unboundedly; query degrades | Only acceptable if a cleanup migration with indexes ships in the same PR as 7-day tokens |
-| Duplicate `useWebSocket` hook as INT-02 workaround | Appears to fix the symptom | Double WS connections; duplicated broadcast events; hard to debug | Never — fix the root cause (token rehydration timing) |
-| Onboarding guide as a long prose document | Fast to write | Users don't read it; they try the first step and get stuck | Never — keep steps to 4-6 numbered actions maximum |
-| Preset prompts hard-coded in the component | No backend work required | Useless presets if node projects differ from assumptions | Acceptable for v1.2 if presets are generic enough (e.g., "Explain the codebase") |
-| `sessionId` field kept visible in simplified form | Preserves current functionality | Non-technical users are confused by session ID field | Hidden behind an "Advanced" toggle; never removed entirely |
+| Stream events not persisted to DB (existing tech debt) | Lower write volume, simpler handler | Auto mode history unavailable; reopened stream panels show blank; replay only works for live instances | Never acceptable for v1.3 — interactive history requires persistence |
+| Heuristic-only input-wait detection (no `AskUserQuestion` tool signal) | Faster to implement | High false-positive rate; phantom prompts; broken user trust in interactive UI | Never — use the two-signal approach from day one |
+| `stdin_input` without ack tracking | Simpler protocol extension | Silent delivery failures; users believe their response was received when it was not | Never — always require ack for interactive state transitions |
+| Auto mode as a single background task per node (no sequence isolation) | Simpler code path | Cross-user state collision on shared nodes; orphaned tasks on disconnect | Never — sequence_id isolation adds trivial overhead and prevents a class of bugs |
+| Project `work_dir` as free-text user input without validation | Faster project management form | Path traversal risk; Claude CLI runs in unexpected directories | Never for user-supplied paths — always validate or resolve from registered project roots |
+| Interactive prompt component without status-aware cleanup | Faster initial render | Stale prompts after instance termination; user confusion and spurious stdin sends | Never — add the status check in the same PR as the prompt component |
 
 ---
 
@@ -175,12 +185,13 @@ The full fix (httpOnly cookies for refresh tokens) is a backend change with mean
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| FastAPI + SQLAlchemy async + rotation | Two separate DB writes for revoke + insert | Single transaction: atomic `UPDATE...RETURNING` to revoke, then `INSERT` for new token — both in same `AsyncSession` before `commit()` |
-| TanStack Query + WS reconnect | Query invalidation on WS reconnect triggers REST 401 interceptor simultaneously with WS refresh | Singleton `refreshPromise` in `api.ts` deduplicates concurrent refresh attempts |
-| WS ticket endpoint + expired access token | `useWebSocket` calls ticket endpoint without checking token freshness; 401 from ticket fetch is not retried with refreshed token | Explicit 401 handling in the WS connect path: detect 401, call `refreshAccessToken()`, re-read token with `getAccessToken()`, retry ticket fetch |
-| `localStorage` refresh token + 7-day lifetime | Longer lifetime proportionally increases XSS impact | Audit all stream output rendering paths for `dangerouslySetInnerHTML` before enabling extended sessions |
-| React `useEffect` + WS reconnect | Effect cleanup sets `unmounted = true`, but a queued `setTimeout` reconnect fires after unmount and calls `connect()`, which reads a stale closure | The existing code handles this via `if (unmounted) return` check inside `connect()` — preserve this guard when modifying the reconnect path |
-| TanStack Router direct navigation + WS store | Store is initialized but WS connection has not been established yet when route component mounts | WS connection is managed in the layout route (`routes/dashboard/route.tsx`); direct navigation lands on the layout first, so the hook fires — INT-02 is likely a token rehydration timing issue, not a missing hook |
+| NDJSON stream enrichment + frontend fan-out | Changing the shape of the forwarded `data` field breaks the frontend `NdjsonEvent` union type silently | Add enrichment as a new sibling field (`gsd`) to the forwarded message; never mutate the existing `data` field shape |
+| `stdin_input` → node protocol extension | Treating `stdin_input` as fire-and-forget like `kill` | Require a node-side `ack` using the same envelope `id` correlation; set a 5-second timeout; surface delivery failure to the user |
+| Auto mode + `dispatch_execute` | Calling `dispatch_execute` in a loop and awaiting `asyncio.sleep` between polls | Use asyncio.Event per instance_id set by the terminal event handler; zero-polling, immediate wake on completion |
+| Auto mode + node disconnect | No cleanup of in-flight auto sequences when `handle_unexpected_disconnect` fires | Register auto sequences in `ConnectionManager`; `handle_unexpected_disconnect` must cancel all sequences for the disconnected node |
+| Project management + `conn.projects` validation | Assuming `conn.projects` is a list of filesystem paths | `conn.projects` is project *names*, not paths; filesystem paths must be resolved from a separate project registry in the DB |
+| `FrontendConnectionManager` fan-out + interactive prompts | Broadcasting prompts to all user tabs creates duplicate response opportunities | Broadcast `prompt_answered` to all tabs immediately on first response receipt; interactive UI checks this state before rendering |
+| GSD `AskUserQuestion` tool event + stream buffer | Tool events may appear in the replay buffer for a completed instance | Frontend interactive UI must check instance status, not just the presence of a tool_use event, before rendering response controls |
 
 ---
 
@@ -188,10 +199,10 @@ The full fix (httpOnly cookies for refresh tokens) is a backend change with mean
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| `refresh_tokens` table without `expires_at` index | Slow refresh endpoint as table grows | Add index in the same migration as 7-day token feature | Noticeable degradation above ~50k rows (small team: years; large team: months) |
-| WS reconnect exponential backoff reset on tab focus | Reconnect delay stuck at 30s when user returns to a background tab | The existing code resets `reconnectAttempt.current = 0` on `ws.onopen` — preserve this; add a `visibilitychange` listener that triggers an immediate reconnect attempt when the tab becomes visible again | Every time a user switches away for >30s |
-| Preset prompts causing large initial bundle | Presets embedded as a long array in the component file | Fine for v1.2; only becomes a concern if presets exceed ~100 items | Not a concern at expected scale |
-| Onboarding guide with embedded code blocks not using monospace | Copyable command strings visually undetectable | Use `<code>` or monospace styling on all copyable commands; use the existing `--font-mono` CSS token | Always — incorrect rendering breaks the first-time user experience immediately |
+| Auto mode polling with `asyncio.sleep(0.5)` for terminal events | CPU overhead, 500ms latency on each step transition | Use asyncio.Event per instance_id; set the event in the terminal event handler; `await event.wait()` has zero overhead | Immediately — polling is never appropriate for event-driven systems |
+| Stream event classification on every raw event | CPU spike on high-volume streams (tool results can be large JSON objects) | Classify only on `type` field first; skip classification for `tool_result` events unless they contain a GSD signal; memoize classification results | Noticeable above ~50 events/second per instance |
+| In-memory stream buffer growing unboundedly for long-running instances | Server memory grows proportionally to instance output volume | Implement stream event DB persistence (resolves existing tech debt); cap in-memory buffer at 1000 events and truncate oldest for display only | Long-running instances (GSD auto mode with many steps can produce thousands of events) |
+| `fan_out_stream_event` with `gsd` classification field added to every message | Increased message size for all stream events, including high-frequency tool_result events | Only include `gsd` field when classification is non-null; omit the field entirely for events with no GSD signal | Marginal impact at current scale; more relevant if frontend processes many concurrent streams |
 
 ---
 
@@ -199,11 +210,10 @@ The full fix (httpOnly cookies for refresh tokens) is a backend change with mean
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Non-atomic refresh token rotation | Race condition allows concurrent calls to both succeed with different tokens; second token is orphaned but valid | Atomic `UPDATE...WHERE revoked=FALSE RETURNING` — same pattern as existing `validate_ws_ticket` |
-| Refresh endpoint accepts used/rotated tokens without reuse detection | Token theft is silent — attacker reuses the rotated-away token before the legitimate client detects revocation | On rotation, if the presented token is already revoked, revoke ALL tokens for that user (reuse detection); log a security event. This is defense-in-depth — implement in Phase 1. |
-| 7-day refresh token in `localStorage` with `dangerouslySetInnerHTML` in stream panel | XSS in stream output gives persistent 7-day access | Audit all JSX for `dangerouslySetInnerHTML` before enabling extended sessions; the React default (text nodes) is safe |
-| WS ticket issued but never consumed (user navigates away before WS connects) | Tickets accumulate in `ws_tickets` table; not a security hole since they expire in 30s, but indicates a missing cleanup | Existing `validate_ws_ticket` handles expiry correctly; no action needed — just don't extend ticket lifetime |
-| Logout does not revoke all user refresh tokens | User logs out but a stolen token (from another device) remains valid for 7 days | Current `revoke_refresh_token` only revokes the provided token. Add a `POST /api/auth/logout-all` endpoint that revokes all tokens for the user. Surface it in the UI as "Log out all devices." Not required for v1.2 MVP but flag as v1.3 scope. |
+| User-supplied `work_dir` passed through without path normalization | Path traversal: Claude CLI executes in unintended directory on node | Validate `work_dir` against registered project roots; reject any path containing `../` after `os.path.normpath`; use the project registry as the authoritative source of valid paths |
+| `stdin_input` delivered without authorization check | Any user on the same team can deliver stdin to another user's instance | The backend `stdin_input` relay must validate that the requesting user has team access to the instance's node, using the same `user_can_access_instance` check already in `frontend_router.py` |
+| Notification content leaks instance details to wrong users | A notification about "node X needs input" reaches a user who is not on node X's team | Use `broadcast_node_status` pattern with `team_user_ids` filtering (already implemented in `frontend_manager.py:broadcast_node_status`) for all GSD-aware notifications |
+| Auto mode sequence stores prompt history in-memory without access control | An auto sequence registered in a global dict is accessible by node_id, which could be guessed | Key auto sequence registry on `(user_id, sequence_id)` pairs, not `node_id` alone; never expose sequence state through unauthenticated endpoints |
 
 ---
 
@@ -211,28 +221,26 @@ The full fix (httpOnly cookies for refresh tokens) is a backend change with mean
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Onboarding guide with 10+ steps | Non-technical users abandon before completing setup; they cannot tell how far they are | Maximum 5-6 numbered steps. Group related actions (install + configure = one step). Show a clear end state ("your node will appear here") |
-| Onboarding guide requires knowing a node ID before starting | First-time users have no node ID yet; the guide feels circular | Guide step 1 must be "generate a node ID" — provide the generation command, not "enter your node ID" |
-| Simplified execute form hides session ID with no way to access it | Power users who use session continuity can no longer access the field | Hide session ID behind a visible "Advanced options" disclosure, not remove it. Label it "Resume previous session" with a plain-language tooltip |
-| Preset prompts that match developer mental models, not user tasks | Non-technical users see "Run linter" and do not know what that means | Presets must be task-framed: "Explain this codebase to me", "Find and fix bugs in [project]", "Add tests for [project]". Avoid tool-framed presets |
-| Copyable command in onboarding without a copy button | Users manually select and copy; on mobile this is error-prone; on desktop it feels unpolished | Use `navigator.clipboard.writeText()` behind a copy icon button next to each command block. The existing shadcn `Button` + Lucide `Copy` icon covers this with no new dependencies |
-| Onboarding guide page accessible only from the nav — no contextual entry point | Users who connected their first node and are confused about what to do next have to discover the guide | Add a prompt in the empty state of the node grid ("No nodes yet? See the connection guide →") that links to the onboarding page |
-| Silent WS reconnection — no user feedback during reconnect window | User dispatches an execute command while WS is reconnecting; the command is sent over REST but the subscription message cannot be sent (socket is null), so stream output never appears | Show a non-blocking banner when WS is disconnected: "Reconnecting... live updates paused." Disable the WS-dependent subscribe action on the execute form until the socket is OPEN. The existing `connected` state in `wsStore.ts` drives this |
+| Interactive prompt appears while Claude is still streaming | User answers a question that Claude hasn't finished asking; response context is wrong | Debounce the interactive prompt render: show only after 3+ seconds of no new `assistant` events following the `AskUserQuestion` tool call |
+| Response buttons have no loading state after click | User clicks multiple times thinking the first click didn't register; multiple stdin writes sent | Disable button immediately on click; show a spinner; re-enable only if a `prompt_delivery_failed` event arrives |
+| Auto mode has no step-level progress indicator | User has no idea how many steps remain or which step is running | Show step N of M in the auto mode panel header; update on each `instance_finished` event from the sequence |
+| Project management form lets user type any folder path | User types a path that doesn't exist on the remote node; Claude CLI fails to start | Use a project picker that shows only registered projects (those already in `conn.projects`); show a "connect new folder" flow as a guided sub-form, not a free-text field |
+| Notification fires for every `AskUserQuestion` in an auto sequence | Auto mode may ask questions at each step; user is flooded with notifications for a single auto run | Send a single "your auto sequence needs input" notification per sequence, not per question; batch questions from the same sequence |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Token rotation atomicity:** Confirm with a DB query that calling `/refresh` twice concurrently with the same refresh token produces exactly one new valid token and one 401, not two valid tokens.
-- [ ] **Concurrent refresh deduplication:** Add a test that calls `refreshAccessToken()` twice simultaneously; assert only one network request is made and both callers receive the same result.
-- [ ] **WS reconnect with expired token:** Expire the access token manually (or reduce `jwt_access_token_expire_minutes` to 0 in test env), disconnect the WS, wait for reconnect — verify the reconnect succeeds without user-visible logout.
-- [ ] **Audit page INT-02:** Navigate directly to `/dashboard/audit` via the address bar (not via the nav link) with a fresh page load. Confirm the WS connection is established within 5 seconds and a subsequent node status change appears live.
-- [ ] **Stale `refresh_tokens` cleanup:** After enabling 7-day tokens, verify the cleanup mechanism runs on server start and removes expired rows. `SELECT COUNT(*) FROM refresh_tokens WHERE expires_at < now()` should return 0 after restart.
-- [ ] **`dangerouslySetInnerHTML` audit:** `grep -r dangerouslySetInnerHTML frontend/src/` must return zero results before 7-day tokens ship.
-- [ ] **Onboarding guide usability:** Walk through the guide as a user who has never heard of GSD nodes. Can you get from step 1 to a connected node appearing in the dashboard without reading any external documentation?
-- [ ] **Simplified form smoke test:** The session ID / advanced field must still be accessible (via disclosure or toggle). Dispatch an execute with a session ID to verify the resume-session flow still works end-to-end.
-- [ ] **Preset prompts with empty project list:** Open the simplified form when a node has no configured projects. Confirm it degrades gracefully (no crash, appropriate placeholder or empty state).
-- [ ] **Refresh token table indexes:** `\d refresh_tokens` in psql — confirm indexes exist on `(expires_at)` and `(user_id, revoked)` before deploying to production.
+- [ ] **Stream enrichment shape contract:** Confirm that `stream_event` messages forwarded to the frontend still have the exact same `data` field structure after GSD classification is added. Run the existing `StreamEventRenderer` with a v1.3 payload and verify no rendering regressions.
+- [ ] **AskUserQuestion detection:** Verify classification fires on a `tool_use` event with `name === "AskUserQuestion"` and does NOT fire on `tool_use` events for other tool names (e.g., `Bash`, `Read`).
+- [ ] **stdin relay ack:** Confirm that a `stdin_input` message to a terminated instance returns a `prompt_delivery_failed` event to the frontend within 5 seconds, not a silent hang.
+- [ ] **Interactive prompt cleanup:** Kill a running instance while its interactive prompt is displayed. Confirm the prompt disappears and is replaced with a "session ended" message within 2 seconds.
+- [ ] **Auto mode sequence isolation:** Run auto mode on the same node as two different users simultaneously. Confirm each sequence runs independently and terminal events from one do not advance the other's step counter.
+- [ ] **Auto mode disconnect recovery:** Disconnect the node mid-sequence. Confirm the auto mode task is cancelled, the user receives an error notification, and the UI does not show "running" indefinitely.
+- [ ] **Project path validation:** Submit an execute command with `work_dir = "../../../../etc"` through the project management form. Confirm the backend rejects it with a 400 error before forwarding to the node.
+- [ ] **Multi-tab prompt claim:** Open two browser tabs on the same instance's detail page while an interactive prompt is active. Submit a response from tab A. Confirm tab B's prompt UI disappears within 2 seconds.
+- [ ] **Notification team scoping:** Confirm that a "node needs input" notification for node X is NOT delivered to users who are not on node X's team, using the existing `team_user_ids` filtering in `broadcast_node_status`.
+- [ ] **Stream event persistence:** After v1.3 ships, reopen a completed instance's stream panel. Confirm all events are visible (loaded from DB, not in-memory buffer which is cleared at instance termination).
 
 ---
 
@@ -240,11 +248,11 @@ The full fix (httpOnly cookies for refresh tokens) is a backend change with mean
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Non-atomic rotation causes token duplication in production | HIGH | Immediately add the atomic UPDATE...RETURNING guard; write a one-time migration that revokes all duplicate active tokens per user, forcing re-login; notify affected users |
-| Concurrent refresh bug causes mass logout | MEDIUM | Deploy the singleton `refreshPromise` fix; affected users will see a login page — they re-authenticate with no data loss |
-| Duplicate WS hook causes doubled audit entries or doubled stream events | LOW | Remove the extra hook from the component; test with a single WS connection; no data corruption since events are read-only on the frontend |
-| Refresh token table grows large before index added | MEDIUM | Add index migration (non-blocking on PostgreSQL with `CREATE INDEX CONCURRENTLY`); run one-time cleanup of expired rows; zero downtime |
-| Onboarding guide is abandoned as too complex | LOW | Shorten to ≤5 steps, add copy buttons, add contextual entry from empty state; no code changes needed to the rest of the system |
+| Stream enrichment breaks frontend rendering | MEDIUM | Revert the `data` field shape change; add enrichment as `gsd` field only; redeploy; no data loss since stream events are ephemeral |
+| stdin relay fires twice from double-click | LOW | Add frontend button disable-on-click in the same deploy; if duplicate stdin causes Claude to receive unexpected input, kill the instance and re-run from auto sequence |
+| Auto mode orphaned on disconnect | LOW | Add `handle_unexpected_disconnect` sequence cleanup; affected users see "sequence cancelled" notification; re-run the sequence manually |
+| Path traversal via work_dir | HIGH | Add path normalization immediately; audit recent execute commands in the audit log for suspicious work_dir values; rotate node tokens if any unauthorized executions are suspected |
+| Stale interactive prompts after instance termination | LOW | Add status-aware conditional in the prompt component; no data corruption; affected users simply see a stale UI until next page load |
 
 ---
 
@@ -252,31 +260,32 @@ The full fix (httpOnly cookies for refresh tokens) is a backend change with mean
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Non-atomic refresh token rotation | Phase 1: Extended Sessions | Concurrent refresh test returns exactly one valid token and one 401 |
-| Concurrent refresh calls / refresh race | Phase 1: Extended Sessions | Single network request when two callers invoke `refreshAccessToken()` simultaneously |
-| Stale token variable in WS reconnect path | Phase 2: WS Token Refresh | WS reconnects successfully after simulated token expiry; Network tab shows fresh Bearer token in ticket request |
-| Duplicate WS hook from INT-02 misdiagnosis | Phase 3: Audit WS Fix | One WS connection in Network tab on direct navigation; no duplicated broadcast events |
-| Missing `refresh_tokens` indexes and cleanup | Phase 1: Extended Sessions | `\d refresh_tokens` confirms indexes; row count stable after 24h of usage |
-| `localStorage` XSS risk with 7-day tokens | Phase 1: Extended Sessions (audit gate) | `grep dangerouslySetInnerHTML frontend/src/` returns 0; logged as v1.3 httpOnly migration |
-| Reuse detection absent from rotation | Phase 1: Extended Sessions | Presenting a rotated-away token returns 401 and revokes all user tokens |
-| Onboarding guide too long / unclear | Phase 2: Onboarding Guide | Usability walkthrough by a non-technical observer completes without external help |
-| Simplified form hides necessary fields | Phase 2: Execute Form | Session resume flow still works end-to-end; advanced field accessible |
-| No WS reconnect feedback | Phase 2: WS Token Refresh | Disconnected banner appears within 1s; disappears on reconnect |
+| Double-encoded JSON shape change breaks frontend | Stream intelligence phase | `StreamEventRenderer` renders correctly with enriched messages; no TypeScript errors in the enriched message types |
+| Input-wait detection false positives | Stream intelligence phase | Manual test: heuristic does not fire during active Claude streaming; fires only after 3s silence following a question event |
+| stdin relay without ack | stdin relay protocol phase | Delivery to terminated instance returns `prompt_delivery_failed` within 5s; delivery to live instance is confirmed by node ack within 1s |
+| Auto mode cross-user state collision | Auto mode phase | Two-user simultaneous test; each sequence runs independently |
+| Auto mode orphaned on disconnect | Auto mode phase | Node disconnect mid-sequence cancels sequence and notifies user within 5s |
+| In-memory buffer gaps for completed instances | Stream intelligence phase (requires persistence) | Reopened stream panels show full event history for completed instances |
+| Stale interactive prompt after termination | Interactive question UI phase | Kill-during-prompt test: prompt disappears within 2s |
+| Multi-tab duplicate response | Interactive question UI phase | Two-tab test: tab B prompt hides after tab A submits |
+| work_dir path traversal | Project management phase | Path with `../` rejected with 400 at `dispatch_execute` |
+| Notification delivered to wrong team | Notification phase | Team-scoped notification test: non-team user receives no notification for node activity |
 
 ---
 
 ## Sources
 
-- Codebase: `/backend/app/services/auth_service.py` — existing refresh token implementation (no rotation, no singleton guard)
-- Codebase: `/backend/app/services/auth_service.py:validate_ws_ticket` — correct atomic pattern to replicate for rotation
-- Codebase: `/frontend/src/lib/api.ts` — current `refreshAccessToken()` with no concurrency guard
-- Codebase: `/frontend/src/hooks/useWebSocket.ts` — current reconnect path without token refresh on 401
-- Codebase: `/frontend/src/stores/wsStore.ts` — `queryClient.invalidateQueries` on WS events (concurrent REST trigger)
-- Codebase: `/backend/app/models/refresh_token.py` — no index on `expires_at`; no cleanup mechanism
-- OWASP: Refresh token rotation and reuse detection — https://auth0.com/docs/secure/tokens/refresh-tokens/refresh-token-rotation
-- OWASP: Token storage in browsers — https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#local-storage
-- Known issue INT-01 and INT-02: `/docs/PROJECT.md` — documented tech debt
+- Codebase: `/backend/app/ws/handlers.py:handle_stream_event` — existing double-decode and fan-out path
+- Codebase: `/backend/app/ws/frontend_router.py` — fan-out model, per-user multi-tab connections, `user_can_access_instance` pattern
+- Codebase: `/backend/app/ws/frontend_manager.py` — `FrontendConnectionManager`, `team_user_ids` filtering in `broadcast_node_status`
+- Codebase: `/backend/app/ws/commands.py:dispatch_execute` — `work_dir` passthrough without path validation, project name validation only
+- Codebase: `/backend/app/ws/manager.py` — `_instance_streams` buffer; `clear_stream_events` called at terminal event
+- Codebase: `/frontend/src/stores/wsStore.ts` — `streamBuffers` state, `instanceStatuses` map, `handleMessage` dispatch
+- Codebase: `/frontend/src/types/ndjson.ts` — `NdjsonEvent` union type; `tool_use` event structure
+- Codebase: `/frontend/src/components/stream/StreamPanel.tsx` — how stream events are consumed by the UI
+- Protocol spec: `/protocol-spec.md` Section 3.1.3 — double-encoded `data` field; Section 3.2.1 execute ack correlation
+- Project context: `/docs/PROJECT.md` — "Stream events not persisted to DB" tech debt flag; v1.3 feature targets
 
 ---
-*Pitfalls research for: v1.2 Ease of Access — JWT refresh rotation, WS token refresh, onboarding UX, simplified execute form*
-*Researched: 2026-03-24*
+*Pitfalls research for: v1.3 GSD Integration — stream parsing, interactive UI, stdin relay, auto mode, project management, notifications*
+*Researched: 2026-03-25*

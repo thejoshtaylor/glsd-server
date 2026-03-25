@@ -1,25 +1,46 @@
 # Feature Research
 
-**Domain:** Ease of Access — remote node management dashboard (GLSD Server v1.2)
-**Researched:** 2026-03-24
-**Confidence:** HIGH (existing codebase inspected; JWT/WebSocket patterns verified via official docs and community sources; onboarding UX patterns verified via multiple sources)
+**Domain:** GSD Control Plane — v1.3 GSD Integration milestone
+**Researched:** 2026-03-25
+**Confidence:** HIGH for GSD command set (local codebase inspected); HIGH for AskUserQuestion format (official Anthropic Agent SDK docs); MEDIUM for auto mode sequencing (inferred from GSD workflow files and Claude CLI docs); LOW for project management API (no existing implementation to inspect)
 
 ## Context
 
-This is a subsequent milestone. The dashboard already ships JWT auth, execute form, WebSocket streaming, audit log, voice input, node status tracking, and cyberpunk theming. This research covers ONLY the new v1.2 features:
+This is a subsequent milestone. The dashboard ships through v1.2 with JWT auth, WebSocket streaming, execute form, node management, voice input, audit log, and cyberpunk theming. This research covers ONLY the new v1.3 features:
 
-- In-app node onboarding guide page (step-by-step, copyable commands)
-- Simplified execute form (preset prompts, project picker, plain-language labels)
-- Extended sessions (1hr access token + 7-day silent refresh token rotation)
-- INT-01 fix: WebSocket reconnect refreshes expired tokens automatically
-- INT-02 fix: Audit page establishes WebSocket on direct navigation
+- Project management on nodes (create, connect existing folder, clone GitHub repo)
+- GSD command palette with contextual buttons for ~20 key commands
+- Stream intelligence — parse NDJSON to detect AskUserQuestion, freeform input waits, command completion
+- Interactive response UI — render questions as buttons, checkboxes, or text fields
+- Notifications when nodes need input or complete work
+- Auto mode — sequential GSD command execution with /clear between steps
 
-**Existing constraints:**
-- Python FastAPI + PyJWT 2.x backend — refresh token rotation is additive, not a rewrite
-- React 19 + TanStack Router + TanStack Query + Zustand frontend
-- shadcn/ui components already installed: `dialog`, `tooltip`, `progress`, `tabs` (scaffolded but unconsumed — available for this milestone)
-- WebSocket connection is managed client-side, currently does not re-fetch tokens on reconnect
-- Audit page WebSocket is currently only established when navigating from within the SPA (not on direct URL load)
+**Key constraint:** All "project management" and "GSD commands" are dispatched through the existing `execute` protocol — the server sends an `execute` envelope with a `prompt` field containing the GSD slash command as text. The node side is not changed. There is no new wire protocol for project management or GSD commands.
+
+**AskUserQuestion confirmed format** (from Anthropic Agent SDK docs, HIGH confidence):
+```json
+{
+  "type": "tool_use",
+  "name": "AskUserQuestion",
+  "input": {
+    "questions": [
+      {
+        "question": "Full question text to display",
+        "header": "Short label (max 12 chars)",
+        "options": [
+          { "label": "Option A", "description": "Brief explanation" },
+          { "label": "Option B", "description": "Brief explanation" }
+        ],
+        "multiSelect": false
+      }
+    ]
+  }
+}
+```
+Response must return the `questions` array plus an `answers` record (question text → selected label). For multi-select: join labels with `", "`. Free-text allowed as answer value.
+
+**GSD commands confirmed** (from local `~/.claude/get-shit-done/` installation):
+The GSD project is a set of Claude Code slash commands (`/gsd:*`) that implement a structured planning and execution workflow. Commands are invoked as prompts sent to Claude CLI — they are not separate executables.
 
 ---
 
@@ -27,100 +48,167 @@ This is a subsequent milestone. The dashboard already ships JWT auth, execute fo
 
 ### Table Stakes (Users Expect These)
 
-Features that non-technical users expect in a tool they're being asked to adopt. Missing these makes the tool feel hostile or incomplete for onboarding use cases.
+Features that users of a GSD control plane will assume exist. Missing these makes v1.3 feel like a minor polish update rather than a GSD-aware system.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Copyable command blocks in onboarding guide | Developers and non-developers both expect one-click copy for CLI commands — manually selecting monospace text is error-prone and frustrating | LOW | `navigator.clipboard.writeText()` with a copy icon button beside each code block. Show transient "Copied!" confirmation (1.5s, then reset). shadcn `Tooltip` or inline state. No library needed. |
-| Step-by-step numbered flow in onboarding guide | Users absorb procedural instructions best as an ordered checklist — a wall of prose fails; random bullets fail. 3–5 steps is the established ceiling before cognitive load spikes. | LOW | `<ol>` with styled step numbers. GSD node setup has a natural sequence: install, authenticate, run — maps cleanly to 3–4 steps. Use existing `Card` component per step. |
-| Visual "done" indicator on onboarding steps | Non-technical users need confirmation that each step worked before proceeding — ambiguity causes support requests | MEDIUM | The server already knows if a node has connected (node status tracking). Step 3/4 ("Node connects") can auto-check when a node for this team transitions to `connected`. Requires a query or WS event to detect. |
-| Preset prompt options in execute form | Non-technical users can't construct Claude CLI prompts from scratch — blank text fields with no affordance cause form abandonment | LOW | A `<Select>` or segmented button group with 4–6 curated preset prompts. Selecting a preset populates the prompt textarea (editable after selection). Uses existing shadcn `Select` component. |
-| Project picker (not free-text project field) | Typing a project path is fragile — typos silently dispatch to the wrong project. Non-technical users don't know project paths. | LOW | Replace the free-text project input with a `<Select>` populated from the node's `projects` array (already exposed in node state). Falls back to free-text if node has no projects listed. |
-| Plain-language form labels | The current form labels `node_id`, `project`, `prompt` are machine field names — non-technical users need semantic labels | LOW | Rename labels: `node_id` → "Target Node", `project` → "Project", `prompt` → "What should Claude do?". Add helper text under each. Zero backend changes. |
-| Session stays alive across a work session | Users expect not to be logged out mid-task. A 15-minute access token with no visible refresh feels like the app is broken. | MEDIUM | 1hr access token eliminates mid-task logouts. Silent refresh on a background interval (or on 401 intercept) keeps the session alive for 7 days without visible interruption. Standard pattern: Axios/fetch interceptor catches 401, calls `/auth/refresh`, retries. |
-| WebSocket doesn't drop on tab sleep/resume | Browser tabs sleep after inactivity; WebSocket closes. Reconnecting to a disconnected socket with an expired token shows auth errors — feels broken | MEDIUM | INT-01: On reconnect, check token expiry before attempting WS upgrade. If expired, call `/auth/refresh` first, then connect. TanStack Query already manages token state — read from store before reconnect. |
-| Audit page works on direct navigation | Users bookmark pages or share links. An audit page that loads blank on direct URL is a UX failure. | LOW | INT-02: The WS connection for the audit page's live updates must be established in a `useEffect` triggered by route mount, not by prior navigation state. Likely a missing `useEffect` dependency or a guard that assumes prior auth context. |
+| GSD command palette with one-click buttons | Users dispatch GSD commands repeatedly — typing `/gsd:next` or `/gsd:autonomous` into a text field every time defeats the purpose of a control panel | MEDIUM | ~20 buttons grouped by category. Each button populates and submits the execute form with the corresponding slash command as the prompt. Uses existing dispatch path unchanged. |
+| AskUserQuestion detection and interactive UI | Claude CLI's GSD workflow issues `AskUserQuestion` tool calls for phase decisions and grey area questions — these block execution until answered. Without detection, the stream appears stuck with no indication that user input is needed | HIGH | Parse `tool_use` events from stream where `name === "AskUserQuestion"`. Extract `questions[].options`, render as clickable buttons. Send the answer back via a new execute (resume session). |
+| Notification when node needs input | Users may be watching another tab when a node pauses for `AskUserQuestion`. Without notification, they miss the pause indefinitely | MEDIUM | Browser Notification API (`Notification.requestPermission()` + `new Notification(...)`). Also surface in-dashboard badge/alert. Trigger on AskUserQuestion detection. |
+| Notification when instance completes | Users kick off long-running tasks and switch tabs. Without completion notification, they poll manually | LOW | Same mechanism as above. Trigger on `instance_finished`/`instance_error` WS events. Already available in the WS store — just need notification dispatch. |
+| Session resume from instance list | GSD commands rely on session continuity for multi-turn workflows (e.g., autonomous phases build on prior context). Users must be able to resume the Claude session from a finished instance | LOW | Already partially built: `session_id` is tracked per instance. The execute form has a `session_id` field in Advanced. Need a "Resume Session" button on instance rows that pre-fills the session_id in the execute form. |
+| Project list visible per node | GSD commands are project-scoped. Users need to see what projects exist on each node before issuing commands | LOW | Already exposed: `node.projects` array shown in the execute form project picker. May need explicit display in node detail header. |
 
 ### Differentiators (Competitive Advantage)
 
-Features that make this specific dashboard stand out for a team managing distributed Claude CLI nodes — not standard SaaS expected behavior, but meaningful for this use case.
+Features that make this a purpose-built GSD control plane, not just a generic Claude CLI relay.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Node-aware onboarding guide (shows real node_id for this team) | Generic "your-node-id-here" placeholders create copy-paste errors. Showing the actual registered node IDs — or the team's registration token — makes onboarding concrete and error-free. | MEDIUM | Requires reading team/node data from the API. If team has no nodes yet, show placeholder with a call-to-action. If team has nodes, show them inline. Already have the data; this is a display decision. |
-| Preset prompts that match actual GSD use cases | Generic presets ("Summarize this", "Write a function") don't match Claude CLI / GSD workflows. Domain-specific presets ("Review the current git diff", "Explain this codebase") convert significantly better for this user base. | LOW | Static list curated for GSD workflows. No personalization needed at v1.2. Editable after selection so power users can still customize. |
-| Form remembers last-used project and node | Non-technical users typically execute on the same node/project repeatedly. Restoring last selection eliminates repeated picking. | LOW | `localStorage` or Zustand persist. Read on mount, write on successful dispatch. No backend changes. Standard form persistence pattern. |
-| Onboarding checklist with auto-completion detection | When a node connects for the first time after following the guide, mark the guide as complete — gives users a "first win" moment. Proven to increase engagement by closing the loop. | HIGH | Requires detecting first-ever node connection per user. Backend needs a flag or the frontend tracks "onboarding completed" in localStorage keyed to the user. Auto-detect via TanStack Query polling or the existing WS event stream. |
+| Auto mode — sequential command execution | Users running a milestone with `/gsd:autonomous` followed by `/gsd:complete-milestone` need to chain commands without manual intervention between steps. Auto mode fires commands in sequence, using session resume to maintain context, with `/clear` or session break between independent commands | HIGH | Server-side: persist an "auto sequence" with step list, current position, and instance chain. Frontend: sequence builder UI (ordered list of commands + run button). Backend: after each instance_finished, dispatch next command automatically. No node-side changes. |
+| AskUserQuestion rendered as interactive choice UI | Rendering questions as actual buttons/checkboxes rather than raw JSON in the stream makes GSD's autonomous-mode pauses actionable from the dashboard rather than requiring a separate terminal | HIGH | Extends stream parser. AskUserQuestion events are intercepted before reaching generic tool_use renderer. Rendered as a Card with question text, option buttons (single or multi-select), and a Submit button that dispatches the answer. |
+| Freeform input wait detection | GSD's `discuss-phase` and other interactive workflows use Claude's built-in text input wait (user types at the prompt). The NDJSON stream shows this as the conversation waiting for a `user` turn. The dashboard should detect "waiting for input" state and offer a text field | MEDIUM | Detect `result` event with `subtype: "error"` containing "waiting for input" — or detect that the instance is `running` with no stream events for N seconds and the last assistant turn asked a question. Show a text field that submits a follow-up execute with the answer as the prompt. |
+| GSD command categories and descriptions in palette | Users who are new to GSD don't know what each command does. A palette with categories (Project, Phase Lifecycle, Execution, Navigation) and one-line descriptions converts better than a raw button grid | LOW | Static metadata — category label, description, when to use. No backend changes. |
+| Project management via GSD protocol | Dispatching project setup commands (create new project, connect existing folder, clone repo) as GSD-style prompts from the dashboard lets users bootstrap new workspaces without SSHing into the node | MEDIUM | Three command templates: (1) `/gsd:new-project` with project name/path arg, (2) connect a folder (custom prompt to run setup in a given directory), (3) clone + setup (prompt to git clone and run /gsd:new-project). All dispatched via existing execute. UI: a "New Project" form on the node detail page. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Multi-step wizard modal for onboarding | Wizards feel polished and guided | Modal wizards block the rest of the UI, can't be bookmarked or linked, and interrupt users who return partway through. For a technical setup flow (install CLI, run command, wait for connection), blocking modal UX is wrong — users need to leave the tab and come back. | Dedicated `/onboarding` route page that persists state across navigation. Accessible via sidebar nav link. Non-blocking. |
-| OAuth / "Sign in with Google" for extended sessions | Avoids token management complexity | Explicitly out of scope in PROJECT.md — "OAuth/SSO login is out of scope for v1". Refresh token rotation achieves the same UX goal (stay logged in) without scope expansion. | 7-day refresh token rotation with silent renewal achieves the session durability goal. |
-| Per-user preset customization / saved presets | Power users want to save their own prompts | Requires a new DB table, a management UI, and CRUD endpoints. Scope creep for v1.2 — the goal is lower the floor for non-technical users, not add a feature management surface. | Editable text field after preset selection. If users want to save a custom prompt, they use the text field directly. Defer custom saved presets to v2. |
-| Onboarding tour overlays (tooltip chain on dashboard) | Overlay tours are a common SaaS pattern | A monitoring dashboard during active use is the wrong moment for a tour. Node detail pages, audit filters, and stream panels are state-dependent — overlaying them before a node is connected creates confusion about what the user is actually seeing. Additionally, the `dialog`, `tooltip` scaffolded components can support this, but the effort/value ratio is low when a dedicated guide page covers the same ground statelessly. | Static guide page at `/onboarding` that users visit deliberately. No overlay, no tooltip chain. |
-| Access token stored in `localStorage` (extended duration) | Simple to implement | Long-lived tokens in `localStorage` are a XSS attack surface. Extending access token to 1hr already increases risk window vs. the current short-lived token. Storing 7-day refresh tokens in `localStorage` would be significantly worse. | Refresh tokens in `httpOnly` cookies (server sets `Set-Cookie: refresh_token=...; HttpOnly; Secure; SameSite=Strict`). Access tokens in memory (Zustand store). This is the auth industry standard pattern. |
-| Inline prompt history / replay in execute form | Power user convenience | Scope creep for v1.2. Adds storage, display, and UX complexity (which history? team-wide or per-user?). The audit log already shows command history — the answer is "go look at the audit page". | Audit page already covers command history. Link to it from the execute form if needed. |
+| xterm.js terminal emulation for stream | Feels like a "real terminal" — familiar to developers | PROJECT.md explicitly excludes this. Claude CLI output is NDJSON, not PTY bytes. An xterm.js pane would render raw JSON lines, not formatted output. The structured NDJSON renderer already gives richer display (collapsible tool use, cost summaries, assistant text formatting) than a raw terminal could. | Keep the structured NDJSON renderer. Add AskUserQuestion interactive overlay on top of it. |
+| Node-side project file browser | Users want to pick a `work_dir` by browsing the remote filesystem | Requires a new node-side API (file tree endpoint) that doesn't exist in the v1.2.0 protocol. Out of scope — "Node-side changes" is explicitly Out of Scope in PROJECT.md. | Use the projects list from `node.projects` (already available). Users set up projects on the node side; the dashboard shows what's there. |
+| Real-time cost budget enforcement | Kill execution when it exceeds a USD budget | No cost data in the wire protocol — the `result` event from Claude CLI contains `cost_usd` but only at the end of a run. Intra-run cost is unavailable without Claude API integration beyond what the GSD node provides. | Display cost from `result` event in the stream panel. Budget enforcement would require node-side changes. |
+| Persistent auto mode sequences (saved playbooks) | Power users want to save their 5-step command chains | Requires a DB table, CRUD UI, and sequence management surface. Scope creep for v1.3. The auto mode sequencer should work for the session without persistence. | Ship session-scoped auto mode first. Persist sequences in a future v1.4 milestone if user demand justifies it. |
+| Multi-node broadcast execution | Run the same GSD command on all connected nodes simultaneously | Tempting for updates/deployments but creates race conditions on shared repos, makes stream output attribution confusing, and makes session resume impossible (each node gets its own session_id). | Dispatch to nodes individually from the node list. Let users initiate per-node. |
+
+---
+
+## GSD Command Catalog
+
+The GSD system is a set of Claude Code slash commands installed at `~/.claude/get-shit-done/commands/gsd/`. All commands are invoked by sending the slash command as the prompt text in an execute dispatch. The node runs Claude CLI with this prompt in the configured project directory.
+
+### Project Commands (Project Bootstrap and Navigation)
+
+| Command | Prompt Text | Description | When to Use |
+|---------|-------------|-------------|-------------|
+| New Project | `/gsd:new-project` | Initialize a new GSD-managed project in the work dir | Setting up a brand new project from scratch |
+| New Milestone | `/gsd:new-milestone` | Define and research a new milestone | Starting a new feature milestone in an existing project |
+| Map Codebase | `/gsd:map-codebase` | Generate codebase structure maps | Onboarding to an existing unfamiliar repo |
+| Resume Work | `/gsd:resume-work` | Restore session state and continue from last position | Picking up after a break or session expiry |
+| Progress | `/gsd:progress` | Show milestone progress and current phase status | Checking where work stands |
+
+### Phase Lifecycle Commands (Discuss → Plan → Execute cycle)
+
+| Command | Prompt Text | Description | When to Use |
+|---------|-------------|-------------|-------------|
+| Discuss Phase | `/gsd:discuss-phase` | Gather requirements and decisions for current phase | Before planning — establishes what to build |
+| Plan Phase | `/gsd:plan-phase` | Generate step-by-step implementation plans | After discuss — breaks phase into tasks |
+| Execute Phase | `/gsd:execute-phase` | Run the implementation plans for current phase | After plan — does the actual work |
+| Verify Phase | `/gsd:verify-phase` | Check that phase goals were met | After execute — validates completion |
+| Add Phase | `/gsd:add-phase` | Insert a new phase into the roadmap | When scope expands mid-milestone |
+
+### Execution Commands (Autonomous and Batch)
+
+| Command | Prompt Text | Description | When to Use |
+|---------|-------------|-------------|-------------|
+| Autonomous | `/gsd:autonomous` | Run all remaining phases automatically | Hands-off execution of a full milestone |
+| Autonomous (from N) | `/gsd:autonomous --from <N>` | Run all phases starting from phase N | Resuming autonomous mode after a break |
+| Next | `/gsd:next` | Detect state and advance to next logical step | Unsure what to do next — smart routing |
+| Do | `/gsd:do <task>` | Route a freeform task description to the right command | Natural language task dispatch |
+| Quick | `/gsd:quick <task>` | Execute a small, self-contained task directly | One-off fixes, small features |
+
+### Milestone Lifecycle Commands (Ship and Archive)
+
+| Command | Prompt Text | Description | When to Use |
+|---------|-------------|-------------|-------------|
+| Audit Milestone | `/gsd:audit-milestone` | Review all phases for completeness and debt | Before shipping — validates the milestone |
+| Complete Milestone | `/gsd:complete-milestone` | Archive milestone files and prepare for next | After audit passes — closes the milestone |
+| Workstreams | `/gsd:workstreams` | List and manage parallel workstreams | Multi-track work within a milestone |
+
+### Utility Commands
+
+| Command | Prompt Text | Description | When to Use |
+|---------|-------------|-------------|-------------|
+| Research Phase | `/gsd:research-phase` | Deep-dive research on a specific topic | Before adding a technically uncertain phase |
+| Add Todo | `/gsd:add-todo <item>` | Capture a future task or idea | Noting something without losing flow |
+| Debug | `/gsd:debug <issue>` | Systematic investigation of a bug or error | When something is broken |
+| Help | `/gsd:help` | Show available commands and routing guide | New users, unknown command names |
+
+**Total: ~20 commands across 4 categories** — matches the PROJECT.md target.
 
 ---
 
 ## Feature Dependencies
 
 ```
-Extended session (1hr access + 7-day refresh rotation)
-    └──required-by──> WebSocket token refresh on reconnect (INT-01)
-                          (INT-01 needs a valid refresh endpoint to call on reconnect)
-    └──required-by──> Silent session renewal (frontend interceptor)
-                          (interceptor calls /auth/refresh — endpoint must exist with rotation logic)
+AskUserQuestion Detection (stream intelligence)
+    └──required-by──> Interactive Question UI
+                          (must detect before rendering)
+    └──required-by──> Input-needed Notification
+                          (must detect to trigger notification)
 
-Node projects list (existing, already in node state)
-    └──required-by──> Project picker Select component
-                          (picker is populated from node.projects — empty if node has no projects)
+Instance session_id (already tracked in DB)
+    └──required-by──> Session Resume button
+                          (session_id pre-fills execute form)
+    └──required-by──> Auto mode step chaining
+                          (each step uses prior step's session_id to maintain context)
 
-Node connection status (existing, already tracked)
-    └──enhances──> Onboarding guide auto-completion detection
-                       (detect first node connect to close the loop)
+Execute dispatch (existing)
+    └──required-by──> GSD Command Palette
+                          (all commands are dispatched via execute with GSD slash command as prompt)
+    └──required-by──> Auto mode
+                          (each sequence step is an execute dispatch)
+    └──required-by──> AskUserQuestion answer submission
+                          (answer is a follow-up execute resuming the session)
 
-TanStack Query token state (existing, in Zustand)
-    └──required-by──> INT-01 WS token check on reconnect
-                          (read token from store, check expiry, refresh if needed before WS connect)
+Browser Notification API
+    └──required-by──> Input-needed notification
+    └──required-by──> Completion notification
+                          (both use same permission grant + dispatch pattern)
 
-Route-level useEffect (INT-02 fix)
-    └──no-dependencies──> Standalone fix, isolated to AuditPage component
+Auto mode step state
+    └──requires──> Instance terminal event (instance_finished/instance_error)
+                       (auto mode listens for terminal event before advancing to next step)
+    └──requires──> Session resume (session_id from prior step)
+                       (carry context between auto mode steps)
+
+Project management UI
+    └──no-new-backend-deps──> Uses existing execute dispatch
+                                   (project setup commands are prompts sent to Claude CLI)
 ```
 
 ### Dependency Notes
 
-- **Extended sessions must be implemented before INT-01.** The WS reconnect fix (INT-01) calls `/auth/refresh` on reconnect — that endpoint must support rotation semantics (issue new access + refresh pair, invalidate old refresh) before the client-side reconnect logic is safe to ship.
-- **Project picker gracefully degrades.** If the selected node has no `projects` array (or it's empty), the picker falls back to a free-text input. The backend already exposes `projects` in node state — this is a frontend-only concern.
-- **INT-02 is fully isolated.** The audit page WebSocket fix has no upstream dependencies. It can be built and shipped in any order relative to the other features.
-- **Onboarding guide has no hard backend dependencies.** The guide content is mostly static markup with copyable commands. The node-aware enhancement (showing real node IDs) is additive — the page works without it.
+- **AskUserQuestion detection is the critical path for stream intelligence.** All interactive UI features (question rendering, input-needed notifications) depend on correctly parsing `tool_use` events with `name === "AskUserQuestion"` from the NDJSON stream. The existing stream parser handles `tool_use` generically — this needs a new case.
+- **GSD command palette has no new dependencies.** Every command is dispatched via the existing execute path. The palette is purely a UI convenience layer over the existing form.
+- **Auto mode requires a new server-side sequence state machine.** The execute dispatch and session resume are existing primitives, but the sequencer that chains them (listening for terminal events, advancing state, issuing next dispatch) is new backend logic.
+- **Freeform input wait is lower confidence.** The detection heuristic (running instance + no events + last turn was a question) is inferred from Claude CLI behavior. May require empirical testing against real GSD workflow runs to tune the detection.
+- **Notification permission must be requested proactively.** Browser notifications require an explicit user gesture to request permission. The UI must prompt the user to enable notifications (ideally on first use or via a settings toggle) — notifications silently fail if permission was never granted.
 
 ---
 
-## MVP Definition (v1.2 Ease of Access)
+## MVP Definition (v1.3 GSD Integration)
 
-### Launch With (v1.2)
+### Launch With (v1.3)
 
-These are the five features defined in PROJECT.md as the milestone target. All are required.
+Minimum that transforms the server from generic Claude CLI relay to GSD-aware control plane.
 
-- [ ] Node onboarding guide page at `/onboarding` — step-by-step, copyable command blocks, links to GSD node install, plain prose — why essential: the single biggest blocker for non-technical users is not knowing how to connect a node
-- [ ] Simplified execute form — preset prompts via Select, project picker from node.projects, relabeled fields with helper text — why essential: blank form with machine-named fields fails non-technical users at first use
-- [ ] Extended session duration — 1hr access token, 7-day httpOnly refresh token with rotation on every use — why essential: 15-minute access tokens with no silent renewal log users out mid-task, destroying trust in the tool
-- [ ] INT-01: WebSocket reconnect refreshes expired token — call `/auth/refresh` before reconnect if token is expired — why essential: current behavior shows auth errors on tab resume, which reads as "the app is broken"
-- [ ] INT-02: Audit page WebSocket on direct navigation — establish WS in `useEffect` on route mount, not on prior navigation — why essential: direct links and bookmarks are broken today; this is table stakes for a web app
+- [ ] GSD command palette — ~20 buttons in 4 categories, each dispatches the slash command as a prompt via existing execute — why essential: without this, users must hand-type every GSD command into the form text field, making the dashboard slower than a terminal
+- [ ] AskUserQuestion stream detection + interactive UI — detect `tool_use.name === "AskUserQuestion"` in stream, render questions as option buttons, submit answer as session-resume execute — why essential: without this, GSD's discuss-phase and autonomous mode pause indefinitely when Claude asks a question; the dashboard is unusable for GSD workflows
+- [ ] Completion + input-needed browser notifications — notify on `instance_finished`/`instance_error` and on AskUserQuestion detection — why essential: users need to know when to return; without this, long-running GSD tasks require tab-watching
+- [ ] Session resume from instance list — "Resume" button on finished instances pre-fills session_id in execute form — why essential: GSD workflows span multiple sessions; session continuity is a core feature
+- [ ] Project management commands — "New Project" form on node detail that dispatches `/gsd:new-project` (or clone+setup) — why essential: users must be able to bootstrap new workspaces from the dashboard, not just run commands in pre-existing ones
 
 ### Add After Validation (v1.x)
 
-- [ ] Form state persistence (last-used node + project in localStorage) — trigger: user feedback that they repeat the same selection every time
-- [ ] Onboarding checklist auto-completion (detect first node connect) — trigger: onboarding drop-off metrics show users don't know if their setup worked
-- [ ] Node-aware guide content (show real node IDs inline) — trigger: support requests indicating users copy wrong node IDs from generic placeholders
+- [ ] Auto mode sequential execution — trigger: users report that chaining `/gsd:autonomous` → `/gsd:complete-milestone` requires manually watching for completion and re-dispatching
+- [ ] Freeform input wait detection — trigger: empirical evidence that GSD discuss-phase blocks on text input in ways not covered by AskUserQuestion
+- [ ] Auto mode sequence persistence — trigger: users want to save their standard 3-step command chains across sessions
 
 ### Future Consideration (v2+)
 
-- [ ] Personalized saved prompt presets (per-user CRUD) — defer: requires DB table, API endpoints, and management UI; the v1.2 curated preset list addresses the non-technical user need
-- [ ] Overlay onboarding tour (tooltip chain on dashboard) — defer: only valuable after nodes are connected and users are actively using the dashboard; wrong moment for a setup tour
+- [ ] Multi-workstream tracking — shows parallel GSD workstreams across nodes; deferred until base GSD integration is stable
+- [ ] Cost tracking dashboard — aggregate cost_usd from result events; requires accumulation and storage beyond the current ephemeral stream buffer
 
 ---
 
@@ -128,79 +216,96 @@ These are the five features defined in PROJECT.md as the milestone target. All a
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Extended session duration (1hr + 7-day rotation) | HIGH | MEDIUM | P1 |
-| INT-01: WS token refresh on reconnect | HIGH | LOW | P1 |
-| Node onboarding guide page | HIGH | LOW | P1 |
-| Simplified execute form (presets + picker) | HIGH | LOW | P1 |
-| INT-02: Audit page WS on direct nav | MEDIUM | LOW | P1 |
-| Form state persistence (localStorage) | MEDIUM | LOW | P2 |
-| Onboarding auto-completion detection | MEDIUM | HIGH | P3 |
-| Node-aware guide content | LOW | MEDIUM | P3 |
+| GSD command palette | HIGH | MEDIUM | P1 |
+| AskUserQuestion detection | HIGH | HIGH | P1 |
+| AskUserQuestion interactive UI | HIGH | HIGH | P1 |
+| Completion notifications | HIGH | LOW | P1 |
+| Input-needed notifications | HIGH | LOW | P1 |
+| Session resume from instance list | HIGH | LOW | P1 |
+| Project management (new project / clone) | MEDIUM | MEDIUM | P1 |
+| Auto mode sequential execution | HIGH | HIGH | P2 |
+| Freeform input wait detection | MEDIUM | MEDIUM | P2 |
+| Auto mode sequence persistence | LOW | HIGH | P3 |
 
 **Priority key:**
-- P1: Required for milestone — directly addresses the "Ease of Access" goal
-- P2: High value, low cost — add in same phase if time allows
-- P3: Additive enhancement — schedule for v1.3 or later
+- P1: Must have for v1.3 launch — defines the milestone
+- P2: High value, add after P1 features are stable
+- P3: Nice to have, future milestone
 
 ---
 
 ## Implementation Notes by Feature
 
-### Node Onboarding Guide Page
+### GSD Command Palette
 
-**Expected behavior:** A dedicated route (`/onboarding`) accessible from the sidebar navigation. Static content with 3–4 numbered steps covering: install GSD node CLI, get the server URL and team token, run the node, verify connection. Each code block has a copy button (`navigator.clipboard.writeText`) with a transient "Copied!" state (1.5s). Steps use existing `Card` + `Badge` components. No backend API calls required for the static version.
+**Expected behavior:** On the node detail page, a collapsible "GSD Commands" panel shows ~20 buttons grouped into 4 categories: Project, Phase Lifecycle, Execution, Milestone Lifecycle. Clicking a button populates the execute form's prompt field with the slash command text and optionally submits immediately (or just fills the form so the user can review first). Parameterized commands (e.g., `/gsd:autonomous --from <N>`) render a mini-form with an input for the parameter before dispatching.
 
-**UX pattern:** "Getting Started" page, not modal wizard. Users can leave mid-flow and return. No overlay disruption. Content is instructional prose + code blocks, consistent with developer tool onboarding conventions (Vercel, Railway, Fly.io all use this pattern for infrastructure setup).
+**Implementation approach:** New `GsdCommandPalette` component. Static metadata array defines commands (slug, prompt, category, description, parameters). Each button calls the same `executeMutation` as the execute form, setting `project` from the current node's project selection and `prompt` to the command text. No backend changes.
 
-**Complexity note:** LOW. This is primarily a new route with static content and a clipboard utility. The highest complexity element is deciding whether to detect node connection state to mark steps as complete — that enhancement is P3 and should be deferred unless the base page ships quickly.
+**Complexity:** MEDIUM — the dispatch path is existing, but the palette needs parameter handling and category layout.
 
-### Simplified Execute Form
+### AskUserQuestion Detection + Interactive UI
 
-**Expected behavior:** The existing `ExecuteForm` component gets three changes: (1) The `project` text input becomes a `Select` populated from `node.projects` (falls back to text input if empty). (2) A "Preset Prompts" `Select` appears above the prompt textarea — selecting a preset populates the textarea, which remains editable. (3) Field labels change: `node_id` → "Target Node", `project` → "Project", `prompt` → "What should Claude do?", with a `<p>` helper text element under each. No backend changes.
+**Expected behavior:** The stream parser (`StreamEventRenderer`) detects `tool_use` events where `name === "AskUserQuestion"`. Instead of rendering the generic collapsible JSON view, it renders a `QuestionCard` component: question text displayed prominently, options as clickable `Button` elements (shadcn), a "Submit" button. For `multiSelect: true`, options toggle between selected/unselected (checkbox behavior). Submit dispatches a follow-up execute to the same node/project/session with the answer encoded as text: `"[Answer to: {question}]: {selected_label}"`.
 
-**Presets to include (curated for GSD/Claude CLI use cases):**
-- "Review the current git diff and summarize changes"
-- "Explain the main entry point of this codebase"
-- "List all TODO comments in the project"
-- "Write unit tests for the selected file"
-- "Check for potential security issues"
-- (Custom — leave field blank for free-form entry)
+**NDJSON event format (confirmed from Anthropic docs):**
+```json
+{
+  "type": "tool_use",
+  "name": "AskUserQuestion",
+  "input": {
+    "questions": [
+      {
+        "question": "Which approach should I take?",
+        "header": "Approach",
+        "options": [
+          { "label": "Option A", "description": "Description A" },
+          { "label": "Option B", "description": "Description B" }
+        ],
+        "multiSelect": false
+      }
+    ]
+  }
+}
+```
 
-### Extended Session Duration + Silent Refresh
+**Answer response format** (must pass back to Claude): the follow-up prompt must include the answers in a format Claude understands. Based on Agent SDK docs, answers are a record mapping question text to selected label. The prompt text should be: `"[Answering AskUserQuestion] {question text}: {selected label}"`.
 
-**Expected behavior:** Backend issues access tokens with 1hr expiry and refresh tokens with 7-day expiry, stored in `httpOnly; Secure; SameSite=Strict` cookies. Frontend never touches the refresh token directly. A fetch/axios interceptor catches 401 responses, calls `POST /auth/refresh` (which reads the httpOnly cookie automatically), receives a new access token in the response body, stores it in Zustand, and retries the original request. Refresh tokens are rotated on every use (new refresh token issued, old one invalidated) — the backend must track issued refresh tokens to support revocation.
+**Complexity:** HIGH — requires extending the type system in `ndjson.ts`, a new component, and answer-dispatch logic. The answer routing (which session to resume, which node/project) must come from the active stream context.
 
-**Key security pattern:** Access token in memory (Zustand), refresh token in httpOnly cookie. This is the OWASP-recommended pattern for SPAs. It eliminates the XSS attack surface for the refresh token.
+**Important limitation:** This works for the Agent SDK `canUseTool` callback pattern. When running Claude CLI via `claude -p --output-format stream-json`, the AskUserQuestion appears as a `tool_use` event in the NDJSON stream. The GSD node runs Claude CLI in this mode. The response must be sent as a new execute with `session_id` to resume the conversation at the point of the question — not via a separate channel.
 
-**Backend changes required:** (1) Extend `ACCESS_TOKEN_EXPIRE_MINUTES` from current value to 60. (2) Add `REFRESH_TOKEN_EXPIRE_DAYS = 7`. (3) Set refresh token via `Set-Cookie` header on login + refresh responses. (4) Add `POST /auth/refresh` endpoint that reads the cookie, validates + rotates the refresh token, returns new access token. (5) Add `refresh_tokens` table (or store in Redis/PostgreSQL) for rotation tracking.
+### Auto Mode Sequential Execution
 
-### INT-01: WebSocket Token Refresh on Reconnect
+**Expected behavior:** A new "Auto Mode" toggle on the node detail page. When enabled, the user builds a sequence of GSD commands (ordered list, drag to reorder). Clicking "Run Sequence" dispatches the first command. When that instance reaches `instance_finished`, the server automatically dispatches the next command in the sequence, using the same `session_id` to maintain context (or a fresh session if the user wants a clean state with `/clear`). The UI shows a progress indicator across the sequence steps.
 
-**Expected behavior:** The WS connection manager on the frontend checks if the stored access token is expired (or within a short window, e.g., 30s of expiry) before attempting a reconnect. If expired, it calls `POST /auth/refresh` first, updates the Zustand token state, then opens the WS connection with the fresh token. This resolves the current behavior where reconnect attempts with an expired token fail silently or show auth errors.
+**Server-side requirement:** A new in-memory (or DB-backed) `AutoSequence` object per active sequence: `{ node_id, project, steps: string[], current_step: int, session_id: string | null }`. When the server receives `instance_finished` for an instance that belongs to a sequence, it auto-dispatches the next step.
 
-**Dependency:** Requires the `/auth/refresh` endpoint from the extended session feature above.
+**`/clear` between steps:** GSD's `autonomous` command uses `/clear` internally between phases to reset context. For the server-side auto mode, "clear" means starting a new session (no `session_id`) rather than resuming the prior one — this is the distinction between independent commands vs. continued conversation.
 
-**Implementation pattern:** In the WS connection hook (wherever `useWebSocket` or equivalent lives), add a `refreshIfNeeded()` call in the reconnect logic before the `new WebSocket(url)` call. Use the token expiry timestamp from Zustand to decide without an extra network call.
+**Complexity:** HIGH — new backend state machine, new frontend sequence builder, and coordination between WS events and dispatch logic.
 
-### INT-02: Audit Page WebSocket on Direct Navigation
+### Notifications
 
-**Expected behavior:** Navigating directly to `/audit` (by URL, bookmark, or page refresh) establishes the WebSocket connection for live audit events. Currently this only works when navigating from within the SPA.
+**Expected behavior:** On first use, prompt user to enable browser notifications (explain why). Store permission state in `localStorage`. When `instance_finished` or `instance_error` arrives via WS, fire `new Notification("Claude finished", { body: "Node X — project Y completed" })`. When AskUserQuestion is detected in stream, fire `new Notification("Action required", { body: "Claude is waiting for your input on Node X" })`. In-dashboard: a badge on the node card or a toast via Sonner (already installed).
 
-**Root cause pattern:** The WS connection for the audit page is likely initialized in a component that assumes an already-authenticated app shell has already established the connection, or the WS setup is conditional on prior navigation state. The fix is to ensure the audit page's `useEffect` (or equivalent TanStack Query setup) establishes its WS subscription on route mount unconditionally, with auth token available from Zustand (which is hydrated from localStorage or the auth check on app load).
+**Complexity:** LOW for basic notifications, MEDIUM for in-dashboard badge state management.
 
 ---
 
 ## Sources
 
-- [Auth0: Refresh Tokens — What Are They and When to Use Them](https://auth0.com/blog/refresh-tokens-what-are-they-and-when-to-use-them/) — httpOnly cookie pattern, rotation semantics (HIGH confidence — official Auth0 docs)
-- [The Developer's Guide to Refresh Token Rotation — Descope](https://www.descope.com/blog/post/refresh-token-rotation) — Rotation implementation patterns, reuse detection (MEDIUM confidence)
-- [WebSocket Best Practices for Production Applications — WebSocket.org](https://websocket.org/guides/best-practices/) — Reconnect + auth token patterns (MEDIUM confidence)
-- [JWT Token Lifecycle Management — SkyCloak](https://skycloak.io/blog/jwt-token-lifecycle-management-expiration-refresh-revocation-strategies/) — Token expiry, refresh, revocation strategies (MEDIUM confidence)
-- [Onboarding UX Best Practices 2025 — UX Design Institute](https://www.uxdesigninstitute.com/blog/ux-onboarding-best-practices-guide/) — Getting Started page patterns vs. modal wizard (MEDIUM confidence)
-- [Getting Started Pattern — UX Patterns for Devs](https://uxpatterns.dev/patterns/getting-started) — Dedicated page vs. overlay patterns (MEDIUM confidence)
-- [Dashboard Design UX Patterns — Pencil & Paper](https://www.pencilandpaper.io/articles/ux-pattern-analysis-data-dashboards) — Preset/filter patterns in dashboard forms (MEDIUM confidence)
-- [Onboarding UX — Smart Interface Design Patterns](https://smart-interface-design-patterns.com/articles/onboarding-ux/) — Step count, checklist patterns, "first win" principle (MEDIUM confidence)
+- Anthropic Agent SDK documentation — Handle approvals and user input: https://platform.claude.com/docs/en/agent-sdk/user-input (HIGH confidence — AskUserQuestion format confirmed)
+- Anthropic Agent SDK overview: https://platform.claude.com/docs/en/agent-sdk/overview (HIGH confidence — tool list, AskUserQuestion in built-in tools table)
+- Claude Code CLI reference: https://code.claude.com/docs/en/cli-reference (HIGH confidence — stream-json flag, print mode flags)
+- Local GSD installation `~/.claude/get-shit-done/commands/gsd/workstreams.md` — GSD command list (HIGH confidence — direct inspection)
+- Local GSD installation `~/.claude/get-shit-done/workflows/autonomous.md` — autonomous mode workflow, AskUserQuestion usage pattern (HIGH confidence — direct inspection)
+- Local GSD installation `~/.claude/get-shit-done/workflows/do.md` — command routing table with all `/gsd:*` commands (HIGH confidence — direct inspection)
+- GLSD Server `protocol-spec.md` — wire protocol v1.2.0 (HIGH confidence — normative spec)
+- GLSD Server `frontend/src/types/ndjson.ts` — existing stream event types (HIGH confidence — direct inspection)
+- GLSD Server `frontend/src/components/stream/StreamEventRenderer.tsx` — existing renderer (HIGH confidence — direct inspection)
+- Anthropic Claude Code CLI GitHub issues — stream-json and AskUserQuestion interaction patterns (MEDIUM confidence — community discussion)
 
 ---
-*Feature research for: GLSD Server v1.2 Ease of Access*
-*Researched: 2026-03-24*
+*Feature research for: GLSD Server v1.3 GSD Integration*
+*Researched: 2026-03-25*

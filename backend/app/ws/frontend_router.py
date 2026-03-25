@@ -7,15 +7,19 @@ JWT were captured from URL query params. Tickets are single-use, expire in
 import asyncio
 import json
 import logging
+import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
 from app.database import get_session_maker
+from app.models.instance import Instance
 from app.services.auth_service import validate_ws_ticket
 from app.services.node_service import user_can_access_instance
+from app.ws.commands import dispatch_execute
 from app.ws.frontend_manager import FrontendConnection, frontend_manager
 from app.ws.manager import connection_manager
+from app.ws.sequencer import ActiveSequence, run_sequence, sequence_registry
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +124,9 @@ async def frontend_ws_endpoint(websocket: WebSocket, ticket: str) -> None:
                     "Frontend subscribed: user=%s instance=%s", user_id, instance_id
                 )
 
-                # Replay buffered in-memory stream events for this instance
+                # Replay buffered in-memory stream events for this instance.
+                # gsd: None because buffered events are historical — live classification
+                # only happens on real-time events in handle_stream_event.
                 buffered = connection_manager.get_stream_events(instance_id)
                 for event in buffered:
                     try:
@@ -129,6 +135,7 @@ async def frontend_ws_endpoint(websocket: WebSocket, ticket: str) -> None:
                                 "type": "stream_event",
                                 "instance_id": instance_id,
                                 "data": event,
+                                "gsd": None,
                             }
                         )
                     except asyncio.QueueFull:
@@ -146,6 +153,117 @@ async def frontend_ws_endpoint(websocket: WebSocket, ticket: str) -> None:
                     logger.info(
                         "Frontend unsubscribed: user=%s instance=%s", user_id, instance_id
                     )
+
+            elif msg_type == "claim_prompt":
+                instance_id = msg.get("instance_id")
+                if not instance_id:
+                    continue
+                claimed = frontend_manager.claim_prompt(instance_id, conn)
+                if claimed:
+                    await frontend_manager.broadcast_prompt_claimed(instance_id, conn)
+                else:
+                    # Only notify the requesting connection — claim already taken
+                    try:
+                        conn.queue.put_nowait(
+                            {"type": "prompt_claimed", "instance_id": instance_id, "is_mine": False}
+                        )
+                    except asyncio.QueueFull:
+                        pass
+
+            elif msg_type == "submit_answer":
+                instance_id = msg.get("instance_id")
+                prompt = msg.get("prompt", "")
+                session_id = msg.get("session_id")
+                if not (instance_id and prompt and session_id):
+                    continue
+
+                # Validate the submitting connection holds the claim
+                claim = frontend_manager.get_prompt_claim(instance_id)
+                if claim is None or claim[1] is not conn:
+                    try:
+                        conn.queue.put_nowait(
+                            {"type": "error", "detail": "Not the prompt claimer"}
+                        )
+                    except asyncio.QueueFull:
+                        pass
+                    continue
+
+                # CRITICAL (STATE.md locked): broadcast prompt_answered to ALL connections
+                # BEFORE dispatching to the node — prevents multi-tab duplicate submission
+                await frontend_manager.broadcast_prompt_answered(instance_id)
+
+                # Fetch instance to get node_id and project
+                async with get_session_maker()() as session:
+                    instance = await session.get(Instance, instance_id)
+                    if not instance:
+                        logger.warning(
+                            "submit_answer: instance not found: %s", instance_id
+                        )
+                        continue
+                    node_id = instance.node_id
+                    project_name = instance.project
+
+                # Dispatch the answer as a session-resume execute
+                async with get_session_maker()() as db_session:
+                    try:
+                        await dispatch_execute(
+                            node_id=node_id,
+                            project=project_name,
+                            work_dir=".",
+                            prompt=prompt,
+                            user_id=user_id,
+                            db=db_session,
+                            session_id=session_id,
+                        )
+                    except (PermissionError, ValueError) as exc:
+                        logger.warning("submit_answer dispatch failed: %s", exc)
+
+            elif msg_type == "start_sequence":
+                node_id = msg.get("node_id")
+                project = msg.get("project")
+                work_dir = msg.get("work_dir", ".")
+                steps = msg.get("steps", [])
+                auto_advance = msg.get("auto_advance", True)
+                if not (node_id and project and steps):
+                    continue
+                sequence_id = str(uuid.uuid4())
+                seq = ActiveSequence(
+                    sequence_id=sequence_id,
+                    node_id=node_id,
+                    user_id=user_id,
+                    steps=steps,
+                    auto_advance=auto_advance,
+                    project=project,
+                    work_dir=work_dir,
+                )
+                sequence_registry.start(seq)
+                task = asyncio.create_task(run_sequence(seq))
+                seq.task = task
+                try:
+                    conn.queue.put_nowait({"type": "sequence_started", "sequence_id": sequence_id})
+                except asyncio.QueueFull:
+                    pass
+
+            elif msg_type == "cancel_sequence":
+                sequence_id = msg.get("sequence_id")
+                if not sequence_id:
+                    continue
+                # Find and cancel — validate user ownership before cancelling
+                for key, seq in list(sequence_registry._active.items()):
+                    if seq.sequence_id == sequence_id and seq.user_id == user_id:
+                        if seq.task and not seq.task.done():
+                            seq.task.cancel()
+                        break
+
+            elif msg_type == "advance_sequence":
+                sequence_id = msg.get("sequence_id")
+                if not sequence_id:
+                    continue
+                for seq in sequence_registry._active.values():
+                    if seq.sequence_id == sequence_id and seq.user_id == user_id:
+                        if not seq.advance_event.is_set():
+                            seq.advance_event.set()
+                        break
 
             else:
                 logger.debug(

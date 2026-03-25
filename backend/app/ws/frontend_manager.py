@@ -32,6 +32,7 @@ class FrontendConnectionManager:
 
     def __init__(self) -> None:
         self._connections: dict[str, list[FrontendConnection]] = {}
+        self._prompt_claims: dict[str, tuple[str, FrontendConnection]] = {}  # instance_id -> (user_id, conn)
 
     def register(self, conn: FrontendConnection) -> None:
         """Add a FrontendConnection to the registry."""
@@ -50,7 +51,70 @@ class FrontendConnectionManager:
                 pass  # Already removed
             if not user_conns:
                 del self._connections[conn.user_id]
+        # Release any prompt claims held by the deregistered connection
+        stale = [iid for iid, (_, c) in self._prompt_claims.items() if c is conn]
+        for iid in stale:
+            self._prompt_claims.pop(iid, None)
         logger.debug("Frontend connection deregistered: user=%s", conn.user_id)
+
+    def claim_prompt(self, instance_id: str, conn: FrontendConnection) -> bool:
+        """Attempt to claim exclusive answer rights for a prompt on instance_id.
+
+        Returns True if the claim was granted (first claimer), False if already claimed.
+        This is synchronous — just dict ops, no async needed.
+        """
+        if instance_id in self._prompt_claims:
+            return False
+        self._prompt_claims[instance_id] = (conn.user_id, conn)
+        return True
+
+    def get_prompt_claim(self, instance_id: str) -> tuple[str, FrontendConnection] | None:
+        """Return the current claim for instance_id, or None if unclaimed."""
+        return self._prompt_claims.get(instance_id)
+
+    def release_prompt(self, instance_id: str) -> None:
+        """Release the prompt claim for instance_id (e.g. after answer submitted)."""
+        self._prompt_claims.pop(instance_id, None)
+
+    async def broadcast_prompt_answered(self, instance_id: str) -> None:
+        """Broadcast prompt_answered to ALL frontend connections, then release the claim.
+
+        CRITICAL: Must be called BEFORE dispatching node_input to the node
+        (per STATE.md locked decision — prevents multi-tab duplicate submission).
+        """
+        msg = {"type": "prompt_answered", "instance_id": instance_id}
+        for user_conns in list(self._connections.values()):
+            for conn in user_conns:
+                try:
+                    conn.queue.put_nowait(msg)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Queue full for user=%s — dropping prompt_answered instance=%s",
+                        conn.user_id,
+                        instance_id,
+                    )
+        self.release_prompt(instance_id)
+
+    async def broadcast_prompt_claimed(
+        self, instance_id: str, claimer_conn: FrontendConnection
+    ) -> None:
+        """Broadcast prompt_claimed to ALL frontend connections.
+
+        The claimer receives is_mine=True; all other connections receive is_mine=False.
+        """
+        for user_conns in list(self._connections.values()):
+            for conn in user_conns:
+                is_mine = conn is claimer_conn
+                try:
+                    conn.queue.put_nowait(
+                        {"type": "prompt_claimed", "instance_id": instance_id, "is_mine": is_mine}
+                    )
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Queue full for user=%s — dropping prompt_claimed instance=%s",
+                        conn.user_id,
+                        instance_id,
+                    )
 
     def subscribe(self, conn: FrontendConnection, instance_id: str) -> None:
         """Subscribe a connection to a specific instance's stream events."""
@@ -63,13 +127,16 @@ class FrontendConnectionManager:
         """Unsubscribe a connection from a specific instance's stream events."""
         conn.subscriptions.discard(instance_id)
 
-    async def fan_out_stream_event(self, instance_id: str, data: dict) -> None:
+    async def fan_out_stream_event(self, instance_id: str, data: dict, *, gsd: str | None = None) -> None:
         """Enqueue a stream event to all connections subscribed to instance_id.
 
         Uses put_nowait() with QueueFull handling for backpressure protection.
         If a connection's queue is full, the event is dropped and a warning is logged.
+
+        The gsd field carries the server-side classification from classify_stream_event
+        and is added to the WS envelope — data is never mutated.
         """
-        msg = {"type": "stream_event", "instance_id": instance_id, "data": data}
+        msg = {"type": "stream_event", "instance_id": instance_id, "data": data, "gsd": gsd}
         for user_conns in list(self._connections.values()):
             for conn in user_conns:
                 if instance_id in conn.subscriptions:
@@ -140,6 +207,83 @@ class FrontendConnectionManager:
                             conn.user_id,
                             instance_id,
                         )
+
+    async def broadcast_sequence_step(
+        self,
+        sequence_id: str,
+        node_id: str,
+        user_id: str,
+        *,
+        step_index: int,
+        total_steps: int,
+        command_id: str,
+        status: str,
+        auto_advance: bool,
+    ) -> None:
+        """Broadcast a sequence step started or completed event to ALL frontend connections.
+
+        The auto_advance field is included so the frontend can derive paused state
+        (AUTO-06): when auto_advance=False and status="completed", the frontend
+        knows the sequence is waiting for an advance_sequence message.
+        """
+        msg_type = "sequence_step_started" if status == "started" else "sequence_step_completed"
+        msg = {
+            "type": msg_type,
+            "sequence_id": sequence_id,
+            "node_id": node_id,
+            "step_index": step_index,
+            "total_steps": total_steps,
+            "command_id": command_id,
+            "auto_advance": auto_advance,
+        }
+        for user_conns in list(self._connections.values()):
+            for conn in user_conns:
+                try:
+                    conn.queue.put_nowait(msg)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Queue full for user=%s — dropping %s sequence=%s",
+                        conn.user_id,
+                        msg_type,
+                        sequence_id,
+                    )
+
+    async def broadcast_sequence_done(
+        self, sequence_id: str, node_id: str, user_id: str
+    ) -> None:
+        """Broadcast sequence_done to ALL frontend connections when all steps complete."""
+        msg = {"type": "sequence_done", "sequence_id": sequence_id, "node_id": node_id}
+        for user_conns in list(self._connections.values()):
+            for conn in user_conns:
+                try:
+                    conn.queue.put_nowait(msg)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Queue full for user=%s — dropping sequence_done sequence=%s",
+                        conn.user_id,
+                        sequence_id,
+                    )
+
+    async def broadcast_sequence_error(
+        self, sequence_id: str, node_id: str, user_id: str, *, reason: str
+    ) -> None:
+        """Broadcast sequence_error to ALL frontend connections when a sequence fails."""
+        msg = {
+            "type": "sequence_error",
+            "sequence_id": sequence_id,
+            "node_id": node_id,
+            "reason": reason,
+        }
+        for user_conns in list(self._connections.values()):
+            for conn in user_conns:
+                try:
+                    conn.queue.put_nowait(msg)
+                except asyncio.QueueFull:
+                    logger.warning(
+                        "Queue full for user=%s — dropping sequence_error sequence=%s",
+                        conn.user_id,
+                        sequence_id,
+                    )
 
 
 frontend_manager = FrontendConnectionManager()

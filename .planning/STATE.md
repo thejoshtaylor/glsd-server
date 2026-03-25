@@ -1,10 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v1.3
+milestone_name: GSD Integration
 status: unknown
-stopped_at: Completed 13-ux-surface-01-PLAN.md
-last_updated: "2026-03-25T06:55:00.000Z"
+stopped_at: "Completed 17-auto-mode-03-PLAN.md (checkpoint: awaiting visual verification)"
+last_updated: "2026-03-25T11:16:22.505Z"
+last_activity: 2026-03-25
+progress:
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 10
+  completed_plans: 10
 ---
 
 # STATE: GLSD Server
@@ -18,19 +24,19 @@ last_updated: "2026-03-25T06:55:00.000Z"
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and stream results back to users in real time
-**Current focus:** Phase 13 — UX Surface
+**Current focus:** Phase 17 — Auto Mode
 
 ---
 
 ## Current Position
 
-Phase: 13
+Phase: 17
 Plan: Not started
 
 ## Performance Metrics
 
 **Plans executed:** 29 (v1.0: 21, v1.1: 8)
-**Phases completed:** 10 (v1.0: 7, v1.1: 3)
+**Phases completed:** 13 (v1.0: 7, v1.1: 3, v1.2: 3)
 **Timeline:** 6 days (2026-03-20 → 2026-03-25)
 
 ---
@@ -48,6 +54,10 @@ Plan: Not started
 - **Naive UTC datetimes** — all DB columns use TIMESTAMP WITHOUT TIME ZONE; use `utcnow()` helper, never `datetime.now(timezone.utc)`
 - **No `motion` library** — all animations via `tw-animate-css` and CSS `@keyframes` only
 - **Admin bootstrap** — `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD` env vars seed admin on startup; flush User before Team (FK ordering)
+- **v1.3: Additive stream enrichment only** — classification added as `gsd` sibling field on WS message; existing `data` field shape NEVER mutated
+- **v1.3: AskUserQuestion via session-resume execute** — answer dispatch uses existing execute protocol with `session_id`; no new node-side protocol changes
+- **v1.3: Auto sequencer on server, not frontend** — `asyncio.Event` per `instance_id`; keyed on `(node_id, sequence_id)` to isolate concurrent users
+- **v1.3: Path validation on all project work_dir input** — `os.path.normpath` + reject `..`; never accept free-text path for dispatch
 
 ### Technical Pitfalls
 
@@ -61,6 +71,14 @@ Plan: Not started
 - **v1.2 critical:** Add `refreshPromise` singleton guard in `api.ts` BEFORE Phase 12 WS reconnect fix
 - **v1.2 critical:** Always call `getAccessToken()` AFTER `await refreshAccessToken()` — never capture token in local var before async boundary
 - **v1.2 critical:** Move `useWebSocket()` to layout route (`route.tsx`) to fix INT-02 — do NOT add it to `audit.tsx`
+- **v1.3 critical:** Ship `InteractiveResponseUI` with status-aware teardown in the same PR — never ship prompt component without `instanceStatuses[instanceId]` nil-guard
+- **v1.3 critical:** Broadcast `prompt_answered` to all user connections BEFORE forwarding `node_input` to node — prevents multi-tab duplicate submission
+- **v1.3 critical:** Cancel all auto sequences for a node in `handle_unexpected_disconnect` — broadcast `sequence_error` to affected users
+
+### Research Flags (v1.3)
+
+- **Phase 15 (Stream Intelligence):** Freeform input wait — exact `system` event subtype for text-input blocking is MEDIUM confidence only. Capture raw NDJSON from a real `gsd discuss-phase` run before implementing the heuristic branch. Do not ship heuristic detection without this data.
+- **Phase 17 (Auto Mode):** `asyncio.Event` registry memory management under long-running server not stress-tested. Verify cleanup paths on sequence cancellation before shipping.
 
 ### Blockers
 
@@ -83,10 +101,20 @@ Plan: Not started
 | Phase 12-websocket-reliability P01 | 8 | 2 tasks | 6 files |
 | Phase 13-ux-surface P02 | 8 | 1 tasks | 1 files |
 | Phase 13-ux-surface P01 | 8 | 2 tasks | 5 files |
+| Phase 14-project-management P01 | 3 | 2 tasks | 8 files |
+| Phase 14-project-management P02 | 8min | 2 tasks | 8 files |
+| Phase 15 P01 | 2 | 2 tasks | 4 files |
+| Phase 15 P02 | 140 | 2 tasks | 5 files |
+| Phase 16-interactive-response-and-notifications P01 | 185s | 2 tasks | 4 files |
+| Phase 16-interactive-response-and-notifications P03 | 133s | 2 tasks | 6 files |
+| Phase 16-interactive-response-and-notifications P02 | 420 | 2 tasks | 5 files |
+| Phase 17-auto-mode P02 | 5 | 2 tasks | 3 files |
+| Phase 17-auto-mode P01 | 3 | 2 tasks | 4 files |
+| Phase 17-auto-mode P03 | 6 | 2 tasks | 9 files |
 
 ## Session Continuity
 
-**Last session:** 2026-03-25T07:13:37Z
-**Stopped at:** Completed quick/260325-0bc
+**Last session:** 2026-03-25T11:02:02.815Z
+**Stopped at:** Completed 17-auto-mode-03-PLAN.md (checkpoint: awaiting visual verification)
 
-Last activity: 2026-03-25 - Completed quick task 260325-0bc: Fix SelectRootContext missing error and audit frontend components
+Last activity: 2026-03-25

@@ -2,6 +2,7 @@ import { useWsStore } from '@/stores/wsStore'
 import { useAutoScroll } from '@/hooks/useAutoScroll'
 import { StreamEventRenderer } from './StreamEventRenderer'
 import { KillButton } from '@/components/execute/KillButton'
+import { InteractiveResponseUI } from './InteractiveResponseUI'
 import type { NdjsonEvent } from '@/types/ndjson'
 import { ArrowDown } from '@/lib/icons'
 
@@ -39,6 +40,10 @@ export function StreamPanel({ instanceId, nodeId, instanceStatus }: StreamPanelP
           <StreamEventRenderer key={i} event={event} />
         ))}
       </div>
+
+      {isRunning && (
+        <InteractiveResponseUI instanceId={instanceId} nodeId={nodeId} />
+      )}
 
       {userScrolledUp && (
         <button

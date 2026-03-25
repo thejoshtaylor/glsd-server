@@ -1,5 +1,20 @@
 # Milestones
 
+## v1.3 GSD Integration (Shipped: 2026-03-25)
+
+**Phases completed:** 4 phases, 10 plans, 16 tasks
+
+**Key accomplishments:**
+
+- FastAPI project management layer with PostgreSQL persistence: connect/clone/bootstrap endpoints, path traversal validation, and idempotent upsert via INSERT ON CONFLICT
+- React project management UI with ProjectManager panel, three action dialogs (connect/clone/bootstrap), and ExecuteForm work_dir resolution from DB via projectMap with fallback
+- 1. [Rule 1 - Bug] Type alias syntax compatibility
+- GsdClassification type
+- asyncio.Event-based server sequencer with SequenceRegistry enabling sequential GSD command dispatch with /clear between steps and manual-advance pause support
+- 1. [Rule 3 - Blocking] Applied 17-02 prerequisite changes to worktree
+
+---
+
 ## v1.2 Ease of Access (Shipped: 2026-03-25)
 
 **Phases completed:** 3 phases, 5 plans, 5 tasks

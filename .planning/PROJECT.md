@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A central management server for GSD nodes — remote agents that run Claude CLI instances. The server accepts inbound WebSocket connections from nodes, dispatches commands (execute, kill, status), streams real-time output, and provides a polished cyberpunk-themed web dashboard for team-based management. It includes voice-to-text input via OpenAI Whisper, in-app onboarding for new users, and secure long-lived sessions with automatic token rotation.
+A purpose-built control plane for GSD (Get Shit Done) nodes — remote agents that run Claude CLI instances. The server accepts inbound WebSocket connections from nodes, dispatches commands (execute, kill, status), streams real-time output, and provides a polished cyberpunk-themed web dashboard for team-based management. It includes voice-to-text input via OpenAI Whisper, in-app onboarding for new users, secure long-lived sessions with automatic token rotation, and GSD-aware stream parsing that detects interactive prompts and renders them as clickable UI elements.
 
 ## Core Value
 
@@ -10,7 +10,7 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 
 ## Current State
 
-Shipped v1.2 Ease of Access with ~4,000 LOC TypeScript frontend + ~3,800 LOC Python backend.
+Shipped v1.2 Ease of Access with ~4,000 LOC TypeScript frontend + ~3,800 LOC Python backend. Starting v1.3 GSD Integration.
 
 **Tech stack:** Python 3.12 FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL 16 (backend), React 19 + TanStack Router + TanStack Query + Zustand + shadcn/ui + Tailwind v4 (frontend), Nginx (reverse proxy), Docker Compose (deployment).
 
@@ -52,9 +52,19 @@ Shipped v1.2 Ease of Access with ~4,000 LOC TypeScript frontend + ~3,800 LOC Pyt
 - ✓ Node onboarding guide page with copy-to-clipboard — v1.2
 - ✓ Simplified execute form with project picker and preset prompts — v1.2
 
-### Active
+## Current Milestone: v1.3 GSD Integration
 
-*(No active milestone — planning next)*
+**Goal:** Transform the server from a generic Claude CLI relay into a purpose-built GSD control plane with project management, intelligent stream parsing, interactive question UIs, and autonomous command sequencing.
+
+**Target features:**
+- Project management on nodes (create, connect existing folder, clone GitHub repo)
+- GSD command palette with contextual buttons for ~20 key commands
+- Stream intelligence — parse NDJSON to detect AskUserQuestion, freeform input waits, command completion
+- Interactive response UI — render questions as buttons, checkboxes, or text fields
+- Notifications when nodes need input or complete work
+- Auto mode — sequential GSD command execution with /clear between steps, default + custom sequences
+
+### Active
 
 ### Out of Scope
 
