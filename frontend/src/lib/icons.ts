@@ -22,6 +22,9 @@ export {
   ChevronRight,
   ChevronDown,
   Wrench,
+  // Notifications
+  Bell,           // Notifications enabled
+  BellOff,        // Notifications disabled
   // Alerts
   X,
   // Section headings
