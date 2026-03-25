@@ -22,16 +22,16 @@ Requirements for the Ease of Access milestone. Each maps to roadmap phases.
 
 ### Onboarding
 
-- [ ] **ONB-01**: Dedicated /onboarding route with step-by-step node setup instructions
-- [ ] **ONB-02**: All CLI commands on onboarding page have copy-to-clipboard buttons
-- [ ] **ONB-03**: Empty node list displays link to onboarding guide
+- [x] **ONB-01**: Dedicated /onboarding route with step-by-step node setup instructions
+- [x] **ONB-02**: All CLI commands on onboarding page have copy-to-clipboard buttons
+- [x] **ONB-03**: Empty node list displays link to onboarding guide
 
 ### Simplified Controls
 
 - [x] **CTL-01**: Execute form shows project picker dropdown populated from selected node's project list
 - [x] **CTL-02**: Execute form offers preset prompt selector that populates the prompt textarea (editable)
 - [x] **CTL-03**: Execute form uses plain-language field labels and contextual help text
-- [ ] **CTL-04**: Navigation includes link to onboarding guide page
+- [x] **CTL-04**: Navigation includes link to onboarding guide page
 
 ## Future Requirements
 
@@ -72,13 +72,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SES-05 | Phase 11 | Complete |
 | WSR-01 | Phase 12 | Complete |
 | WSR-02 | Phase 12 | Complete |
-| ONB-01 | Phase 13 | Pending |
-| ONB-02 | Phase 13 | Pending |
-| ONB-03 | Phase 13 | Pending |
+| ONB-01 | Phase 13 | Complete |
+| ONB-02 | Phase 13 | Complete |
+| ONB-03 | Phase 13 | Complete |
 | CTL-01 | Phase 13 | Complete |
 | CTL-02 | Phase 13 | Complete |
 | CTL-03 | Phase 13 | Complete |
-| CTL-04 | Phase 13 | Pending |
+| CTL-04 | Phase 13 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 14 total
