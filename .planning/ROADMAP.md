@@ -27,7 +27,7 @@
 
 </details>
 
-### 🚧 v1.1 Cyberpunk Beautification (In Progress)
+### v1.1 Cyberpunk Beautification (In Progress)
 
 **Milestone Goal:** Transform the entire frontend into a polished, cyberpunk-themed experience with consistent neon colors, iconography, typography, and micro-interactions.
 
@@ -81,13 +81,16 @@ Plans:
   3. Navigating between dashboard routes shows a fade-in page transition (~150ms)
   4. Login page renders a cyberpunk grid background, gradient card border, and neon-glowing title; successful login triggers a brief one-shot glitch animation before redirect
   5. All animations are absent (no motion, no pulse) when the OS has prefers-reduced-motion enabled
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 10-01-PLAN.md — CSS keyframes, animation utilities, reduced-motion block, component animations, page fade-ins
+- [ ] 10-02-PLAN.md — Login page cyberpunk treatment (grid bg, gradient border, title glow, glitch)
 **UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 8 → 9 → 10
+Phases execute in numeric order: 8 -> 9 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -100,8 +103,8 @@ Phases execute in numeric order: 8 → 9 → 10
 | 7. Audit UI & Dashboard Auth Guard | v1.0 | 2/2 | Complete | 2026-03-23 |
 | 8. Color System and Foundation | v1.1 | 0/3 | Complete    | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 0/3 | Complete    | 2026-03-25 |
-| 10. Animations and Login Treatment | v1.1 | 0/? | Not started | - |
+| 10. Animations and Login Treatment | v1.1 | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-24 — Phase 9 planned (3 plans)*
+*Last updated: 2026-03-25 — Phase 10 planned (2 plans)*
