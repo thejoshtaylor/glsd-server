@@ -68,7 +68,9 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Resuming a backgrounded tab with an expired access token restores the live WebSocket feed without a page reload or login redirect
   2. Navigating directly to /dashboard/audit (or bookmarking it) shows live audit events without requiring navigation from another dashboard page
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 12-01-PLAN.md — Auth-aware WS reconnect and layout-level WebSocket connection
 
 ### Phase 13: UX Surface
 **Goal**: Non-technical users can discover how to connect a node and dispatch their first execution without needing external documentation
@@ -96,10 +98,10 @@ Plans:
 | 8. Color System and Foundation | v1.1 | 3/3 | Complete | 2026-03-24 |
 | 9. Component Upgrades and Icon Pass | v1.1 | 3/3 | Complete | 2026-03-25 |
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
-| 11. Extended Sessions | v1.2 | 2/2 | Complete   | 2026-03-25 |
-| 12. WebSocket Reliability | v1.2 | 0/? | Not started | - |
+| 11. Extended Sessions | v1.2 | 2/2 | Complete    | 2026-03-25 |
+| 12. WebSocket Reliability | v1.2 | 0/1 | Not started | - |
 | 13. UX Surface | v1.2 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — Phase 11 plans created*
+*Last updated: 2026-03-25 — Phase 12 plans created*
