@@ -120,7 +120,9 @@ async def frontend_ws_endpoint(websocket: WebSocket, ticket: str) -> None:
                     "Frontend subscribed: user=%s instance=%s", user_id, instance_id
                 )
 
-                # Replay buffered in-memory stream events for this instance
+                # Replay buffered in-memory stream events for this instance.
+                # gsd: None because buffered events are historical — live classification
+                # only happens on real-time events in handle_stream_event.
                 buffered = connection_manager.get_stream_events(instance_id)
                 for event in buffered:
                     try:
@@ -129,6 +131,7 @@ async def frontend_ws_endpoint(websocket: WebSocket, ticket: str) -> None:
                                 "type": "stream_event",
                                 "instance_id": instance_id,
                                 "data": event,
+                                "gsd": None,
                             }
                         )
                     except asyncio.QueueFull:

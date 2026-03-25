@@ -63,13 +63,16 @@ class FrontendConnectionManager:
         """Unsubscribe a connection from a specific instance's stream events."""
         conn.subscriptions.discard(instance_id)
 
-    async def fan_out_stream_event(self, instance_id: str, data: dict) -> None:
+    async def fan_out_stream_event(self, instance_id: str, data: dict, *, gsd: str | None = None) -> None:
         """Enqueue a stream event to all connections subscribed to instance_id.
 
         Uses put_nowait() with QueueFull handling for backpressure protection.
         If a connection's queue is full, the event is dropped and a warning is logged.
+
+        The gsd field carries the server-side classification from classify_stream_event
+        and is added to the WS envelope — data is never mutated.
         """
-        msg = {"type": "stream_event", "instance_id": instance_id, "data": data}
+        msg = {"type": "stream_event", "instance_id": instance_id, "data": data, "gsd": gsd}
         for user_conns in list(self._connections.values()):
             for conn in user_conns:
                 if instance_id in conn.subscriptions:

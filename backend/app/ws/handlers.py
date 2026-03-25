@@ -19,6 +19,7 @@ from app.models.node_team import NodeTeam
 from app.models.stream_event import StreamEvent as StreamEventModel
 from app.models.team import Team
 from app.services.audit_service import write_audit_log
+from app.ws.classifier import classify_stream_event
 from app.ws.frontend_manager import frontend_manager
 from app.ws.manager import NodeConnection, connection_manager
 from app.ws.protocol import (
@@ -226,8 +227,11 @@ async def handle_stream_event(payload: StreamEventPayload) -> None:
     # Buffer in-memory for real-time fan-out to frontend.
     connection_manager.append_stream_event(payload.instance_id, parsed_data)
 
+    # Classify the event for the WS envelope (never mutates parsed_data).
+    gsd_classification = classify_stream_event(parsed_data)
+
     # Fan out to subscribed frontend connections.
-    await frontend_manager.fan_out_stream_event(payload.instance_id, parsed_data)
+    await frontend_manager.fan_out_stream_event(payload.instance_id, parsed_data, gsd=gsd_classification)
 
 
 async def handle_instance_started(payload: InstanceStartedPayload) -> None:
