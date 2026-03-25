@@ -47,9 +47,24 @@ Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,6
 - ✓ Cyberpunk login page treatment — v1.1
 - ✓ Typography system (Orbitron, monospace, uppercase headings) — v1.1
 
+## Current Milestone: v1.2 Ease of Access
+
+**Goal:** Make the dashboard approachable for non-technical users with guided onboarding, simplified controls, and longer secure sessions.
+
+**Target features:**
+- In-app node onboarding guide page with step-by-step instructions and copyable commands
+- Simplified execute form with preset prompts, project picker, and plain-language labels
+- Extended sessions: 1hr access token + 7-day silent refresh token rotation
+- Fix INT-01: WebSocket reconnect refreshes expired tokens automatically
+- Fix INT-02: Audit page establishes WebSocket on direct navigation
+
 ### Active
 
-(None — planning next milestone)
+- [ ] Node onboarding guide page
+- [ ] Simplified execute form with presets and project picker
+- [ ] Extended session duration (1hr access + 7-day refresh)
+- [ ] WebSocket token refresh on reconnect (INT-01)
+- [ ] Audit page WebSocket on direct navigation (INT-02)
 
 ### Out of Scope
 
@@ -115,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-25 after v1.1 milestone completion*
+*Last updated: 2026-03-25 after v1.2 milestone start*
