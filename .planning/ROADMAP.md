@@ -65,7 +65,10 @@
   2. User can clone a GitHub repo into a target directory on a node and have it registered as a project
   3. User can bootstrap a new project folder by dispatching /gsd:new-project from the project manager
   4. User can select a project from the execute form and commands dispatch with that project's working directory
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 14-01-PLAN.md — Backend: Project model, migration, service, schemas, router, dispatch_execute modification
+- [ ] 14-02-PLAN.md — Frontend: ProjectManager panel, action dialogs, ExecuteForm work_dir resolution
 **UI hint**: yes
 
 ### Phase 15: Stream Intelligence and Command Palette
@@ -124,11 +127,11 @@
 | 11. Extended Sessions | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 12. WebSocket Reliability | v1.2 | 1/1 | Complete | 2026-03-25 |
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
-| 14. Project Management | v1.3 | 0/? | Not started | — |
+| 14. Project Management | v1.3 | 0/2 | Planning complete | — |
 | 15. Stream Intelligence and Command Palette | v1.3 | 0/? | Not started | — |
 | 16. Interactive Response and Notifications | v1.3 | 0/? | Not started | — |
 | 17. Auto Mode | v1.3 | 0/? | Not started | — |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — v1.3 GSD Integration phases added*
+*Last updated: 2026-03-25 — Phase 14 planned (2 plans)*
