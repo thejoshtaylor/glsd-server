@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { toast } from 'sonner'
 import { queryClient } from '../lib/queryClient'
 import type { NdjsonEvent } from '../types/ndjson'
 import type { WsIncomingMessage } from '../types/protocol'
@@ -72,6 +73,18 @@ export const useWsStore = create<WsStore>((set, get) => ({
             get().setPromptState(msg.instance_id, 'pending')
           }
         }
+        // Sonner toast for input-needed events — live events only (gsd !== null means not a replay)
+        if (msg.gsd === 'AskUserQuestion') {
+          toast.info('Input needed', { description: 'A node is waiting for your answer' })
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+            new Notification('Input needed', { body: 'A GSD node is waiting for your answer', icon: '/vite.svg' })
+          }
+        } else if (msg.gsd === 'freeform_wait') {
+          toast.info('Input needed', { description: 'A node is waiting for text input' })
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+            new Notification('Input needed', { body: 'A GSD node is waiting for text input', icon: '/vite.svg' })
+          }
+        }
         break
       case 'instance_status':
         get().setInstanceStatus(msg.instance_id, msg.status)
@@ -84,6 +97,18 @@ export const useWsStore = create<WsStore>((set, get) => ({
         // Clear prompt state on instance termination — never show prompt on dead instance
         if (msg.status === 'finished' || msg.status === 'errored') {
           get().clearPromptState(msg.instance_id)
+        }
+        // Sonner toast for completion/error events (NOTF-03)
+        if (msg.status === 'finished') {
+          toast.success('Instance completed', { description: msg.instance_id.slice(0, 8) })
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+            new Notification('Instance completed', { body: `Instance ${msg.instance_id.slice(0, 8)} finished`, icon: '/vite.svg' })
+          }
+        } else if (msg.status === 'errored') {
+          toast.error('Instance errored', { description: msg.instance_id.slice(0, 8) })
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+            new Notification('Instance errored', { body: `Instance ${msg.instance_id.slice(0, 8)} errored`, icon: '/vite.svg' })
+          }
         }
         break
       case 'new_node_alert':
