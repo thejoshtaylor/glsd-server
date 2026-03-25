@@ -23,7 +23,6 @@ async def list_nodes_for_user(user_id: str, db: AsyncSession) -> list[Node]:
         .join(NodeTeam, Node.node_id == NodeTeam.node_id)
         .join(TeamMember, NodeTeam.team_id == TeamMember.team_id)
         .where(TeamMember.user_id == user_id)
-        .distinct()
     )
     return list(result.scalars().unique())
 
@@ -52,7 +51,6 @@ async def get_node_for_user(user_id: str, node_id: str, db: AsyncSession) -> Nod
         .join(NodeTeam, Node.node_id == NodeTeam.node_id)
         .join(TeamMember, NodeTeam.team_id == TeamMember.team_id)
         .where(TeamMember.user_id == user_id, Node.node_id == node_id)
-        .distinct()
     )
     return result.scalars().unique().first()
 
@@ -86,6 +84,5 @@ async def list_instances_for_user(user_id: str, db: AsyncSession) -> list[Instan
         .join(NodeTeam, Node.node_id == NodeTeam.node_id)
         .join(TeamMember, NodeTeam.team_id == TeamMember.team_id)
         .where(TeamMember.user_id == user_id)
-        .distinct()
     )
     return list(result.scalars().unique())
