@@ -1,5 +1,6 @@
 """Auth router: REST endpoints for registration, login, refresh, logout, and WS ticket."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -45,9 +46,11 @@ async def login(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    await auth_service.cleanup_expired_tokens(user.user_id, db)
     access_token = auth_service.create_access_token(user.user_id, settings)
-    refresh_token = auth_service.create_refresh_token(user.user_id, settings)
-    await auth_service.store_refresh_token(user.user_id, refresh_token, settings, db)
+    refresh_token = auth_service.create_refresh_token()
+    family_id = str(uuid.uuid4())
+    await auth_service.store_refresh_token(user.user_id, refresh_token, family_id, settings, db)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
@@ -57,8 +60,8 @@ async def refresh(
     db: DbSession,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> TokenResponse:
-    """Issue a new access token from a valid refresh token."""
-    return await auth_service.refresh_access_token(body.refresh_token, db, settings)
+    """Issue new access and refresh tokens via atomic rotation."""
+    return await auth_service.rotate_refresh_token(body.refresh_token, db, settings)
 
 
 @router.post("/logout")
@@ -67,8 +70,8 @@ async def logout(
     current_user: CurrentUser,
     db: DbSession,
 ) -> dict[str, str]:
-    """Revoke the provided refresh token (logout). Requires a valid access token."""
-    await auth_service.revoke_refresh_token(body.refresh_token, db)
+    """Revoke the entire token family (logout). Requires a valid access token."""
+    await auth_service.revoke_refresh_token_family(body.refresh_token, db)
     return {"detail": "Logged out"}
 
 
