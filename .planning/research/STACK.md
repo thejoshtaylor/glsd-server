@@ -1,176 +1,165 @@
 # Stack Research
 
-**Domain:** Cyberpunk UI beautification — React 19 + Tailwind v4 + shadcn/ui dashboard
+**Domain:** Ease of Access — extended JWT sessions, WS token refresh, onboarding page, simplified execute form
 **Researched:** 2026-03-24
 **Confidence:** HIGH
 
-> **Scope note:** This document covers the v1.1 cyberpunk beautification milestone only.
-> The full project stack (FastAPI backend, PostgreSQL, WebSocket architecture) is documented
-> in the original v1.0 research. This file addresses only what is NEW or CHANGED for the UI polish milestone.
+> **Scope note:** This document covers the v1.2 Ease of Access milestone only.
+> The base stack (FastAPI, PostgreSQL, React 19, TanStack Router, Zustand, shadcn/ui, Tailwind v4)
+> and the v1.1 cyberpunk UI additions are already validated and installed. This file addresses
+> only what is NEW, CHANGED, or CONFIRMED NO-OP for the v1.2 features.
 
 ---
 
-## What Is Already Installed (Do Not Re-Add)
+## Summary: No New npm or PyPI Packages Required
 
-Verify against `frontend/package.json` before any install command:
-
-| Already Installed | Installed Version | Notes |
-|-------------------|-------------------|-------|
-| `lucide-react` | ^1.0.1 | Icons — v1.0 is the current major, no install needed |
-| `tw-animate-css` | ^1.4.0 | CSS-only enter/exit animations — already covers basic class-based transitions |
-| `shadcn` (CLI) | ^4.1.0 | Component scaffolding — already present, run `npx shadcn add` for new components |
-| `tailwindcss` | ^4.2.2 | v4 with OKLCH color system, `@theme inline` already configured in `index.css` |
-| `@fontsource-variable/geist` | ^5.2.8 | Body/UI font — keep as-is for body text and UI labels |
-| `class-variance-authority` | ^0.7.1 | Component variant system — already wired in |
-| `tailwind-merge` | ^3.5.0 | Class merging utility — already in use |
-| `next-themes` | ^0.4.6 | Dark mode toggling — already in use |
-| `sonner` | ^2.0.7 | Toast notifications — already in use |
+All five v1.2 features are implementable with what is already installed. The gaps are logic changes,
+configuration value adjustments, and new route files — not dependency additions.
 
 ---
 
-## Recommended Stack Additions
+## What Is Already Installed (Relevant to v1.2)
 
-### Core Technologies (New Installs Required)
+| Package | Version | Relevance to v1.2 |
+|---------|---------|-------------------|
+| `PyJWT` | >=2.9.0 | JWT encode/decode — access + refresh token creation, already in use |
+| `pwdlib[argon2]` | >=0.2.0 | Password hashing — no change needed |
+| `pydantic-settings` | >=2.6.0 | `Settings` class in `config.py` — extend `jwt_access_token_expire_minutes` default only |
+| `sqlalchemy[asyncio]` | >=2.0.44 | `RefreshToken` model exists; rotation adds UPDATE + INSERT in single transaction |
+| `@tanstack/react-query` | ^5.95.2 | Query invalidation on token refresh — already wired in `api.ts` |
+| `@tanstack/react-router` | ^1.168.3 | File-based routing — new onboarding route is a new file, no config change |
+| `zustand` | ^5.0.12 | `wsStore` — no changes needed for INT-01 or INT-02 |
+| `shadcn` (CLI) | ^4.1.0 | `Tabs` and `Progress` components are already scaffolded in `src/components/ui/` — no `npx shadcn add` needed |
+| `lucide-react` | ^1.0.1 | Icons for onboarding page — existing barrel `icons.ts` pattern applies |
+| `sonner` | ^2.0.7 | Toast for copy-to-clipboard confirmation on onboarding page |
+| `date-fns` | ^4.1.0 | Already installed; not needed for v1.2 |
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `motion` | ^12.38.0 | JS-driven animations — entrance/exit, spring physics, layout transitions, AnimatePresence | `tw-animate-css` is CSS-class-only. It cannot animate unmounting elements, layout shifts, or spring-physics hover states. `motion` (formerly Framer Motion, import from `"motion/react"`) is the React ecosystem standard for these needs. React 19 explicitly supported. 30M+ weekly npm downloads. |
-| `@fontsource-variable/orbitron` | ^5.x | Cyberpunk display/heading font | Orbitron is the canonical futuristic typeface — geometric, monoline, used across every major cyberpunk UI reference. Variable font means one import covers the full weight range. Pairs naturally with existing Geist body font. |
+---
 
-### Supporting Libraries (New Installs, Conditional)
+## Feature-by-Feature Stack Analysis
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `@fontsource-variable/jetbrains-mono` | ^5.x | Monospace font for code/stream output | Use only if the stream panels (`StreamPanel`, `HistoryStreamPanel`, `ToolUse`, `ToolResult`) need improved readability. JetBrains Mono is the highest-quality developer monospace with ligature support and strong cyberpunk aesthetic. Geist is proportional — not suitable for aligned NDJSON/tool output. |
+### 1. Extended JWT Sessions (1hr access + 7-day refresh rotation)
 
-### Development Tools
+**What changes:** Two config defaults + one logic change in `auth_service.py`.
 
-No new dev dependencies are needed. Vite + TypeScript + ESLint + `@tailwindcss/vite` handles everything.
+| File | Change | Notes |
+|------|--------|-------|
+| `backend/app/config.py` | `jwt_access_token_expire_minutes: int = 60` | Was 30. Change default; existing `SECRET_KEY` env var controls the actual secret. |
+| `backend/app/services/auth_service.py` | `refresh_access_token()` — issue new refresh token, revoke old one atomically | The model and DB table already exist (`refresh_tokens`). Current implementation returns the same refresh token with no rotation. Add: `create_refresh_token()` + `store_refresh_token()` + `stored.revoked = True` inside the same request's DB transaction. |
+| `backend/app/schemas/auth.py` | No change | `TokenResponse` already includes `refresh_token` field. |
+
+**Why no new library:** `PyJWT` already handles JWT creation and validation. The `RefreshToken` SQLAlchemy model already has `revoked: bool` and `expires_at`. Rotation is a logic composition of functions that already exist.
+
+**Alembic migration needed:** No — the `refresh_tokens` table schema is unchanged. The only behavioral difference is that a new row is inserted and the old row is marked `revoked=True` on each refresh call.
+
+---
+
+### 2. WebSocket Token Refresh on Reconnect (INT-01)
+
+**Root cause:** `useWebSocket.ts` calls `getAccessToken()` at line 19 and passes it directly to the ws-ticket fetch. If the access token is expired, the ticket fetch returns 401 and the function returns early (line 26: `if (!res.ok) return`). No refresh is attempted. The reconnect loop then fires again after the backoff delay, hitting the same expired token.
+
+**What changes:** One function in `frontend/src/hooks/useWebSocket.ts`.
+
+| File | Change | Notes |
+|------|--------|-------|
+| `frontend/src/hooks/useWebSocket.ts` | Before fetching the ws-ticket, call `refreshAccessToken()` (already exported from `api.ts`) if `getAccessToken()` is present but stale | `refreshAccessToken()` is already implemented in `api.ts` — it calls `/api/auth/refresh`, calls `setTokens()` on success, and returns `boolean`. Import it and call it before the ws-ticket fetch. |
+
+**Why no new library:** The refresh function, token storage, and retry path are already implemented in `api.ts`. This is a one-import, three-line change.
+
+**Pattern:**
+```typescript
+// Before the ws-ticket fetch in connect():
+const currentToken = getAccessToken()
+if (currentToken) {
+  // Proactively refresh if token may be near expiry, or attempt refresh on 401
+}
+// Alternative: attempt ticket fetch, handle 401 by refreshing then retrying once
+```
+
+The cleanest approach is: if the ticket fetch returns 401, call `refreshAccessToken()`, and if it succeeds, retry the ticket fetch once. This matches the pattern already used in `api()` for REST calls.
+
+---
+
+### 3. Audit Page WebSocket on Direct Navigation (INT-02)
+
+**Root cause:** `useWebSocket()` is called only in `dashboard/index.tsx` (line 4, line 13). When a user navigates directly to `/dashboard/audit`, the dashboard index component never mounts, so the WebSocket is never established.
+
+**What changes:** Move `useWebSocket()` call to a shared layout.
+
+| File | Change | Notes |
+|------|--------|-------|
+| `frontend/src/routes/dashboard/route.tsx` | Call `useWebSocket()` in `DashboardLayout` | `DashboardLayout` is the layout component for all `/dashboard/*` routes. It renders an `<Outlet />` — any child route (index, audit, node detail, onboarding) mounts inside it. Adding `useWebSocket()` here ensures the socket is established regardless of which dashboard page is navigated to directly. |
+| `frontend/src/routes/dashboard/index.tsx` | Remove `useWebSocket()` call | De-duplication — the layout now owns this. |
+
+**Why no new library:** TanStack Router's layout route mechanism (`route.tsx`) is already the correct boundary for shared hooks. No additional routing package needed.
+
+---
+
+### 4. Onboarding Guide Page
+
+**What's needed:** A new TanStack Router file-based route at `frontend/src/routes/dashboard/onboarding.tsx`.
+
+| Aspect | Decision | Rationale |
+|--------|----------|-----------|
+| Routing | New file `dashboard/onboarding.tsx` | TanStack Router file-based — `createFileRoute('/dashboard/onboarding')`. No router config change. |
+| Layout | Inherits `DashboardLayout` from `route.tsx` | Sidebar + auth guard automatically applied. |
+| UI components | `Tabs`, `Progress` (already in `src/components/ui/`), `Card`, `Badge`, `Button` | All scaffolded in v1.1. `Tabs` and `Progress` were noted as "scaffolded, not yet consumed" in PROJECT.md. This page consumes them. |
+| Copy-to-clipboard | `navigator.clipboard.writeText()` — browser native API | No library. Show success toast via `sonner` (already installed). |
+| Step-by-step instructions | Static content structured with `Tabs` | Steps are static markdown-equivalent content — no CMS, no MDX, no markdown parser needed. |
+| Icons | Existing `icons.ts` barrel | Add `BookOpen`, `Copy`, `CheckCircle` to barrel if not already present — lucide-react already installed. |
+| Nav entry | Add `<Link to="/dashboard/onboarding">` in `__root.tsx` sidebar nav | No router changes — just a new `<Link>` element. |
+
+**No new packages needed.** The `Tabs` component required `npx shadcn add tabs` in v1.1 and is already present in `src/components/ui/tabs.tsx`. Same for `Progress`.
+
+---
+
+### 5. Simplified Execute Form with Presets and Project Picker
+
+**What's needed:** Enhance `frontend/src/components/execute/ExecuteForm.tsx` — not a new component.
+
+| Aspect | Decision | Rationale |
+|--------|----------|-----------|
+| Preset prompts | Hardcoded array of `{ label: string, prompt: string }` objects in the component | No backend API needed for v1.2 presets. Static data is the right scope — dynamic presets are a future milestone feature if required. |
+| Project picker styling | Replace bare `<select>` with shadcn `Select` component | `Select` is already in `src/components/ui/select.tsx` (installed v1.0). The current `ExecuteForm.tsx` uses a raw `<select>` element — upgrading to shadcn `Select` gives consistent cyberpunk styling and accessibility. |
+| Plain-language labels | CSS/copy change — replace "Execute Command" header and raw placeholders | No library. Update label text in JSX. |
+| Preset selector UX | shadcn `Select` for preset selection | Same component as project picker — shows a dropdown of preset options, fills textarea on selection. |
+| Session ID field | Keep as optional advanced field | Simplification means hiding behind a disclosure or "Advanced" accordion — shadcn does not have a native Accordion but a simple `useState` toggle with a chevron icon (Lucide already installed) is sufficient without adding a new component. |
+
+**No new packages needed.**
 
 ---
 
 ## Installation
 
-```bash
-# From frontend/ directory
-# Required
-npm install motion @fontsource-variable/orbitron
+No new installations required for v1.2.
 
-# Conditional — add only if upgrading stream panel fonts
-npm install @fontsource-variable/jetbrains-mono
+```bash
+# Nothing to install
+# All required packages are already in frontend/package.json and backend/requirements.txt
 ```
 
 ---
 
-## Cyberpunk Theme: Zero New Libraries Required
+## Configuration Changes (Not Code Library Changes)
 
-The cyberpunk color system, neon gradients, glow effects, and visual hierarchy are implemented entirely through **Tailwind v4 CSS custom properties in `index.css`**. No new package is needed.
-
-### How: Override the `.dark` block in `index.css`
-
-Tailwind v4 uses OKLCH throughout. The cyberpunk palette maps naturally to OKLCH's chroma axis — set high chroma values (0.15–0.25) for vivid neons:
-
-```css
-.dark {
-  /* Deep cool-black base — slight blue undertone, not pure black */
-  --background: oklch(0.08 0.02 270);
-
-  /* Cyan primary — classic "tron blue" / cyberpunk neon */
-  --primary: oklch(0.72 0.18 200);
-  --primary-foreground: oklch(0.05 0.01 270);
-
-  /* Magenta accent — neon pink complement to cyan */
-  --accent: oklch(0.65 0.22 330);
-  --accent-foreground: oklch(0.98 0 0);
-
-  /* Cards with depth above background */
-  --card: oklch(0.12 0.02 270);
-  --card-foreground: oklch(0.92 0 0);
-
-  /* Borders as subtle neon lines */
-  --border: oklch(0.72 0.18 200 / 20%);
-  --ring: oklch(0.72 0.18 200 / 60%);
-}
-```
-
-### Glow animations via `@theme` keyframes
-
-Define custom animations in the `@theme inline` block already present in `index.css`:
-
-```css
-@theme inline {
-  /* ...existing vars... */
-  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite alternate;
-
-  @keyframes glow-pulse {
-    from { box-shadow: 0 0 4px oklch(0.72 0.18 200 / 50%), 0 0 8px oklch(0.72 0.18 200 / 25%); }
-    to   { box-shadow: 0 0 10px oklch(0.72 0.18 200 / 80%), 0 0 24px oklch(0.72 0.18 200 / 40%); }
-  }
-}
-```
-
-Apply as a Tailwind utility: `className="animate-glow-pulse"`
-
-### Gradient text (zero JS)
-
-Tailwind v4's OKLCH gradient interpolation via `bg-linear-to-r/oklch` produces vivid neon gradients without mid-point color collapse:
-
-```tsx
-<h1 className="bg-linear-to-r/oklch from-cyan-400 to-pink-500 bg-clip-text text-transparent font-[Orbitron]">
-  Node Control
-</h1>
-```
-
-### Orbitron font wiring
-
-In `index.css`, add the import and extend the `@theme inline` block:
-
-```css
-@import "@fontsource-variable/orbitron";
-
-@theme inline {
-  --font-heading: 'Orbitron Variable', sans-serif;
-  /* ...existing vars... */
-}
-```
-
-Then use `font-heading` as a Tailwind utility: `className="font-heading text-xl font-semibold"`
-
----
-
-## shadcn/ui Component Additions (CLI Only — No New npm Package)
-
-The `shadcn` CLI is already installed. New components are scaffolded as source files with no npm dependency:
-
-```bash
-# From frontend/ directory
-npx shadcn add dialog
-npx shadcn add tooltip
-npx shadcn add progress
-npx shadcn add tabs
-```
-
-**Currently in `src/components/ui/`:** badge, button, card, input, select, separator, skeleton, sonner, table, resizable
-
-**Recommended additions:**
-
-| Component | Rationale |
-|-----------|-----------|
-| `dialog` | Confirm modals for kill-instance action, node detail overlays |
-| `tooltip` | Icon-only buttons need accessible labels (Lucide icons throughout the dashboard) |
-| `progress` | Running instance state — animated progress bar for "running" status |
-| `tabs` | Stream panel view switching (live stream vs history) |
+| Location | Change | Why |
+|----------|--------|-----|
+| `backend/app/config.py` | `jwt_access_token_expire_minutes: int = 60` (was 30) | 1hr access token per v1.2 spec |
+| `.env` (deployment) | No change required | `JWT_REFRESH_TOKEN_EXPIRE_DAYS` is already 7 — the default matches the v1.2 target |
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| `motion` (motion/react) | `react-spring` | react-spring has comparable physics-based API. Choose if you already have react-spring in other projects and want consistency. For net-new work, `motion` has 3x the weekly downloads, better docs, and is the de-facto standard in the shadcn/ui ecosystem. |
-| `motion` | Keep only `tw-animate-css` | Acceptable if the scope is limited to CSS class-based transitions only (no unmount animations, no layout shifts, no spring hover). Not sufficient here — NodeCard list entrance, stream panel AnimatePresence, and interactive hover on cards all require JS-driven lifecycle animations. |
-| `@fontsource-variable/orbitron` | Google Fonts CDN `@import url(...)` | CDN import works but adds external network dependency. Fontsource self-hosts fonts consistent with how Geist is already loaded — keeps all assets local, no GDPR font-request leakage. |
-| OKLCH CSS vars in `index.css` | Third-party cyberpunk CSS framework (cybercore-css, etc.) | External cyberpunk CSS frameworks conflict with Tailwind's utility-first model and override shadcn/ui's token system, requiring CSS specificity fights. OKLCH variables in `index.css` integrate natively and are already the project's theming mechanism. |
+| Feature | Considered | Rejected Because |
+|---------|-----------|-----------------|
+| Refresh token rotation | `authlib` library | PyJWT already handles all JWT operations; adding authlib for rotation logic would be an unnecessary dependency |
+| Refresh token rotation | Redis token blocklist | Over-engineered for v1 — the `refresh_tokens` table with `revoked` boolean is already the correct approach for single-instance deployment |
+| Onboarding content | MDX / `@mdx-js/react` | Static JSX is sufficient; MDX adds a parser dependency and build step for content that won't be edited by non-engineers |
+| Onboarding content | Fetched from backend (DB-stored guide) | The guide describes how to connect a node — it is intrinsically tied to the server's own URL and configuration. Static content in the frontend is the right scope. |
+| Preset prompts | Backend API endpoint returning presets | Premature generalization — static array in the component is simpler and the correct v1.2 scope |
+| Copy to clipboard | `copy-to-clipboard` npm package | `navigator.clipboard.writeText()` is supported in all modern browsers and has no dependency cost |
+| WS token refresh | `reconnecting-websocket` library | The existing custom `useWebSocket.ts` hook handles reconnect with exponential backoff correctly; adding a library would require replacing the hook entirely and loses the ws-ticket authentication flow |
 
 ---
 
@@ -178,69 +167,41 @@ npx shadcn add tabs
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `gsap` (GreenSock) | Commercial license required for revenue products, 60KB+ bundle, over-engineered for dashboard micro-interactions | `motion` — covers all required patterns at ~25KB gzipped |
-| `animejs` | No React lifecycle integration, no AnimatePresence equivalent for unmount animations | `motion` |
-| `react-transition-group` | Low-level verbose API, no spring physics, predates modern React animation patterns | `motion` |
-| Third-party cyberpunk CSS frameworks | Override shadcn/ui tokens, conflict with Tailwind utilities, unmaintained | Pure Tailwind v4 CSS variables + `@keyframes` in `index.css` |
-| Raw `@radix-ui/*` packages | shadcn already wraps Radix; installing raw packages alongside creates version conflicts | `npx shadcn add [component]` |
-| `three.js` / WebGL particle effects | 590KB+ bundle, GPU-dependent, accessibility issues, unjustifiable for a team ops dashboard | CSS `box-shadow` + `backdrop-filter` achieves neon glow at near-zero cost |
-| `framer-motion` (the old package name) | The package was renamed to `motion`; `framer-motion` is a re-export shim. Installing both creates duplicate bundle entries | `npm install motion`, import from `"motion/react"` |
-
----
-
-## Stack Patterns by Feature
-
-**NodeCard entrance animations (list items mounting):**
-- Use `motion` with `initial={{ opacity: 0, y: 8 }}` + `animate={{ opacity: 1, y: 0 }}`
-- Reason: `tw-animate-css` cannot animate the mount phase of dynamically added list items without a JS transition wrapper
-
-**Hover micro-interactions on cards:**
-- Tailwind `hover:shadow-[0_0_12px_oklch(0.72_0.18_200/60%)]` for pure-CSS glow
-- `motion` `whileHover={{ scale: 1.01 }}` for spring-physics scale feel on NodeCard
-- Reason: CSS hover covers glow (zero JS overhead); spring physics on scale needs Motion for natural deceleration
-
-**Dialog/panel exit animations:**
-- `motion` `AnimatePresence` with `exit={{ opacity: 0, scale: 0.95 }}`
-- Reason: CSS animations cannot run on elements that have been removed from the DOM; AnimatePresence defers unmount until exit animation completes
-
-**Gradient text headings:**
-- Tailwind v4 gradient utilities + Orbitron font, no JS
-- Reason: Zero runtime cost, fully composable with Tailwind classes, correct tool for static gradient text
-
-**Status badges (node connected/stale/disconnected):**
-- Extend existing shadcn Badge component variants with cyberpunk colors via CVA
-- Reason: CVA is already wired into the project; adding variant definitions is a one-line-per-status change in `badge.tsx`
-
-**Stream/code output panels:**
-- JetBrains Mono font via `@fontsource-variable/jetbrains-mono`
-- Reason: Geist is proportional — NDJSON and tool call output requires a true monospace for alignment and scan readability
+| `authlib` | Unnecessary for JWT + rotation; PyJWT covers all needs | PyJWT already installed |
+| `react-markdown` or MDX | Onboarding content is static JSX — markdown parsing overhead is not justified | Plain JSX with shadcn Card/Tabs components |
+| `copy-to-clipboard` npm package | 2KB dependency for one-liner browser API | `navigator.clipboard.writeText()` |
+| `reconnecting-websocket` | Would replace the existing WS hook with a generic library that doesn't understand the ws-ticket auth pattern | Patch `useWebSocket.ts` directly |
+| `axios` or similar HTTP client | `api.ts` already implements a typed fetch wrapper with 401 refresh logic | The existing `api()` function in `api.ts` |
+| Additional shadcn components (accordion, collapsible) | Session ID "Advanced" toggle in execute form can be a simple `useState` + chevron | `useState` + `ChevronDown` Lucide icon already installed |
 
 ---
 
 ## Version Compatibility
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `motion@^12.38.0` | React ^19.x | React 19 explicitly supported as of Motion v12 alpha; v12.38.0 (current as of 2026-03-24) is production-stable |
-| `motion@^12.x` | `tw-animate-css@^1.4.0` | No package conflict. Operate in separate layers (JS vs CSS class). Do NOT apply `transition-*` Tailwind classes to the same element `motion` is animating — this causes jitter |
-| `@fontsource-variable/orbitron` | Tailwind v4 `@theme inline` | Add `--font-heading: 'Orbitron Variable', sans-serif` in the `@theme inline` block. No Tailwind config file needed — Tailwind v4 reads CSS vars directly |
-| `shadcn@^4.1.0` (CLI) | All added components | shadcn CLI v4 generates components that use the Tailwind v4 OKLCH token system natively; no config changes required |
+All v1.2 changes operate within already-installed package versions. No compatibility concerns.
+
+| Change | Operates Within |
+|--------|----------------|
+| Refresh token rotation logic | `PyJWT>=2.9.0` + `SQLAlchemy>=2.0.44` — both already installed and used for this exact purpose |
+| `useWebSocket.ts` patch | `react@^19.2.4`, `zustand@^5.0.12` — no API surface change |
+| New onboarding route | `@tanstack/react-router@^1.168.3` file-based routing — adding a file IS the config |
+| `Tabs` component in onboarding | Already scaffolded in `src/components/ui/tabs.tsx` — no install |
+| `Select` component in execute form | Already in `src/components/ui/select.tsx` — no install |
 
 ---
 
 ## Sources
 
-- https://www.npmjs.com/package/motion — version 12.38.0 confirmed current (2026-03-24)
-- https://motion.dev/docs/react — React 19 compatibility confirmed; import path `"motion/react"`
-- https://www.npmjs.com/package/@fontsource-variable/orbitron — package name and availability confirmed
-- https://fontsource.org/fonts/jetbrains-mono — JetBrains Mono variable font via Fontsource confirmed
-- https://tailwindcss.com/docs/theme — Tailwind v4 `@theme` block, OKLCH gradient interpolation (`bg-linear-to-r/oklch`)
-- https://github.com/Wombosvideo/tw-animate-css — scope confirmed: CSS class-based only, no JS lifecycle awareness
-- https://lucide.dev/guide/packages/lucide-react — lucide-react v1.0 confirmed current; brand icons removed in v1.0
-- https://ui.shadcn.com/docs/components — dialog, tooltip, progress, tabs confirmed available via CLI
-- https://evilmartians.com/chronicles/better-dynamic-themes-in-tailwind-with-oklch-color-magic — OKLCH theming patterns for Tailwind
+- `/Users/josh/code/glsd-server/backend/app/services/auth_service.py` — Confirmed: `refresh_access_token()` exists with no rotation; `create_refresh_token()` and `store_refresh_token()` are both available as composable functions. `RevocationToken` model is in place.
+- `/Users/josh/code/glsd-server/backend/app/config.py` — Confirmed: `jwt_access_token_expire_minutes: int = 30`; `jwt_refresh_token_expire_days: int = 7`.
+- `/Users/josh/code/glsd-server/frontend/src/hooks/useWebSocket.ts` — Confirmed: INT-01 root cause at line 19 and 26 (no refresh before ticket fetch, early return on 401).
+- `/Users/josh/code/glsd-server/frontend/src/routes/dashboard/route.tsx` — Confirmed: `DashboardLayout` renders `<Outlet />` — correct place for `useWebSocket()`.
+- `/Users/josh/code/glsd-server/frontend/src/lib/api.ts` — Confirmed: `refreshAccessToken()` is implemented and exported; the 401-intercept pattern works for REST calls and is the model for WS fix.
+- `/Users/josh/code/glsd-server/frontend/package.json` — Confirmed: `tabs.tsx`, `progress.tsx`, `select.tsx`, `dialog.tsx`, `tooltip.tsx` all scaffolded. `sonner`, `lucide-react`, `zustand`, `@tanstack/react-router` all installed at current versions.
+- PyJWT 2.9.0 changelog — HIGH confidence: `jwt.encode()` / `jwt.decode()` API stable since 2.x.
+- MDN Web Docs: `navigator.clipboard.writeText()` — HIGH confidence: supported in all modern browsers (Chrome 66+, Firefox 63+, Safari 13.1+).
 
 ---
 
-*Stack research for: GLSD Server v1.1 Cyberpunk Beautification*
+*Stack research for: GLSD Server v1.2 Ease of Access*
 *Researched: 2026-03-24*
