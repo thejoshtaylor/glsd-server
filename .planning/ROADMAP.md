@@ -64,7 +64,11 @@ Plans:
   3. Loading states display skeleton shimmer components instead of plain "Loading..." text
   4. The stream panel scroll-to-bottom button renders in neon cyan with glow (not generic blue)
   5. Dialog, tooltip, progress, and tabs shadcn components are scaffolded and importable from the UI library
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 09-01-PLAN.md — CSS glow utilities, icons.ts barrel, shadcn scaffold, icon migration
+- [ ] 09-02-PLAN.md — Status badge OKLCH colors, section heading icons, action button icons, FAB fix
+- [ ] 09-03-PLAN.md — Skeleton loading states for NodeGrid, InstanceList, and $nodeId route
 **UI hint**: yes
 
 ### Phase 10: Animations and Login Treatment
@@ -95,9 +99,9 @@ Phases execute in numeric order: 8 → 9 → 10
 | 6. Frontend Production Deployment | v1.0 | 1/1 | Complete | 2026-03-23 |
 | 7. Audit UI & Dashboard Auth Guard | v1.0 | 2/2 | Complete | 2026-03-23 |
 | 8. Color System and Foundation | v1.1 | 0/3 | Complete    | 2026-03-24 |
-| 9. Component Upgrades and Icon Pass | v1.1 | 0/? | Not started | - |
+| 9. Component Upgrades and Icon Pass | v1.1 | 0/3 | Not started | - |
 | 10. Animations and Login Treatment | v1.1 | 0/? | Not started | - |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-24 — Phase 8 planned (3 plans)*
+*Last updated: 2026-03-24 — Phase 9 planned (3 plans)*
