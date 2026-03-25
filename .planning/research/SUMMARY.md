@@ -1,189 +1,158 @@
 # Project Research Summary
 
-**Project:** GLSD Server v1.1 — Cyberpunk UI Beautification
-**Domain:** Visual polish and theming for an existing React 19 + shadcn/ui + Tailwind v4 operations dashboard
+**Project:** GLSD Server v1.2 — Ease of Access
+**Domain:** Remote node management dashboard — JWT auth hardening, WebSocket reliability, onboarding UX, execute form simplification
 **Researched:** 2026-03-24
 **Confidence:** HIGH
 
 ## Executive Summary
 
-GLSD Server is a feature-complete real-time node management dashboard with a FastAPI/PostgreSQL backend and a React 19 frontend. The v1.1 milestone is a pure visual uplift: converting the existing achromatic dark theme into a cyberpunk aesthetic using the technology stack already in place. The dashboard's data layer — WebSocket node management, instance lifecycle streaming, JWT auth, audit log, voice input — is fully built and must not regress. The entire cyberpunk visual transformation can be accomplished through targeted Tailwind v4 CSS variable overrides plus two small npm installs (`motion` and `@fontsource-variable/orbitron`). No architectural changes are required.
+GLSD Server v1.2 is an additive milestone on a functioning FastAPI + React 19 dashboard. The base stack, auth system, WebSocket infrastructure, and UI component library are all already installed and validated — no new dependencies are required for any of the five milestone features. Research confirms this is primarily a logic completion milestone: the backend already has a `RefreshToken` model with a `revoked` boolean and `create_refresh_token`/`store_refresh_token` functions; the frontend already has `refreshAccessToken()` in `api.ts`; TanStack Router's layout route already provides the correct boundary for lifting `useWebSocket`. The gap between current state and the v1.2 target is measured in lines-of-code, not packages or migrations. The component count is 1 new file, 7 modified files, 0 DB migrations.
 
-The recommended implementation sequence is color system first, components second, animations third. This order is non-negotiable: every other visual feature references OKLCH color tokens. Doing component work before the palette is set means touching every component twice. The color system change is also the lowest-risk entry point — overriding CSS variables in `.dark` propagates automatically to all 10 existing shadcn components without per-component edits.
+The recommended build order is sequential for the auth and WebSocket chain (backend rotation first, then frontend WS reconnect, then audit page WS fix) and parallel for the two independent UI features (onboarding guide page and simplified execute form). This order is dictated by a hard dependency: the WS token refresh fix (INT-01) must call `/auth/refresh` and expect a rotated response — if rotation is not in place, the reconnect fix will work intermittently on today's code and fail silently once rotation is enabled later.
 
-The primary technical risks are infrastructure-level, not aesthetic. Tailwind v4's `@theme inline` has a confirmed bug (issue #18296) where dark-mode-responsive tokens silently bake to static values if added incorrectly. Animation choices on a real-time WebSocket dashboard require discipline: box-shadow keyframe animations cause continuous repaints that stack with live data updates, and entrance animations on stream output rows will visibly jank at greater than 5 events per second. Both pitfalls have clear prevention strategies and must be addressed at the phase level, not patched after the fact.
+The key risk is concurrency: refresh token rotation introduces three separate race conditions that must be designed out before the feature ships, not retrofitted after user reports. All three have concrete, established prevention patterns (atomic SQL `UPDATE...RETURNING`, singleton refresh promise, always-fresh `getAccessToken()` call after async boundaries). These are not speculative risks — they are confirmed code-level gaps in the existing `auth_service.py` and `api.ts` implementations. Addressing them in Phase 1 eliminates downstream risk in Phases 2 and 3.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack requires only two new npm packages for v1.1. Everything else — Tailwind v4, shadcn/ui CLI, `tw-animate-css`, `class-variance-authority`, `lucide-react` — is already installed and correctly configured. No dev tooling changes are needed.
+No new packages are required for v1.2. All five features are implementable with the already-installed stack: `PyJWT>=2.9.0` and `SQLAlchemy[asyncio]>=2.0.44` on the backend; `@tanstack/react-router`, `@tanstack/react-query`, `zustand`, and scaffolded shadcn/ui components (`Tabs`, `Progress`, `Select`) on the frontend. The only configuration change is `jwt_access_token_expire_minutes: int = 30` to `60` in `config.py`. See STACK.md for the full feature-by-feature breakdown.
 
-**Core technologies:**
-
-- **`motion` (^12.38.0):** JS-driven animation for entrance/exit, spring physics, and AnimatePresence for unmounting elements. `tw-animate-css` handles CSS class-based transitions but cannot animate unmounting DOM elements or layout shifts. Import from `"motion/react"`. React 19 explicitly supported as of Motion v12.
-- **`@fontsource-variable/orbitron` (^5.x):** Display/heading font for cyberpunk typography hierarchy. The canonical futuristic typeface; variable font covers the full weight range. Pairs with existing Geist body font. Self-hosted via Fontsource, consistent with how Geist is already loaded.
-- **`@fontsource-variable/jetbrains-mono` (conditional):** Monospace for stream panel output. Only needed if stream panels require improved readability — Geist is proportional and unsuitable for aligned NDJSON output.
-- **Tailwind v4 OKLCH CSS variables (no install):** The entire cyberpunk color system — neon palette, glow effects, gradient text, animation keyframes — is implemented via CSS variable overrides in `index.css`. Zero new packages needed.
-- **shadcn CLI (already installed):** Four new components recommended — `dialog`, `tooltip`, `progress`, `tabs` — scaffolded via `npx shadcn add`. No npm installs.
-
-GSAP, animejs, three.js, canvas particle systems, and third-party cyberpunk CSS frameworks are explicitly ruled out. They add bundle weight, create Tailwind utility conflicts, or carry commercial licenses incompatible with a revenue product.
+**Core technologies relevant to v1.2:**
+- `PyJWT` + `SQLAlchemy async`: JWT creation/validation and `RefreshToken` DB model — rotation is additive to existing composable functions
+- `useWebSocket.ts` custom hook: manages WS lifecycle with exponential backoff — patch in-place, do not replace with a library
+- `TanStack Router` file-based routing: new onboarding route is a single new file; layout route is the correct WS hook boundary
+- `shadcn/ui` (`Tabs`, `Select`, `Progress`): already scaffolded in v1.1, consumed for the first time in v1.2
+- `navigator.clipboard.writeText()`: browser-native copy-to-clipboard — no npm package needed
 
 ### Expected Features
 
-**Must have (table stakes — without these it reads as "dark mode," not "cyberpunk"):**
+**Must have (table stakes — all required for v1.2 milestone):**
+- Extended session duration (1hr access token + 7-day refresh rotation) — silent re-auth is baseline UX expectation; 15-minute tokens feel broken to users
+- WebSocket reconnect refreshes expired token (INT-01) — reconnect with expired token currently reads as "app is broken" on tab resume
+- Audit page WebSocket on direct navigation (INT-02) — bookmarks and deep links must work; this is table stakes for any web app
+- Node onboarding guide page at `/dashboard/onboarding` — no-node users have no path to getting started without this
+- Simplified execute form (preset prompts, project picker, plain-language labels) — blank form with machine-named fields fails non-technical users at first touch
 
-- Cyberpunk OKLCH color palette — void-black background (`oklch(0.07 0.008 280)`), neon cyan primary (`oklch(0.75 0.18 195)`), magenta accent (`oklch(0.65 0.26 330)`), faint cyan borders
-- Neon glow utility classes — 3-layer `box-shadow` pattern for `.glow-cyan` and `.glow-magenta` in `@layer utilities`
-- Status badge neon colors — `connected` = cyan, `stale` = amber, `disconnected` = red with glow; updates to `statusConfig` in `NodeStatusBadge.tsx` and `EVENT_TYPE_COLORS` in `AuditTable.tsx`
-- Monospace font token — `--font-mono` applied to stream panels, instance IDs, audit timestamps, version strings
-- Full Lucide icon coverage — approximately 15 icons mapped to existing components across the dashboard (see icon map in FEATURES.md)
-- NodeCard connected pulse — CSS keyframe pulsing border-glow on connected nodes using pseudo-element pattern
-- Stream panel live indicator — animated dot in StreamPanel header when `isRunning`
-- Loading state polish — replace bare `<div className="p-6 text-gray-400">Loading...</div>` in `$nodeId.tsx` with skeleton components
-- Scroll FAB cyberpunk color fix — one-liner update in `StreamPanel.tsx` from `bg-blue-600` to neon cyan with glow
+**Should have (add after v1.2 validation):**
+- Form state persistence for last-used node + project (localStorage) — eliminates repeated selection for returning users
+- Onboarding checklist auto-completion detection (detect first node connect) — closes the "did it work?" loop
+- Node-aware guide content showing real node IDs inline — reduces copy-paste errors from generic placeholders
 
-**Should have (differentiators — meaningful polish, low regression risk):**
-
-- Typography uppercase hierarchy — section headings as uppercase + tracked letters throughout dashboard
-- Page enter animations — `animate-in fade-in` via `tw-animate-css` on route transitions (150ms)
-- Login page cyberpunk treatment — CSS grid background, gradient border on Card, glow on title, one-shot glitch animation on successful login
-- VoiceButton recording state — pulsing magenta ring while mic is active
-
-**Defer (v2+):**
-
-- `motion` for scroll-linked or gesture animations — only if product adds drag-reorder interactions
-- Canvas grid background — only if performance budget is confirmed adequate on target hardware
-- Gradient borders on resizable panels — medium complexity, lower priority than core palette work
-- Full light/dark theme switcher — not in scope; lock to `.dark` for v1.1
-- Scanline overlays — acceptable only on decorative areas with no readable text layered over them
-- xterm.js terminal replacement — explicitly out-of-scope per PROJECT.md; Claude CLI output is NDJSON, not PTY
+**Defer to v2+:**
+- Personalized saved prompt presets (per-user CRUD) — requires DB table, API endpoints, management UI
+- Overlay onboarding tour (tooltip chain on dashboard) — wrong UX moment; static guide page covers same ground statelessly
+- OAuth/SSO login — explicitly out of scope in PROJECT.md
 
 ### Architecture Approach
 
-The v1.1 milestone does not touch the backend architecture. The frontend is a React 19 SPA with TanStack Router, TanStack Query for REST state, Zustand for live WebSocket state, and shadcn/ui on Tailwind v4. This architecture is stable and v1.1 changes nothing in it.
+The v1.2 architecture impact is narrow: 1 new file, 7 modified files, 0 DB migrations. The existing system is a single-worker FastAPI backend behind Nginx with a React SPA using file-based TanStack Router. The WS architecture uses a two-stage auth pattern (REST ticket request then WS upgrade with single-use ticket UUID) that must not change. Token rotation is entirely server-side in `auth_service.py`. The WS reconnect fix is a 10-line addition to `useWebSocket.ts` plus a one-word export change in `api.ts`. Moving `useWebSocket()` to the dashboard layout route fixes INT-02 in 2 lines and makes all current and future dashboard routes automatically WS-enabled. See ARCHITECTURE.md for exact file locations, data flow diagrams, and the validated build order.
 
-The cyberpunk visual system is implemented as a CSS-variable layer in `index.css`. All shadcn components reference `--primary`, `--accent`, `--ring`, and `--border` tokens — updating those tokens in the `.dark` block is the single highest-leverage change in the entire milestone. Component-level edits are then surgical overrides for components that have hardcoded colors outside the token system.
-
-**Major components relevant to v1.1 visual work:**
-
-1. **`index.css` / Tailwind theme** — color token definitions, glow utilities, keyframe animations, font registrations; the foundation everything else builds on
-2. **NodeCard** — highest-visibility surface; hosts the connected pulse animation and is the primary cyberpunk showcase component
-3. **StreamPanel / HistoryStreamPanel** — real-time output rendering; requires monospace font upgrade; must not have entrance animations on stream rows
-4. **NodeStatusBadge / InstanceRow** — status indicators; require neon color mapping in `statusConfig` and `EVENT_TYPE_COLORS`
-5. **LoginPage** — first-impression surface; priority for full cyberpunk treatment including one-shot glitch animation
-6. **AuditTable / AuditFilters** — data-dense; monospace for IDs and timestamps; icon additions
-7. **VoiceButton / KillButton / ExecuteForm** — action surfaces; icon additions and recording state visual feedback
+**Components and their change type:**
+1. `backend/app/config.py` — Modified: access token expiry config (1-line change)
+2. `backend/app/services/auth_service.py` — Modified: refresh token rotation logic (atomic revoke + insert)
+3. `frontend/src/lib/api.ts` — Modified: export `refreshAccessToken` + singleton refresh promise guard
+4. `frontend/src/hooks/useWebSocket.ts` — Modified: 401 retry path with token refresh before ticket re-fetch
+5. `frontend/src/routes/dashboard/route.tsx` — Modified: move `useWebSocket()` to layout (INT-02 fix)
+6. `frontend/src/components/execute/ExecuteForm.tsx` — Modified: preset prompts, project picker, label improvements
+7. `frontend/src/routes/__root.tsx` — Modified: add onboarding nav link
+8. `frontend/src/routes/dashboard/onboarding.tsx` — New: static step-by-step guide with copy-to-clipboard
 
 ### Critical Pitfalls
 
-1. **`@theme inline` breaks dark mode for new tokens** — Adding cyberpunk OKLCH tokens to the `@theme inline` block bakes static values at build time; dark/light toggling does not propagate. Prevention: Add new tokens as raw CSS variables in `:root` and `.dark` blocks only. Use `var(--token)` or Tailwind arbitrary values (`bg-[var(--cp-neon-cyan)]`). Address in Phase 1 before any component work.
+1. **Non-atomic refresh token rotation** — Use a single `UPDATE refresh_tokens SET revoked=TRUE WHERE token_hash=:hash AND revoked=FALSE RETURNING user_id` statement; only issue a new token if `RETURNING` yields a row. Two separate writes allow concurrent calls to produce two live tokens. This is the same pattern already used correctly in `validate_ws_ticket` — replicate it exactly.
 
-2. **Animating `box-shadow` in continuous keyframes causes repaints** — On a real-time WebSocket dashboard, painting on every animation frame visually stutters when active streams are running. Prevention: Use pseudo-element opacity animation instead. Apply static `box-shadow` to a `::before` element and animate its `opacity`. GPU-composited; zero repaint. Hover glow transitions under 200ms are acceptable as-is.
+2. **Concurrent refresh calls racing on rotation** — Add a singleton `refreshPromise: Promise<boolean> | null` guard in `api.ts`. Without it, a WS reconnect and a TanStack Query 401-intercept firing simultaneously will both call `/auth/refresh`; the second call presents the now-rotated-away token, gets a 401, clears all tokens, and the user is logged out. This guard must be in place before rotation is enabled.
 
-3. **shadcn `data-slot` override confusion** — The Tailwind v4 era shadcn distribution uses `data-slot` attribute selectors to style component internals. Adding `className` overrides targets the outer wrapper only. Prevention: Read component source in `src/components/ui/` before touching any shadcn component; edit the source directly as intended.
+3. **Stale access token variable in WS reconnect path** — Always call `getAccessToken()` after `await refreshAccessToken()` completes, never before. A local variable capturing the token before the async refresh boundary holds the expired value and causes an infinite 401 loop on ticket retry.
 
-4. **Entrance animations on high-frequency stream rows** — Stream output arrives multiple times per second during active runs. Adding `AnimatePresence` mount animations to stream rows causes animation queuing and CPU spikes. Prevention: Never add mount animations to the stream output view. Motion is appropriate for node/instance lists (human-paced), dialogs, and page transitions only.
+4. **Duplicate `useWebSocket` hook as INT-02 workaround** — Do not add `useWebSocket()` to `audit.tsx`. Adding it to the page component creates two simultaneous WS connections and duplicated broadcast events. Moving the hook to the layout (`route.tsx`) is the correct and complete fix.
 
-5. **Lucide barrel imports slow dev server significantly** — Importing from the `lucide-react` barrel triggers resolution of approximately 1,600 icons in Vite's dev module graph, increasing cold start from under 1 second to 5-8 seconds. Prevention: Import from direct paths (`lucide-react/icons/terminal`) and centralize via `src/lib/icons.ts`. Establish this pattern at the start of icon work.
+5. **Missing DB indexes on `refresh_tokens` table** — Add indexes on `(expires_at)` and `(user_id, revoked)` in the same commit as 7-day tokens. Without these, query performance degrades as the table grows. Also add startup-time cleanup for expired rows (`DELETE FROM refresh_tokens WHERE expires_at < now()`). These ship with Phase 1, not as a follow-up.
 
 ## Implications for Roadmap
 
-The feature set, dependency graph, and pitfall-to-phase mapping from research point clearly to a 3-phase implementation sequence. The ordering is dictated by hard dependencies: color tokens must exist before component work, component structure must be stable before layering animations.
+Based on the dependency analysis in ARCHITECTURE.md and the phase-to-pitfall mapping in PITFALLS.md, a 3-phase structure is recommended.
 
-### Phase 1: Color System and Foundation
+### Phase 1: Extended Sessions + Concurrency Safety
+**Rationale:** Everything else depends on this. INT-01 (WS reconnect) calls `/auth/refresh` and expects a rotated response. The singleton `refreshPromise` guard must exist before any concurrent-refresh scenario is possible. DB indexes must ship with 7-day tokens. This phase has the highest risk concentration — building on rotation code that lacks the concurrency guard would make Phase 2 untestable in realistic browser conditions.
+**Delivers:** Robust 1hr/7-day session lifecycle; atomic rotation; concurrent-refresh deduplication; DB indexes and expired-row cleanup; XSS pre-flight audit (`dangerouslySetInnerHTML` grep gate before enabling 7-day tokens)
+**Addresses:** Extended session duration (FEATURES.md — Must Have)
+**Files:** `config.py`, `auth_service.py`, `api.ts` (singleton guard + export)
+**Avoids:** Non-atomic rotation race (Pitfall 1), concurrent refresh race (Pitfall 2), missing indexes (Pitfall 5), localStorage XSS audit gate (Pitfall 6)
 
-**Rationale:** Every subsequent visual feature references OKLCH tokens. Performing any component work before the palette is set means revisiting all color decisions twice. This phase also addresses the highest-risk technical pitfall (the `@theme inline` dark mode breakage) at a point where no other code depends on it yet.
+### Phase 2: WebSocket Reliability (INT-01 + INT-02)
+**Rationale:** With rotation live and the singleton guard in place, the WS reconnect fix is safe to implement. INT-02 (audit page) is a 2-line layout change. Both fixes land together as a "WS reliability" unit. The WS disconnection banner (non-blocking, driven by existing `wsStore.connected` state) should also land here — it directly addresses user confusion during the reconnect window.
+**Delivers:** WS reconnect survives token expiry without user-visible logout; audit page works on direct navigation and bookmarks; optional: non-blocking "reconnecting" banner when WS is disconnected
+**Addresses:** INT-01 and INT-02 (FEATURES.md — Must Have)
+**Files:** `useWebSocket.ts` (401 retry block), `route.tsx` (layout-level hook)
+**Avoids:** Stale token variable in retry path (Pitfall 3), duplicate hook misdiagnosis (Pitfall 4)
 
-**Delivers:** Void-black background and neon cyan/magenta palette live in `.dark` block; `.glow-cyan` / `.glow-magenta` utility classes; monospace font token (`--font-mono`); Orbitron heading font wired into `@theme inline`; base typography scale (uppercase, letter-spacing on headings); skeleton shimmer color override.
-
-**Addresses features:** Cyberpunk OKLCH palette (P1), neon glow utilities (P1), void-black background (P1), monospace font (P1), typography hierarchy (P2)
-
-**Avoids pitfalls:** `@theme inline` dark mode breakage — establish the CSS variable strategy here before any component references tokens; gradient text accessibility — set the fallback color pattern from the start.
-
-**Research flag:** Standard patterns. Tailwind v4 OKLCH CSS variable overrides are well-documented in official docs and the shadcn theming guide. Skip deep research.
-
-### Phase 2: Component Upgrades and Icon Pass
-
-**Rationale:** With the color system in place, every shadcn component referencing `--primary`, `--accent`, `--ring`, `--border` is already cyberpunk. This phase applies targeted overrides to components with hardcoded colors outside the token system, adds the full Lucide icon set via `src/lib/icons.ts`, and upgrades loading states. Each component change must be a separate commit to preserve real-time behavior isolation.
-
-**Delivers:** Status badges with neon colors and glow; full Lucide icon coverage centralized in `src/lib/icons.ts`; NodeCard connected pulse (CSS keyframe using pseudo-element pattern); stream panel live indicator; VoiceButton recording state; scroll FAB color fix; loading skeleton replacement; login page cyberpunk treatment; shadcn `dialog`, `tooltip`, `progress`, `tabs` components added via CLI.
-
-**Addresses features:** Status badge neon colors (P1), full icon coverage (P1), NodeCard pulse (P1), stream live indicator (P1), scroll FAB fix (P1), loading state polish (P1), VoiceButton recording state (P2), login treatment (P2)
-
-**Avoids pitfalls:** `data-slot` confusion — read component source before each touch; real-time regressions — live node smoke test after every component commit; Lucide barrel imports — `src/lib/icons.ts` established at the start.
-
-**Research flag:** Standard patterns for icon centralization and shadcn source editing. The login page glitch animation is the highest-complexity item; a quick reference check on CSS keyframe glitch techniques during task planning is worthwhile.
-
-### Phase 3: Animation Layer
-
-**Rationale:** Animations are the highest regression-risk layer. Applying them after component structure is stable means any animation bug is trivially isolated to the animation change. This phase also installs `motion` for unmount animations (dialogs, page transitions) that `tw-animate-css` cannot handle.
-
-**Delivers:** `npm install motion`; page enter fade animations on route transitions via `tw-animate-css`; dialog open/close with AnimatePresence; NodeCard entrance animation (Motion `initial/animate`) on the node list only; full `@media (prefers-reduced-motion: no-preference)` wrapping on all keyframe animations.
-
-**Addresses features:** Page enter animations (P2)
-
-**Avoids pitfalls:** AnimatePresence on high-frequency stream rows — explicitly excluded in scope; box-shadow keyframe repaints — pseudo-element pattern already established in Phase 1/2; reduced motion — wrapped at the CSS layer in this phase.
-
-**Research flag:** Standard Motion/React animation patterns. All use cases here (page transitions, list entrance, dialog) are in official docs. Skip deep research.
+### Phase 3: UX Surface (Onboarding Guide + Execute Form)
+**Rationale:** Both features are fully independent of the auth/WS chain and carry the lowest technical risk. They can be developed in parallel with Phases 1-2 if staffing allows, or sequentially after them. The onboarding guide should include a contextual entry point from the node grid empty state (a low-cost addition that significantly improves discoverability). The session ID field in the simplified execute form must remain accessible via an "Advanced options" disclosure — never removed entirely.
+**Delivers:** `/dashboard/onboarding` step-by-step guide with copy-to-clipboard; simplified execute form with preset prompts, project picker, and plain-language labels; onboarding nav link in sidebar
+**Addresses:** Onboarding guide page, simplified execute form (FEATURES.md — Must Have)
+**Files:** `onboarding.tsx` (new), `__root.tsx` (nav link), `ExecuteForm.tsx`
+**Avoids:** Onboarding guide too long/unclear — maximum 5-6 numbered steps, task-framed preset labels (Pitfall UX section); session ID field inaccessible (Pitfall UX section)
 
 ### Phase Ordering Rationale
 
-- **Color before components:** The OKLCH token system is a hard dependency. Every shadcn component that references `--primary`, `--accent`, `--ring`, or `--border` benefits automatically once the `.dark` block is updated. Reversing the order means re-examining every component color decision after the palette stabilizes.
-- **Components before animations:** Structural component changes can silently break Zustand store bindings, TanStack Query subscriptions, and WebSocket event handlers. Adding animation wrappers to an already-stable component structure isolates regression risk entirely to the animation layer.
-- **`tw-animate-css` before `motion`:** The existing CSS animation library handles all pure CSS effects (pulse, fade, slide). Install Motion only in Phase 3 when it is actually needed for unmount animations. This keeps Phase 1 and 2 dependency surfaces minimal.
+- Phase 1 must precede Phase 2 because the WS reconnect retry path calls `/auth/refresh` — rotation semantics must be live and tested before the retry path is merged
+- Phase 1's singleton `refreshPromise` guard must exist before Phase 2 because the WS reconnect and TanStack Query 401 interceptor can fire simultaneously on tab resume; without the guard, enabling the reconnect retry path with rotation active causes mass logout
+- Phase 3 is fully independent and can be developed in parallel with Phases 1-2; the nav link and route should land after Phase 1 is stable so that a working auth session is guaranteed when users visit the onboarding page
+- The PITFALLS.md "looks done but isn't" checklist should be treated as a Phase 1 exit gate — concurrent refresh deduplication and atomic rotation must be verified with targeted tests before Phase 2 builds on them
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 2 (login page glitch animation):** The one-shot CSS keyframe glitch technique is somewhat niche. A 15-minute reference pass during task planning is worthwhile to confirm timing and property choices before implementation.
+Phases with well-documented patterns (research-phase not needed):
+- **Phase 2 (WS Reliability):** Both INT-01 and INT-02 have precise root causes and fix locations identified in the codebase. Implementation is code completion with confirmed patterns, not design work requiring further research.
+- **Phase 3 (UX Surface):** Static content, existing components, no new dependencies. Onboarding guide and execute form improvements follow established patterns. FEATURES.md includes curated preset prompt copy and UX pattern rationale.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1:** Tailwind v4 CSS variable overrides and OKLCH theming are extensively documented in official docs and the shadcn theming guide.
-- **Phase 2 (icon integration):** Direct-path Lucide imports and `src/lib/icons.ts` pattern are established and benchmarked in published sources.
-- **Phase 3:** Motion/React animation patterns are well-documented; all required use cases are covered in the official docs.
+Phases needing implementation-time verification (not additional research, but exit-gate testing):
+- **Phase 1 (Extended Sessions):** The atomicity constraint and singleton guard patterns are well-understood, but correctness must be verified with concurrent-call testing before Phase 2 proceeds. The "looks done but isn't" checklist in PITFALLS.md defines the specific test assertions required.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Existing packages verified against `frontend/package.json`; new packages confirmed via npm registry; Motion React 19 compatibility explicitly stated in Motion v12 documentation |
-| Features | HIGH | Existing codebase inspected directly; shadcn/ui + Tailwind v4 OKLCH patterns verified via official docs; cyberpunk design patterns cross-referenced across multiple sources including usability critiques |
-| Architecture | HIGH | Backend architecture is stable and unchanged for this milestone; frontend component map is grounded in the actual source tree |
-| Pitfalls | HIGH | `@theme inline` bug confirmed via GitHub issue #18296; animation performance claims verified against MDN and browser vendor documentation; Lucide import benchmark sourced from published measurement with specific numbers |
+| Stack | HIGH | Full source inspection confirmed all required packages are installed at compatible versions; no new dependencies identified; version compatibility table in STACK.md verified against package.json and requirements.txt |
+| Features | HIGH | Five features crisply defined in PROJECT.md; table stakes vs. defer categorization grounded in existing user mental models, official auth patterns, and codebase constraints |
+| Architecture | HIGH | Integration points confirmed by direct file inspection; component map (1 new file, 7 modified, 0 migrations) is based on actual code, not inference; build order validated against confirmed dependency chain |
+| Pitfalls | HIGH | All six critical pitfalls are code-grounded — pointing to specific lines and functions in `auth_service.py`, `api.ts`, and `useWebSocket.ts`; not generic advice |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **VoiceButton recording state implementation:** FEATURES.md flags this as MEDIUM complexity and notes the current VoiceButton state management needs to be confirmed before implementing the pulsing magenta ring. Read `VoiceButton.tsx` at the start of Phase 2 to verify the recording flag is accessible from the component's render context.
-- **Gradient border on resizable panels (deferred to v1.x):** The pseudo-element gradient border technique on `ResizablePanelGroup` has a subtle z-index interaction with the resize handle. When this is undeferred, it needs a focused spike before full implementation.
-- **`prefers-reduced-motion` plus manual toggle:** Research recommends a manual reduce-motion toggle in settings as a UX improvement but explicitly deferred it for v1.1. If accessibility requirements are stricter than assumed, revisit before Phase 3 ships. The OS-level `@media (prefers-reduced-motion)` wrapping in Phase 3 is the minimum viable implementation.
+- **httpOnly cookie migration for refresh tokens:** Research confirms the `localStorage` pattern is a known risk amplified by 7-day tokens. The v1.2 mitigation is an audit gate (`dangerouslySetInnerHTML` grep) not a structural fix. Schedule httpOnly cookie migration as a v1.3 security hardening milestone — it requires CSRF token handling and is a non-trivial scope addition that should not be squeezed into v1.2.
+- **Token reuse detection (defense-in-depth):** PITFALLS.md recommends revoking all user tokens when a rotated-away token is presented (detecting potential session theft). This is beyond v1.2 MVP scope — flag for v1.3 alongside the httpOnly migration.
+- **WS disconnection banner:** The `wsStore.connected` state already enables a non-blocking banner. This is a low-cost addition that prevents user confusion when executing with a disconnected socket. Consider including in Phase 2 even if not in the original v1.2 feature spec.
+- **Visibility change reconnect trigger:** Adding a `visibilitychange` listener to trigger immediate WS reconnect when a backgrounded tab becomes visible is mentioned in PITFALLS.md. Not required for v1.2 but costs little to add during Phase 2 implementation.
 
 ## Sources
 
-### Primary (HIGH confidence)
+### Primary (HIGH confidence — direct codebase inspection)
+- `/backend/app/services/auth_service.py` — rotation deferred with comment confirmed; composable `create_refresh_token` / `store_refresh_token` functions confirmed; atomic `validate_ws_ticket` pattern confirmed as the model to replicate
+- `/backend/app/config.py` — `jwt_access_token_expire_minutes = 30` confirmed; `jwt_refresh_token_expire_days = 7` confirmed
+- `/backend/app/models/refresh_token.py` — `revoked` field and `expires_at` confirmed; no index on `expires_at` confirmed
+- `/frontend/src/lib/api.ts` — `refreshAccessToken` defined but not exported; no singleton concurrency guard
+- `/frontend/src/hooks/useWebSocket.ts` — `if (!res.ok) return` at line 26 confirmed as INT-01 root cause
+- `/frontend/src/routes/dashboard/route.tsx` — no `useWebSocket()` in layout confirmed as INT-02 root cause
+- `/frontend/src/routes/dashboard/audit.tsx` — no `useWebSocket()` call confirmed
+- `/frontend/package.json` — `tabs.tsx`, `progress.tsx`, `select.tsx` scaffolded; all required packages at current versions confirmed
 
-- https://ui.shadcn.com/docs/theming — CSS variable structure, OKLCH semantics
-- https://ui.shadcn.com/docs/tailwind-v4 — `@theme inline` pattern, v4 migration
-- https://motion.dev/docs/react — React 19 compatibility, AnimatePresence, import path `"motion/react"`
-- https://www.npmjs.com/package/motion — version 12.38.0 confirmed current as of 2026-03-24
-- https://lucide.dev/guide/packages/lucide-react — individual import pattern, tree-shaking
-- https://github.com/tailwindlabs/tailwindcss/issues/18296 — `@theme inline` dark mode bug confirmed
-- https://tobiasahlin.com/blog/how-to-animate-box-shadow/ — box-shadow repaint analysis
-- https://christopher.engineering/en/blog/lucide-icons-with-vite-dev-server — direct-path import benchmark (1,637 modules reduced to 35; 5.6s to 0.784s build time)
+### Secondary (HIGH confidence — official documentation)
+- Auth0: Refresh Tokens — httpOnly cookie pattern, rotation semantics
+- OWASP HTML5 Security Cheat Sheet — localStorage token storage risk assessment
+- MDN Web Docs: `navigator.clipboard.writeText()` — browser support confirmed (Chrome 66+, Firefox 63+, Safari 13.1+)
+- PyJWT 2.9.0 changelog — `jwt.encode()` / `jwt.decode()` API stable since 2.x
 
-### Secondary (MEDIUM confidence)
-
-- https://www.shadcn.io/theme/cyberpunk — OKLCH values for cyberpunk palette reference
-- https://tweakcn.com/ — interactive shadcn theme generator with cyberpunk presets
-- https://evilmartians.com/chronicles/better-dynamic-themes-in-tailwind-with-oklch-color-magic — OKLCH theming patterns for Tailwind
-- https://interfaceingame.com/articles/cyberpunk-2077-ux-ui-critique/ — anti-patterns: when overdone effects hurt usability
-- https://dev.to/raajaryan/react-animation-libraries-in-2025-what-companies-are-actually-using-3lik — bundle cost analysis for animation library selection
-
-### Tertiary (LOW confidence)
-
-- https://dev.to/sebyx07/introducing-cybercore-css-a-cyberpunk-design-framework-for-futuristic-uis-2e6c — cyberpunk component patterns for reference only; the framework itself is not being used
+### Secondary (MEDIUM confidence — community and design sources)
+- The Developer's Guide to Refresh Token Rotation (Descope) — rotation implementation patterns, reuse detection
+- WebSocket Best Practices for Production Applications (WebSocket.org) — reconnect and auth token patterns
+- Onboarding UX Best Practices 2025 (UX Design Institute) — dedicated page vs. modal wizard patterns
+- Smart Interface Design Patterns: Onboarding UX — step count, checklist patterns, "first win" principle
 
 ---
 *Research completed: 2026-03-24*

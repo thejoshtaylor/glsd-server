@@ -1,19 +1,25 @@
 # Feature Research
 
-**Domain:** Cyberpunk UI beautification — React dashboard (GLSD Server v1.1)
+**Domain:** Ease of Access — remote node management dashboard (GLSD Server v1.2)
 **Researched:** 2026-03-24
-**Confidence:** HIGH (existing codebase inspected; shadcn/ui + Tailwind v4 OKLCH patterns verified via official docs; cyberpunk design patterns verified via multiple sources)
+**Confidence:** HIGH (existing codebase inspected; JWT/WebSocket patterns verified via official docs and community sources; onboarding UX patterns verified via multiple sources)
 
 ## Context
 
-This is a subsequent milestone. The dashboard is already feature-complete (nodes, instances, streaming, audit log, voice input, JWT auth). This research covers ONLY visual polish, theming, iconography, and UX micro-improvements. No new data features are in scope.
+This is a subsequent milestone. The dashboard already ships JWT auth, execute form, WebSocket streaming, audit log, voice input, node status tracking, and cyberpunk theming. This research covers ONLY the new v1.2 features:
 
-**Existing stack constraints:**
-- shadcn/ui components already in use: `badge`, `button`, `card`, `input`, `select`, `separator`, `skeleton`, `table`, `resizable`, `sonner`
-- Tailwind v4 with OKLCH CSS variables (`:root` / `.dark` block already wired in `index.css`) — currently achromatic (zero chroma)
-- Lucide React partially in use: `Monitor`, `Clock`, `ArrowLeft`, `ArrowDown` — ~15 more icons needed
-- `tw-animate-css` already imported in `index.css` — available for animation utilities without adding a new dependency
-- React 19, TanStack Router, TanStack Query, Zustand already present
+- In-app node onboarding guide page (step-by-step, copyable commands)
+- Simplified execute form (preset prompts, project picker, plain-language labels)
+- Extended sessions (1hr access token + 7-day silent refresh token rotation)
+- INT-01 fix: WebSocket reconnect refreshes expired tokens automatically
+- INT-02 fix: Audit page establishes WebSocket on direct navigation
+
+**Existing constraints:**
+- Python FastAPI + PyJWT 2.x backend — refresh token rotation is additive, not a rewrite
+- React 19 + TanStack Router + TanStack Query + Zustand frontend
+- shadcn/ui components already installed: `dialog`, `tooltip`, `progress`, `tabs` (scaffolded but unconsumed — available for this milestone)
+- WebSocket connection is managed client-side, currently does not re-fetch tokens on reconnect
+- Audit page WebSocket is currently only established when navigating from within the SPA (not on direct URL load)
 
 ---
 
@@ -21,105 +27,100 @@ This is a subsequent milestone. The dashboard is already feature-complete (nodes
 
 ### Table Stakes (Users Expect These)
 
-Features a "cyberpunk-themed" dashboard must have. Missing any of these means the aesthetic reads as "dark mode with blue accents" — not cyberpunk.
+Features that non-technical users expect in a tool they're being asked to adopt. Missing these makes the tool feel hostile or incomplete for onboarding use cases.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Neon accent color palette (cyan primary, magenta accent) | Cyberpunk aesthetic is defined by neon-on-void — the current achromatic gray palette is just dark mode | LOW | Override `--primary`, `--accent`, `--ring`, `--border` OKLCH vars in `.dark` block. Cyan: `oklch(0.75 0.18 195)`, magenta: `oklch(0.65 0.26 330)`. Propagates to all shadcn components automatically. |
-| Void-black background (deeper than current gray-950) | Current `--background: oklch(0.145 0 0)` (gray) is not cyberpunk — needs near-black with blue undertone | LOW | Update to `oklch(0.07 0.008 280)`. Card at `oklch(0.11 0.01 280)`. One variable change in index.css. |
-| Neon glow on interactive elements | Cyberpunk maps "alive/active" to neon light emission — static flat buttons break the aesthetic | LOW | CSS `box-shadow` with 3 layered shadows at increasing blur radius (4px / 12px / 24px) on Button primary hover/active. Add as `@layer utilities` `.glow-cyan` / `.glow-magenta` classes in index.css. |
-| Status badges with semantic neon colors + glow | NodeStatusBadge and AuditTable event badges already exist but use generic Tailwind greens/reds — need cyberpunk palette | LOW | `connected` = cyan, `stale` = amber, `disconnected` = red. Update the inline `className` maps in `NodeStatusBadge.tsx` and `AuditTable.tsx`. Add faint box-shadow on each. |
-| Monospace font for data fields | Cyberpunk UIs treat raw data (IDs, timestamps, command output) as a distinct typographic layer | LOW | Add `--font-mono` token pointing to Geist Mono (already loaded via `@fontsource-variable/geist`). Apply to stream panels, instance IDs, audit timestamps, version strings. |
-| Full Lucide icon coverage | Bare text labels without icons reads unfinished in any modern dashboard; icons telegraph state at a glance in a monitoring context | MEDIUM | ~15 icons needed across existing components (see icon map below). All Lucide — already the project's icon library. Import individually to preserve tree-shaking. |
-| Loading skeleton polish | Current skeletons use default shadcn gray shimmer — jarring against a cyberpunk palette | LOW | Override skeleton shimmer keyframe to use faint cyan tint. CSS only via `@keyframes` in index.css. |
-| Replaced generic "Loading..." text with skeleton/spinner | `$nodeId.tsx` line 75: `<div className="p-6 text-gray-400">Loading...</div>` — plain text is visually broken | LOW | Replace with a skeleton card or a styled spinner. Pattern already exists in AuditTable. |
+| Copyable command blocks in onboarding guide | Developers and non-developers both expect one-click copy for CLI commands — manually selecting monospace text is error-prone and frustrating | LOW | `navigator.clipboard.writeText()` with a copy icon button beside each code block. Show transient "Copied!" confirmation (1.5s, then reset). shadcn `Tooltip` or inline state. No library needed. |
+| Step-by-step numbered flow in onboarding guide | Users absorb procedural instructions best as an ordered checklist — a wall of prose fails; random bullets fail. 3–5 steps is the established ceiling before cognitive load spikes. | LOW | `<ol>` with styled step numbers. GSD node setup has a natural sequence: install, authenticate, run — maps cleanly to 3–4 steps. Use existing `Card` component per step. |
+| Visual "done" indicator on onboarding steps | Non-technical users need confirmation that each step worked before proceeding — ambiguity causes support requests | MEDIUM | The server already knows if a node has connected (node status tracking). Step 3/4 ("Node connects") can auto-check when a node for this team transitions to `connected`. Requires a query or WS event to detect. |
+| Preset prompt options in execute form | Non-technical users can't construct Claude CLI prompts from scratch — blank text fields with no affordance cause form abandonment | LOW | A `<Select>` or segmented button group with 4–6 curated preset prompts. Selecting a preset populates the prompt textarea (editable after selection). Uses existing shadcn `Select` component. |
+| Project picker (not free-text project field) | Typing a project path is fragile — typos silently dispatch to the wrong project. Non-technical users don't know project paths. | LOW | Replace the free-text project input with a `<Select>` populated from the node's `projects` array (already exposed in node state). Falls back to free-text if node has no projects listed. |
+| Plain-language form labels | The current form labels `node_id`, `project`, `prompt` are machine field names — non-technical users need semantic labels | LOW | Rename labels: `node_id` → "Target Node", `project` → "Project", `prompt` → "What should Claude do?". Add helper text under each. Zero backend changes. |
+| Session stays alive across a work session | Users expect not to be logged out mid-task. A 15-minute access token with no visible refresh feels like the app is broken. | MEDIUM | 1hr access token eliminates mid-task logouts. Silent refresh on a background interval (or on 401 intercept) keeps the session alive for 7 days without visible interruption. Standard pattern: Axios/fetch interceptor catches 401, calls `/auth/refresh`, retries. |
+| WebSocket doesn't drop on tab sleep/resume | Browser tabs sleep after inactivity; WebSocket closes. Reconnecting to a disconnected socket with an expired token shows auth errors — feels broken | MEDIUM | INT-01: On reconnect, check token expiry before attempting WS upgrade. If expired, call `/auth/refresh` first, then connect. TanStack Query already manages token state — read from store before reconnect. |
+| Audit page works on direct navigation | Users bookmark pages or share links. An audit page that loads blank on direct URL is a UX failure. | LOW | INT-02: The WS connection for the audit page's live updates must be established in a `useEffect` triggered by route mount, not by prior navigation state. Likely a missing `useEffect` dependency or a guard that assumes prior auth context. |
 
 ### Differentiators (Competitive Advantage)
 
-Features that make the dashboard feel purpose-built and premium, not just "dark mode with a different primary color."
+Features that make this specific dashboard stand out for a team managing distributed Claude CLI nodes — not standard SaaS expected behavior, but meaningful for this use case.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Animated neon pulse on connected node cards | Live heartbeat pulse makes node status immediately visceral — users register "alive" without reading text | LOW | CSS `@keyframes` pulsing `box-shadow` on NodeCard border when `status === 'connected'`. 2.5s cycle, subtle amplitude. No JS animation library. Use `will-change: box-shadow` for GPU compositing. |
-| Stream panel "live" indicator (animated dot) | Users need a clear signal that output is actively streaming vs. viewing historical output | LOW | Pulsing dot (opacity + scale keyframe) in StreamPanel header when `isRunning`. One CSS keyframe, one element. Complement to the existing `KillButton` visibility. |
-| VoiceButton active recording state | VoiceButton currently has no documented visual feedback for "mic is recording" — a real missing affordance | MEDIUM | Pulsing magenta ring around the mic icon while recording. Need to confirm current VoiceButton state management, but pattern is: CSS ring animation toggled by a CSS class applied when recording flag is true. |
-| Page enter fade animation | Navigating from node list to node detail is currently instantaneous — feels abrupt for a polished app | LOW | `animate-in fade-in` via `tw-animate-css` utility class on route component root div. 150ms duration. `prefers-reduced-motion` handled by CSS media query. |
-| Cyberpunk typography hierarchy | Section headings as uppercase + tracked letters ("NODES", "INSTANCES") conveys the aesthetic's brutalist-tech data terminal feel | LOW | `text-transform: uppercase` + `letter-spacing: 0.08em` on `h2`/`h3` elements. Applies to "Nodes", "Instances", "Stream" labels. No new font. |
-| Login page cyberpunk treatment | Login is the first impression — current design is a plain white-ish card on a gray background | MEDIUM | Void-black full-height background, subtle CSS `repeating-linear-gradient` grid pattern, gradient border on the Card component, cyan title glow. Brief one-shot glitch animation on successful login before redirect (CSS keyframe, ~300ms, triggered by adding a class). |
-| Scroll-to-bottom FAB color fix | StreamPanel's scroll FAB is `bg-blue-600` — generic, breaks the palette | LOW | Replace with neon cyan + glow. Already identified, trivial one-liner change in `StreamPanel.tsx`. |
+| Node-aware onboarding guide (shows real node_id for this team) | Generic "your-node-id-here" placeholders create copy-paste errors. Showing the actual registered node IDs — or the team's registration token — makes onboarding concrete and error-free. | MEDIUM | Requires reading team/node data from the API. If team has no nodes yet, show placeholder with a call-to-action. If team has nodes, show them inline. Already have the data; this is a display decision. |
+| Preset prompts that match actual GSD use cases | Generic presets ("Summarize this", "Write a function") don't match Claude CLI / GSD workflows. Domain-specific presets ("Review the current git diff", "Explain this codebase") convert significantly better for this user base. | LOW | Static list curated for GSD workflows. No personalization needed at v1.2. Editable after selection so power users can still customize. |
+| Form remembers last-used project and node | Non-technical users typically execute on the same node/project repeatedly. Restoring last selection eliminates repeated picking. | LOW | `localStorage` or Zustand persist. Read on mount, write on successful dispatch. No backend changes. Standard form persistence pattern. |
+| Onboarding checklist with auto-completion detection | When a node connects for the first time after following the guide, mark the guide as complete — gives users a "first win" moment. Proven to increase engagement by closing the loop. | HIGH | Requires detecting first-ever node connection per user. Backend needs a flag or the frontend tracks "onboarding completed" in localStorage keyed to the user. Auto-detect via TanStack Query polling or the existing WS event stream. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Scanline overlay on the entire UI | "Authentic" cyberpunk CRT feel | Users of Cyberpunk 2077 itself mod away the game's scanlines — they signal aesthetic effort but actively degrade text readability. Fails WCAG 1.4.3 contrast on text content. | Reserve scanlines for decorative-only elements (login background below the card, empty-state illustrations) where no readable text is layered over them |
-| Glitch text animation on ambient UI labels | Dramatic, cinematic look | Continuous motion on headings and labels creates cognitive load — harmful for a monitoring dashboard where users need to read node IDs and statuses accurately. Photosensitive users risk seizure triggers at high frequency. | One-shot glitch only on deliberate events (login success, instance finished) — never ambient or looping on UI chrome |
-| Glass morphism (backdrop-filter: blur) cards | Trendy in 2024-2025 dark UI design | `backdrop-filter: blur` causes GPU repaints on every scroll event, degrades performance on mid-tier hardware, and semantically conflicts with the "used future / gritty tech" cyberpunk aesthetic (glass = clean luxury tech, not dystopian system terminal) | Solid near-black card surfaces with gradient border + inner shadow achieve depth without blur overhead |
-| Framer Motion / Motion for React | Widely used, smooth animations | Adds ~30KB to bundle for effects achievable with CSS alone. `tw-animate-css` is already imported and covers fade, slide, scale patterns. The dashboard's required animations (pulse, fade-in, spin) are all CSS-capable. | Use `tw-animate-css` utility classes and `@keyframes` in index.css. Escalate to Motion only if the product adds drag-reorder or scroll-linked animations (not in v1.1 scope) |
-| Canvas particle / grid background | Immersive cyberpunk "rain" or animated grid effect | Continuous canvas render adds CPU/GPU overhead on every frame, interferes with pointer events if not carefully isolated, and visually competes with functional data content in a monitoring dashboard | Static CSS `repeating-linear-gradient` grid — zero JS, zero canvas, identical visual effect at rest |
-| Full light/dark theme switcher | User customization | Multiplies CSS variable surface area, requires state persistence, significantly delays implementation. v1.1 ships one opinionated theme. | Single cyberpunk dark theme. Lock `html` to `.dark` class. Leave the existing light `:root` block dormant (does not affect UI when `.dark` is applied). |
-| Per-component animation toggle in settings | Accessibility | Over-engineering for v1.1. The platform standard is `@media (prefers-reduced-motion)`. | Wrap all animation-activating `@keyframes` in `@media (prefers-reduced-motion: no-preference)` blocks. Handled at the CSS layer, no UI needed. |
-| xterm.js terminal in stream panel | "Real terminal" feel | The project explicitly out-scoped this in PROJECT.md. Claude CLI output is NDJSON, not PTY. xterm.js adds ~700KB, ANSI escape handling, and cursor management that NDJSON doesn't need. | The existing `StreamEventRenderer` with structured rendering is the right approach — just apply cyberpunk typography and color to it |
+| Multi-step wizard modal for onboarding | Wizards feel polished and guided | Modal wizards block the rest of the UI, can't be bookmarked or linked, and interrupt users who return partway through. For a technical setup flow (install CLI, run command, wait for connection), blocking modal UX is wrong — users need to leave the tab and come back. | Dedicated `/onboarding` route page that persists state across navigation. Accessible via sidebar nav link. Non-blocking. |
+| OAuth / "Sign in with Google" for extended sessions | Avoids token management complexity | Explicitly out of scope in PROJECT.md — "OAuth/SSO login is out of scope for v1". Refresh token rotation achieves the same UX goal (stay logged in) without scope expansion. | 7-day refresh token rotation with silent renewal achieves the session durability goal. |
+| Per-user preset customization / saved presets | Power users want to save their own prompts | Requires a new DB table, a management UI, and CRUD endpoints. Scope creep for v1.2 — the goal is lower the floor for non-technical users, not add a feature management surface. | Editable text field after preset selection. If users want to save a custom prompt, they use the text field directly. Defer custom saved presets to v2. |
+| Onboarding tour overlays (tooltip chain on dashboard) | Overlay tours are a common SaaS pattern | A monitoring dashboard during active use is the wrong moment for a tour. Node detail pages, audit filters, and stream panels are state-dependent — overlaying them before a node is connected creates confusion about what the user is actually seeing. Additionally, the `dialog`, `tooltip` scaffolded components can support this, but the effort/value ratio is low when a dedicated guide page covers the same ground statelessly. | Static guide page at `/onboarding` that users visit deliberately. No overlay, no tooltip chain. |
+| Access token stored in `localStorage` (extended duration) | Simple to implement | Long-lived tokens in `localStorage` are a XSS attack surface. Extending access token to 1hr already increases risk window vs. the current short-lived token. Storing 7-day refresh tokens in `localStorage` would be significantly worse. | Refresh tokens in `httpOnly` cookies (server sets `Set-Cookie: refresh_token=...; HttpOnly; Secure; SameSite=Strict`). Access tokens in memory (Zustand store). This is the auth industry standard pattern. |
+| Inline prompt history / replay in execute form | Power user convenience | Scope creep for v1.2. Adds storage, display, and UX complexity (which history? team-wide or per-user?). The audit log already shows command history — the answer is "go look at the audit page". | Audit page already covers command history. Link to it from the execute form if needed. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Cyberpunk OKLCH color palette (CSS vars in index.css)
-    └──required-by──> Neon glow effects (colors must exist before referencing in box-shadow)
-    └──required-by──> Status badge colors (reference --color-primary, --color-destructive tokens)
-    └──required-by──> Skeleton shimmer color
-    └──required-by──> NodeCard connected pulse (border color sources from token)
+Extended session (1hr access + 7-day refresh rotation)
+    └──required-by──> WebSocket token refresh on reconnect (INT-01)
+                          (INT-01 needs a valid refresh endpoint to call on reconnect)
+    └──required-by──> Silent session renewal (frontend interceptor)
+                          (interceptor calls /auth/refresh — endpoint must exist with rotation logic)
 
-Monospace font token (--font-mono)
-    └──required-by──> Stream panel typography
-    └──required-by──> Audit ID / timestamp column styling
+Node projects list (existing, already in node state)
+    └──required-by──> Project picker Select component
+                          (picker is populated from node.projects — empty if node has no projects)
 
-Lucide icon imports
-    └──required-by──> Navigation icon polish (icons must be imported before use)
-    └──enhances──> Status readability (icon + color + glow is a stronger signal than color alone)
+Node connection status (existing, already tracked)
+    └──enhances──> Onboarding guide auto-completion detection
+                       (detect first node connect to close the loop)
 
-NodeCard connected pulse animation
-    └──enhances──> Neon glow (pulse and static glow share the same CSS property, box-shadow)
-    └──conflicts-with──> Page transition fade (avoid simultaneous card border + opacity animation)
+TanStack Query token state (existing, in Zustand)
+    └──required-by──> INT-01 WS token check on reconnect
+                          (read token from store, check expiry, refresh if needed before WS connect)
+
+Route-level useEffect (INT-02 fix)
+    └──no-dependencies──> Standalone fix, isolated to AuditPage component
 ```
 
 ### Dependency Notes
 
-- **Color palette must be implemented first.** Every other visual feature references OKLCH tokens. Do the CSS variable rewrite before any component-level changes or you will fix per-component colors twice.
-- **Lucide imports are tree-shaken.** Import individually (`import { Cpu } from 'lucide-react'`), never from a barrel re-export. The existing code already does this correctly — maintain the pattern.
-- **`tw-animate-css` already available.** All pulse / fade / slide effects should use its utility classes or `@keyframes` defined in index.css. No new animation dependencies needed for v1.1.
+- **Extended sessions must be implemented before INT-01.** The WS reconnect fix (INT-01) calls `/auth/refresh` on reconnect — that endpoint must support rotation semantics (issue new access + refresh pair, invalidate old refresh) before the client-side reconnect logic is safe to ship.
+- **Project picker gracefully degrades.** If the selected node has no `projects` array (or it's empty), the picker falls back to a free-text input. The backend already exposes `projects` in node state — this is a frontend-only concern.
+- **INT-02 is fully isolated.** The audit page WebSocket fix has no upstream dependencies. It can be built and shipped in any order relative to the other features.
+- **Onboarding guide has no hard backend dependencies.** The guide content is mostly static markup with copyable commands. The node-aware enhancement (showing real node IDs) is additive — the page works without it.
 
 ---
 
-## MVP Definition (v1.1 Cyberpunk Polish)
+## MVP Definition (v1.2 Ease of Access)
 
-### Launch With (v1.1)
+### Launch With (v1.2)
 
-- [ ] Cyberpunk OKLCH color palette — override `--background`, `--card`, `--primary`, `--primary-foreground`, `--accent`, `--border`, `--ring` in `.dark` block of `index.css`
-- [ ] Neon glow utility classes — `@layer utilities` `.glow-cyan` and `.glow-magenta` using 3-layer `box-shadow`
-- [ ] Status badge neon colors — update `statusConfig` in `NodeStatusBadge.tsx` and `EVENT_TYPE_COLORS` in `AuditTable.tsx`
-- [ ] Monospace font token — `--font-mono` added; apply to stream panel, audit ID/timestamp columns, instance IDs, version strings
-- [ ] Full Lucide icon pass — all unlabeled sections, action buttons, metadata fields, instance status rows (see icon map below)
-- [ ] NodeCard connected pulse — CSS `@keyframes` pulsing border-glow on connected nodes
-- [ ] Stream panel live indicator — animated dot in StreamPanel header when `isRunning`
-- [ ] VoiceButton recording state — pulsing magenta ring while mic is active
-- [ ] Scroll FAB cyberpunk color — update `StreamPanel.tsx` scroll button from `bg-blue-600` to neon cyan with glow
-- [ ] Typography hierarchy — uppercase + letter-spacing on section headings throughout dashboard
-- [ ] Loading state replacement — replace `<div className="p-6 text-gray-400">Loading...</div>` in `$nodeId.tsx` with skeleton components
-- [ ] Page enter animation — `animate-in fade-in` on dashboard route view transitions via `tw-animate-css`
-- [ ] Login page cyberpunk treatment — grid CSS background, gradient border on Card, glow on title, one-shot glitch on success
+These are the five features defined in PROJECT.md as the milestone target. All are required.
+
+- [ ] Node onboarding guide page at `/onboarding` — step-by-step, copyable command blocks, links to GSD node install, plain prose — why essential: the single biggest blocker for non-technical users is not knowing how to connect a node
+- [ ] Simplified execute form — preset prompts via Select, project picker from node.projects, relabeled fields with helper text — why essential: blank form with machine-named fields fails non-technical users at first use
+- [ ] Extended session duration — 1hr access token, 7-day httpOnly refresh token with rotation on every use — why essential: 15-minute access tokens with no silent renewal log users out mid-task, destroying trust in the tool
+- [ ] INT-01: WebSocket reconnect refreshes expired token — call `/auth/refresh` before reconnect if token is expired — why essential: current behavior shows auth errors on tab resume, which reads as "the app is broken"
+- [ ] INT-02: Audit page WebSocket on direct navigation — establish WS in `useEffect` on route mount, not on prior navigation — why essential: direct links and bookmarks are broken today; this is table stakes for a web app
 
 ### Add After Validation (v1.x)
 
-- [ ] Gradient borders on the resizable panel — pseudo-element technique, medium complexity, lower priority than core palette work
-- [ ] Scanline decoration on empty states — evaluate readability; only applies to illustrative areas without text
+- [ ] Form state persistence (last-used node + project in localStorage) — trigger: user feedback that they repeat the same selection every time
+- [ ] Onboarding checklist auto-completion (detect first node connect) — trigger: onboarding drop-off metrics show users don't know if their setup worked
+- [ ] Node-aware guide content (show real node IDs inline) — trigger: support requests indicating users copy wrong node IDs from generic placeholders
 
 ### Future Consideration (v2+)
 
-- [ ] Motion (Framer Motion) for scroll-linked or gesture animations — only if product adds drag interactions
-- [ ] Canvas grid background — only if performance budget is confirmed adequate on target hardware
+- [ ] Personalized saved prompt presets (per-user CRUD) — defer: requires DB table, API endpoints, and management UI; the v1.2 curated preset list addresses the non-technical user need
+- [ ] Overlay onboarding tour (tooltip chain on dashboard) — defer: only valuable after nodes are connected and users are actively using the dashboard; wrong moment for a setup tour
 
 ---
 
@@ -127,135 +128,79 @@ NodeCard connected pulse animation
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Cyberpunk OKLCH color palette | HIGH | LOW | P1 |
-| Status badge neon colors | HIGH | LOW | P1 |
-| Neon glow utility classes | HIGH | LOW | P1 |
-| Void-black background update | HIGH | LOW | P1 |
-| Full Lucide icon coverage | HIGH | MEDIUM | P1 |
-| Monospace font for data fields | HIGH | LOW | P1 |
-| NodeCard connected pulse | HIGH | LOW | P1 |
-| Loading state polish | MEDIUM | LOW | P1 |
-| Stream panel live indicator | MEDIUM | LOW | P1 |
-| Scroll FAB color fix | MEDIUM | LOW | P1 |
-| Typography uppercase hierarchy | MEDIUM | LOW | P2 |
-| Page enter animations | MEDIUM | LOW | P2 |
-| Login page cyberpunk treatment | MEDIUM | MEDIUM | P2 |
-| VoiceButton recording state | MEDIUM | MEDIUM | P2 |
-| Gradient borders on panels | LOW | MEDIUM | P3 |
-| Scanline empty-state decoration | LOW | MEDIUM | P3 |
+| Extended session duration (1hr + 7-day rotation) | HIGH | MEDIUM | P1 |
+| INT-01: WS token refresh on reconnect | HIGH | LOW | P1 |
+| Node onboarding guide page | HIGH | LOW | P1 |
+| Simplified execute form (presets + picker) | HIGH | LOW | P1 |
+| INT-02: Audit page WS on direct nav | MEDIUM | LOW | P1 |
+| Form state persistence (localStorage) | MEDIUM | LOW | P2 |
+| Onboarding auto-completion detection | MEDIUM | HIGH | P3 |
+| Node-aware guide content | LOW | MEDIUM | P3 |
 
 **Priority key:**
-- P1: Core aesthetic — without these it reads as "dark mode" not "cyberpunk"
-- P2: Polish — meaningful improvement, low regression risk
-- P3: Nice to have — defer if time-boxed
+- P1: Required for milestone — directly addresses the "Ease of Access" goal
+- P2: High value, low cost — add in same phase if time allows
+- P3: Additive enhancement — schedule for v1.3 or later
 
 ---
 
-## Cyberpunk-Specific Implementation Notes
+## Implementation Notes by Feature
 
-### Color Token Strategy (OKLCH)
+### Node Onboarding Guide Page
 
-The existing `index.css` uses OKLCH throughout. The current `.dark` block is achromatic — all chroma values are 0 or near-0. The cyberpunk transformation is a targeted surgical override of specific tokens in the `.dark` block only:
+**Expected behavior:** A dedicated route (`/onboarding`) accessible from the sidebar navigation. Static content with 3–4 numbered steps covering: install GSD node CLI, get the server URL and team token, run the node, verify connection. Each code block has a copy button (`navigator.clipboard.writeText`) with a transient "Copied!" state (1.5s). Steps use existing `Card` + `Badge` components. No backend API calls required for the static version.
 
-```css
-/* Replaces achromatic .dark values — cyberpunk palette */
---background: oklch(0.07 0.008 280);        /* Void black with blue undertone */
---card: oklch(0.11 0.01 280);               /* Slightly lifted card surface */
---primary: oklch(0.75 0.18 195);            /* Neon cyan */
---primary-foreground: oklch(0.07 0.008 280); /* Void on cyan (legible) */
---accent: oklch(0.65 0.26 330);             /* Neon magenta */
---accent-foreground: oklch(0.07 0.008 280); /* Void on magenta */
---ring: oklch(0.75 0.18 195);               /* Cyan focus ring */
---border: oklch(0.75 0.18 195 / 18%);       /* Faint cyan border */
---destructive: oklch(0.65 0.22 25);         /* Red-orange (existing value fine) */
-```
+**UX pattern:** "Getting Started" page, not modal wizard. Users can leave mid-flow and return. No overlay disruption. Content is instructional prose + code blocks, consistent with developer tool onboarding conventions (Vercel, Railway, Fly.io all use this pattern for infrastructure setup).
 
-All shadcn components that reference `--primary`, `--accent`, `--ring`, `--border` update automatically. No component-level color changes needed beyond badge overrides.
+**Complexity note:** LOW. This is primarily a new route with static content and a clipboard utility. The highest complexity element is deciding whether to detect node connection state to mark steps as complete — that enhancement is P3 and should be deferred unless the base page ships quickly.
 
-### Neon Glow Pattern
+### Simplified Execute Form
 
-3 shadow layers is the performance ceiling. Use `will-change: box-shadow` only on elements with `transition` (not on static elements):
+**Expected behavior:** The existing `ExecuteForm` component gets three changes: (1) The `project` text input becomes a `Select` populated from `node.projects` (falls back to text input if empty). (2) A "Preset Prompts" `Select` appears above the prompt textarea — selecting a preset populates the textarea, which remains editable. (3) Field labels change: `node_id` → "Target Node", `project` → "Project", `prompt` → "What should Claude do?", with a `<p>` helper text element under each. No backend changes.
 
-```css
-@layer utilities {
-  .glow-cyan {
-    box-shadow:
-      0 0 4px oklch(0.75 0.18 195 / 60%),
-      0 0 12px oklch(0.75 0.18 195 / 30%),
-      0 0 24px oklch(0.75 0.18 195 / 12%);
-  }
-  .glow-magenta {
-    box-shadow:
-      0 0 4px oklch(0.65 0.26 330 / 60%),
-      0 0 12px oklch(0.65 0.26 330 / 30%),
-      0 0 24px oklch(0.65 0.26 330 / 12%);
-  }
-}
-```
+**Presets to include (curated for GSD/Claude CLI use cases):**
+- "Review the current git diff and summarize changes"
+- "Explain the main entry point of this codebase"
+- "List all TODO comments in the project"
+- "Write unit tests for the selected file"
+- "Check for potential security issues"
+- (Custom — leave field blank for free-form entry)
 
-### Icon Map for Existing Components
+### Extended Session Duration + Silent Refresh
 
-| Component | Context | Recommended Icon |
-|-----------|---------|-----------------|
-| `DashboardPage` | "Nodes" section heading | `LayoutGrid` |
-| `NodeDetailPage` | Platform field | `Cpu` |
-| `NodeDetailPage` | Version field | `Tag` |
-| `NodeDetailPage` | Projects field | `FolderOpen` |
-| `InstanceList` | Running instance | `Activity` |
-| `InstanceList` | Finished instance | `CheckCircle2` |
-| `InstanceList` | Errored instance | `XCircle` |
-| `InstanceList` | Pending instance | `Clock` (already imported) |
-| `ExecuteForm` | Submit / run button | `Play` |
-| `ExecuteForm` | Session ID field label | `RotateCcw` |
-| `KillButton` | Stop action | `Square` |
-| `VoiceButton` | Mic idle | `Mic` |
-| `VoiceButton` | Mic recording | `MicOff` or pulsing `Mic` |
-| `AuditPage` | Page heading | `ScrollText` |
-| `AuditFilters` | Filter section | `Filter` |
-| `StreamPanel` | Header | `Terminal` |
-| `StaleWarning` | Warning alert | `AlertTriangle` |
-| `LoginPage` | Form heading / logo area | `Shield` |
+**Expected behavior:** Backend issues access tokens with 1hr expiry and refresh tokens with 7-day expiry, stored in `httpOnly; Secure; SameSite=Strict` cookies. Frontend never touches the refresh token directly. A fetch/axios interceptor catches 401 responses, calls `POST /auth/refresh` (which reads the httpOnly cookie automatically), receives a new access token in the response body, stores it in Zustand, and retries the original request. Refresh tokens are rotated on every use (new refresh token issued, old one invalidated) — the backend must track issued refresh tokens to support revocation.
 
-### Motion Budget
+**Key security pattern:** Access token in memory (Zustand), refresh token in httpOnly cookie. This is the OWASP-recommended pattern for SPAs. It eliminates the XSS attack surface for the refresh token.
 
-All animations require `@media (prefers-reduced-motion: no-preference)` wrapping:
+**Backend changes required:** (1) Extend `ACCESS_TOKEN_EXPIRE_MINUTES` from current value to 60. (2) Add `REFRESH_TOKEN_EXPIRE_DAYS = 7`. (3) Set refresh token via `Set-Cookie` header on login + refresh responses. (4) Add `POST /auth/refresh` endpoint that reads the cookie, validates + rotates the refresh token, returns new access token. (5) Add `refresh_tokens` table (or store in Redis/PostgreSQL) for rotation tracking.
 
-```css
-@media (prefers-reduced-motion: no-preference) {
-  .animate-pulse-glow { animation: pulse-glow 2.5s ease-in-out infinite; }
-  .animate-live-dot { animation: live-dot 1.5s ease-in-out infinite; }
-}
-```
+### INT-01: WebSocket Token Refresh on Reconnect
 
-Maximum durations: node pulse = 2.5s, live dot = 1.5s, page fade-in = 150ms, hover glow transition = 200ms, login glitch = 300ms (one-shot).
+**Expected behavior:** The WS connection manager on the frontend checks if the stored access token is expired (or within a short window, e.g., 30s of expiry) before attempting a reconnect. If expired, it calls `POST /auth/refresh` first, updates the Zustand token state, then opens the WS connection with the fresh token. This resolves the current behavior where reconnect attempts with an expired token fail silently or show auth errors.
 
-### Tailwind v4 `@theme inline` Pattern
+**Dependency:** Requires the `/auth/refresh` endpoint from the extended session feature above.
 
-The project already uses `@theme inline` to expose CSS vars to Tailwind utilities. Any new semantic color tokens added to `:root` / `.dark` must also be registered here:
+**Implementation pattern:** In the WS connection hook (wherever `useWebSocket` or equivalent lives), add a `refreshIfNeeded()` call in the reconnect logic before the `new WebSocket(url)` call. Use the token expiry timestamp from Zustand to decide without an extra network call.
 
-```css
-@theme inline {
-  /* Add any new named tokens here to make them available as Tailwind classes */
-  --color-neon-cyan: var(--neon-cyan);
-  --color-neon-magenta: var(--neon-magenta);
-}
-```
+### INT-02: Audit Page WebSocket on Direct Navigation
+
+**Expected behavior:** Navigating directly to `/audit` (by URL, bookmark, or page refresh) establishes the WebSocket connection for live audit events. Currently this only works when navigating from within the SPA.
+
+**Root cause pattern:** The WS connection for the audit page is likely initialized in a component that assumes an already-authenticated app shell has already established the connection, or the WS setup is conditional on prior navigation state. The fix is to ensure the audit page's `useEffect` (or equivalent TanStack Query setup) establishes its WS subscription on route mount unconditionally, with auth token available from Zustand (which is hydrated from localStorage or the auth check on app load).
 
 ---
 
 ## Sources
 
-- [shadcn/ui Theming docs](https://ui.shadcn.com/docs/theming) — CSS variable structure, OKLCH semantics (HIGH confidence)
-- [shadcn/ui Tailwind v4 docs](https://ui.shadcn.com/docs/tailwind-v4) — `@theme inline` pattern, v4 migration (HIGH confidence)
-- [React Cyberpunk Theme — shadcn.io](https://www.shadcn.io/theme/cyberpunk) — OKLCH values for cyberpunk palette reference (MEDIUM confidence)
-- [tweakcn Theme Editor](https://tweakcn.com/) — Interactive shadcn theme generator with cyberpunk presets (MEDIUM confidence)
-- [CYBERCORE CSS Framework](https://dev.to/sebyx07/introducing-cybercore-css-a-cyberpunk-design-framework-for-futuristic-uis-2e6c) — Cyberpunk component patterns: cut corners, ghost buttons, card hover glow (MEDIUM confidence)
-- [Lucide React docs](https://lucide.dev/guide/packages/lucide-react) — Individual import pattern, tree-shaking (HIGH confidence)
-- [Neon Glow Button — CSS box-shadow technique](https://seasparta618.medium.com/fantastic-css-effects-button-neon-button-using-box-shadow-6642ddee0c15) — 3-layer shadow pattern (MEDIUM confidence)
-- [Skeleton Loading best practices](https://ironeko.com/posts/the-dos-and-donts-of-skeleton-loading-in-react) — When to use skeleton vs spinner (MEDIUM confidence)
-- [Cyberpunk 2077 UI/UX Critique](https://interfaceingame.com/articles/cyberpunk-2077-ux-ui-critique/) — Anti-patterns: when overdone effects hurt usability (MEDIUM confidence)
-- [React Animation Libraries 2025](https://dev.to/raajaryan/react-animation-libraries-in-2025-what-companies-are-actually-using-3lik) — Framer Motion bundle cost analysis; rationale for CSS-only approach (MEDIUM confidence)
+- [Auth0: Refresh Tokens — What Are They and When to Use Them](https://auth0.com/blog/refresh-tokens-what-are-they-and-when-to-use-them/) — httpOnly cookie pattern, rotation semantics (HIGH confidence — official Auth0 docs)
+- [The Developer's Guide to Refresh Token Rotation — Descope](https://www.descope.com/blog/post/refresh-token-rotation) — Rotation implementation patterns, reuse detection (MEDIUM confidence)
+- [WebSocket Best Practices for Production Applications — WebSocket.org](https://websocket.org/guides/best-practices/) — Reconnect + auth token patterns (MEDIUM confidence)
+- [JWT Token Lifecycle Management — SkyCloak](https://skycloak.io/blog/jwt-token-lifecycle-management-expiration-refresh-revocation-strategies/) — Token expiry, refresh, revocation strategies (MEDIUM confidence)
+- [Onboarding UX Best Practices 2025 — UX Design Institute](https://www.uxdesigninstitute.com/blog/ux-onboarding-best-practices-guide/) — Getting Started page patterns vs. modal wizard (MEDIUM confidence)
+- [Getting Started Pattern — UX Patterns for Devs](https://uxpatterns.dev/patterns/getting-started) — Dedicated page vs. overlay patterns (MEDIUM confidence)
+- [Dashboard Design UX Patterns — Pencil & Paper](https://www.pencilandpaper.io/articles/ux-pattern-analysis-data-dashboards) — Preset/filter patterns in dashboard forms (MEDIUM confidence)
+- [Onboarding UX — Smart Interface Design Patterns](https://smart-interface-design-patterns.com/articles/onboarding-ux/) — Step count, checklist patterns, "first win" principle (MEDIUM confidence)
 
 ---
-*Feature research for: GLSD Server v1.1 Cyberpunk UI Beautification*
+*Feature research for: GLSD Server v1.2 Ease of Access*
 *Researched: 2026-03-24*

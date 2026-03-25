@@ -1,737 +1,380 @@
-# Architecture Patterns
+# Architecture Research
 
-**Domain:** WebSocket node management server with real-time streaming dashboard
-**Project:** GLSD Server
-**Researched:** 2026-03-20
-**Confidence:** HIGH (grounded in the wire protocol spec and server spec, validated against FastAPI WebSocket patterns)
+**Domain:** GSD Server — v1.2 Ease of Access integration analysis
+**Researched:** 2026-03-24
+**Confidence:** HIGH (full source review of existing codebase)
 
 ---
 
-## Recommended Architecture
+## Context: What This Research Covers
 
-The server has two fundamentally different client populations — GSD nodes (long-lived, outbound-connecting Go agents) and browser users (short-lived REST + WebSocket dashboard sessions) — connected through a central FastAPI process that holds all runtime state in memory and persists durable state to PostgreSQL.
+This document answers: how do the four v1.2 feature areas integrate with the existing
+architecture? It maps integration points, identifies what is new vs modified, and proposes
+a build order based on dependency analysis.
+
+---
+
+## System Overview (Current State — v1.1)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        BROWSER (React)                          │
-│  NodeList │ InstanceList │ StreamViewer │ VoiceInput            │
-└────────────┬──────────────────────────────────────┬────────────┘
-             │ REST (JWT)                            │ WS /ws/frontend
-             ▼                                       ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      FastAPI Process                            │
-│                                                                 │
-│  ┌─────────────────┐    ┌──────────────────────────────────┐   │
-│  │   HTTP / REST   │    │         WebSocket Layer          │   │
-│  │  (JWT auth,     │    │  NodeConnManager  FrontendMgr    │   │
-│  │   Whisper,      │    │  (node_id keyed)  (user keyed)   │   │
-│  │   CRUD APIs)    │    └────────────┬─────────────────────┘   │
-│  └────────┬────────┘                 │                          │
-│           │                          │                          │
-│           └──────────┬───────────────┘                          │
-│                      ▼                                          │
-│            ┌─────────────────┐                                  │
-│            │  Domain Core    │                                  │
-│            │  NodeRegistry   │                                  │
-│            │  InstanceStore  │                                  │
-│            │  EventRouter    │                                  │
-│            │  CommandBus     │                                  │
-│            └────────┬────────┘                                  │
-│                     │                                           │
-│            ┌────────▼────────┐                                  │
-│            │  Persistence    │                                  │
-│            │  (SQLAlchemy 2  │                                  │
-│            │   async+asyncpg)│                                  │
-│            └────────┬────────┘                                  │
-└─────────────────────┼───────────────────────────────────────────┘
-                      │
-              ┌───────▼────────┐
-              │  PostgreSQL    │
-              │  (nodes,       │
-              │   instances,   │
-              │   users,       │
-              │   teams,       │
-              │   audit_log)   │
-              └────────────────┘
-
-Separately:
-GSD Node 1 ──WSS──▶ FastAPI /ws/node
-GSD Node 2 ──WSS──▶ FastAPI /ws/node
-GSD Node N ──WSS──▶ FastAPI /ws/node
-
-FastAPI ──HTTPS──▶ OpenAI Whisper API
+┌─────────────────────────────────────────────────────────────────────┐
+│  Frontend (React 19 + TanStack Router + TanStack Query + Zustand)   │
+│                                                                      │
+│  Routes (file-based):                                                │
+│  /login          /dashboard (auth guard)   /dashboard/$nodeId       │
+│                  /dashboard/audit                                    │
+│                                                                      │
+│  Hooks:          Stores:         Lib:                                │
+│  useWebSocket    wsStore         api.ts (token mgmt + fetch)         │
+│  useVoiceRec                     queryClient.ts                      │
+└─────────────────────────┬───────────────────────────────────────────┘
+                          │ HTTP + WebSocket
+┌─────────────────────────▼───────────────────────────────────────────┐
+│  Nginx (reverse proxy — /api + /ws + static assets)                  │
+└─────────────────────────┬───────────────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────────────┐
+│  FastAPI (single Uvicorn worker)                                      │
+│                                                                      │
+│  Routers: auth  nodes  teams  audit  transcribe  health              │
+│  WS:      /ws/node (GSD nodes)    /ws/frontend (browser)            │
+│  Services: auth_service  audit_service  team_service  node_service   │
+│  WS layer: ConnectionManager + FrontendConnectionManager             │
+│  Background: stale_node_scanner (asyncio task in lifespan)           │
+└─────────────────────────┬───────────────────────────────────────────┘
+                          │ asyncpg (async only)
+┌─────────────────────────▼───────────────────────────────────────────┐
+│  PostgreSQL 16                                                        │
+│  users  teams  team_members  nodes  instances  refresh_tokens        │
+│  ws_tickets  stream_events  audit_log  node_teams                    │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Component Boundaries
+## Feature Integration Analysis
 
-### 1. Node WebSocket Gateway (`/ws/node`)
+### Feature 1: Extended JWT Sessions (1hr access + 7-day refresh rotation)
 
-**Responsibility:** Accept and authenticate GSD node connections. One connection handler per connected node. Owns the WebSocket lifecycle for that node's connection — reads frames, writes commands, handles ping/pong, detects drops.
+#### Current state
 
-**What it does:**
-- Validates `Authorization: Bearer {token}` during HTTP upgrade (reject with 401/403 before upgrading)
-- Enforces first-frame-is-`node_register` rule; closes connection if violated
-- Deserializes inbound Envelope JSON and dispatches by `type` to the Domain Core
-- Serializes and sends outbound Envelope JSON (execute, kill, status_request) received from the CommandBus
-- Tracks last-ping timestamp; a background health monitor marks nodes stale if no ping arrives in >90s
-- On disconnect (clean or drop): notifies NodeRegistry
+`config.py`: `jwt_access_token_expire_minutes: int = 30` and
+`jwt_refresh_token_expire_days: int = 7` (7-day already correct).
 
-**Communicates with:** NodeRegistry (register/deregister), InstanceStore (event forwarding), EventRouter (forward stream events to frontend), CommandBus (outbound command delivery)
+`auth_service.py` — `refresh_access_token()`: issues a new access token but returns the
+same refresh token. Source comment: "Returns the same refresh token (no rotation) — rotation
+is a v2 enhancement." The `RefreshToken` DB model already has `revoked: bool` and `expires_at`,
+so the schema supports rotation without a migration.
 
-**Does NOT own:** Node identity data (that lives in NodeRegistry), instance lifecycle state (InstanceStore), or any database writes (Persistence layer handles that)
+`api.ts` — `refreshAccessToken()` already calls `setTokens(data.access_token, data.refresh_token)`,
+which writes whatever the server returns to both memory and `localStorage`. Rotation is
+transparent to the frontend as written.
 
----
+#### Integration points — modified files
 
-### 2. Frontend WebSocket Gateway (`/ws/frontend`)
+**`backend/app/config.py`** (1-line change):
+Change `jwt_access_token_expire_minutes: int = 30` to `60`.
 
-**Responsibility:** Push real-time events to authenticated browser sessions. Subscription-based: a frontend client subscribes to events for specific nodes or instances.
+**`backend/app/services/auth_service.py`** — `refresh_access_token()`:
+After validating the stored token, issue a new refresh JWT, insert a new `RefreshToken` row
+via `store_refresh_token()`, mark the old record `revoked = True`, and return
+`TokenResponse(access_token=new_access, refresh_token=new_refresh)`.
+Both the revoke and the insert happen in the same SQLAlchemy session — no new transaction
+management needed.
 
-**What it does:**
-- Validates JWT on connect (reject before upgrading)
-- Maintains per-connection subscription state (which node_ids / instance_ids this browser tab cares about)
-- Enforces team scoping: a user can only subscribe to nodes belonging to their teams
-- Receives forwarded events from EventRouter and writes them to the browser WebSocket
-
-**Communicates with:** EventRouter (receives events), NodeRegistry/InstanceStore (to validate subscription requests against team membership)
-
-**Does NOT own:** Business logic, database writes, or the event routing decision itself
+**No frontend changes. No DB migration.**
 
 ---
 
-### 3. NodeRegistry (in-memory + persisted)
+### Feature 2: WS Token Refresh on Reconnect (INT-01)
 
-**Responsibility:** Single source of truth for node identity, connection status, and team membership. Hybrid: connection state lives in memory (the WebSocket object); durable node metadata lives in PostgreSQL.
+#### Current state
 
-**What it does:**
-- Upserts node records on `node_register` (in memory and DB)
-- Tracks `node_id → WebSocket connection` mapping for command dispatch
-- Manages node status transitions: `connected` → `stale` → `disconnected`
-- On disconnect: clears in-memory connection entry; writes status + timestamp to DB
-- On reconnect: handles same `node_id` registering on a new WebSocket (replaces old connection ref)
-- Exposes `get_connection(node_id)` for CommandBus to route commands
+`useWebSocket.ts` — `connect()`:
+1. Reads `getAccessToken()` (module-level variable in `api.ts`)
+2. Calls `fetch('/api/auth/ws-ticket', { headers: { Authorization: Bearer ${token} } })`
+3. If token is expired, the endpoint returns 401
+4. **Bug:** `if (!res.ok) return` — silently abandons reconnect without attempting token refresh
 
-**Communicates with:** Node WebSocket Gateway (connection lifecycle events), InstanceStore (triggers reconciliation on reconnect), Persistence layer (reads/writes node table)
+The module-level `refreshAccessToken()` function in `api.ts` handles the full refresh dance
+but is not exported, so `useWebSocket.ts` cannot call it.
 
----
+#### Integration points — modified files
 
-### 4. InstanceStore (in-memory + persisted)
+**`frontend/src/lib/api.ts`** — export `refreshAccessToken`:
+Change `async function refreshAccessToken()` to
+`export async function refreshAccessToken()`. One word change.
 
-**Responsibility:** Tracks all instance lifecycle state. This is the hottest component — every `stream_event` (potentially dozens per second per instance) passes through here.
+**`frontend/src/hooks/useWebSocket.ts`** — handle 401 on ticket fetch:
+Import `refreshAccessToken` and add a retry block after the `!res.ok` check:
 
-**What it does:**
-- Creates instance records when `execute` is dispatched (status: `pending`)
-- Transitions state: `pending` → `running` (on `ack`) → `finished`/`errored` (on terminal event)
-- Captures `session_id` from `instance_started`
-- Handles state reconciliation on node reconnect (Section 6 of server-spec.md)
-- Persists terminal state to DB; does NOT write stream events to DB (they are ephemeral)
-- Exposes instance lookup by `instance_id` and by `node_id`
-
-**Reconciliation logic lives here:** compare incoming `running_instances` list against in-memory tracked instances for a node_id; resolve discrepancies per the three-case algorithm in server-spec.md
-
-**Communicates with:** NodeRegistry (triggered by reconnect), EventRouter (on state transitions that need frontend updates), Persistence layer (writes instance table), Node WebSocket Gateway (receives lifecycle events)
-
----
-
-### 5. EventRouter
-
-**Responsibility:** Fan-out layer. Routes inbound node events to the correct frontend WebSocket connections. This is the "message bus" within the single process.
-
-**What it does:**
-- Receives events from the Node WebSocket Gateway: `stream_event`, `instance_started`, `instance_finished`, `instance_error`, `node_register`, `node_disconnect`
-- Looks up which frontend connections are subscribed to the relevant `node_id` or `instance_id`
-- Pushes to each subscribed frontend connection's asyncio queue
-- Handles team scoping: only routes to frontend connections that have team access to the node
-
-**Key design decision:** EventRouter does NOT write to WebSockets directly. It pushes to per-connection asyncio queues. Each frontend connection has a writer task draining its queue. This decouples routing from network I/O and prevents a slow browser client from blocking event delivery to other clients.
-
-**Communicates with:** Node WebSocket Gateway (source of events), Frontend WebSocket Gateway (destination queues), NodeRegistry (team membership lookups)
-
----
-
-### 6. CommandBus
-
-**Responsibility:** Deliver outbound commands (execute, kill, status_request) from the REST API or frontend to the correct node's WebSocket connection.
-
-**What it does:**
-- Accepts command requests: `(node_id, command_type, payload)`
-- Validates the target node is `connected` (not `stale`/`disconnected`) before dispatching
-- Looks up the live WebSocket connection from NodeRegistry
-- Serializes Envelope and calls the node connection's send method
-- Returns an error if the node is unreachable
-
-**Communicates with:** NodeRegistry (connection lookup), Node WebSocket Gateway (writes to connection send channel), REST API handlers (command origin)
-
----
-
-### 7. REST API Layer
-
-**Responsibility:** Standard HTTP endpoints for the frontend SPA. Authentication, CRUD, and the Whisper transcription flow.
-
-**Endpoints needed:**
-- `POST /api/auth/login` — issue JWT
-- `GET /api/nodes` — list nodes for user's teams
-- `GET /api/nodes/{node_id}/instances` — list instances for a node
-- `POST /api/nodes/{node_id}/execute` — dispatch execute command (optionally via Whisper)
-- `POST /api/nodes/{node_id}/instances/{instance_id}/kill` — dispatch kill command
-- `POST /api/transcribe` — audio → transcribed text (calls OpenAI Whisper API)
-- `GET /api/teams` — list user's teams
-- `POST /api/teams/{team_id}/nodes` — associate node with team
-
-**Communicates with:** CommandBus (to dispatch node commands), Persistence layer (CRUD for users/teams/nodes/instances), OpenAI API client (Whisper transcription)
-
----
-
-### 8. Persistence Layer (SQLAlchemy 2 async + asyncpg)
-
-**Responsibility:** All durable reads and writes. Never holds connection state — that's in memory.
-
-**What it owns:**
-- `nodes` table: node_id, platform, version, projects[], team_id, first_seen, last_seen, status
-- `instances` table: instance_id, node_id, project, session_id, status, started_at, finished_at, exit_code, error
-- `users` table: user_id, email, hashed_password
-- `teams` table: team_id, name
-- `team_members` table: team_id, user_id, role
-- `audit_log` table: timestamp, node_id, instance_id, event_type, actor, details (JSON)
-
-**Connection pooling:** asyncpg via SQLAlchemy 2 async engine. Single connection pool shared across the process. Do not create new connections per request.
-
-**Communicates with:** NodeRegistry, InstanceStore, REST API Layer
-
----
-
-### 9. Health Monitor (background task)
-
-**Responsibility:** Detect stale nodes without relying on explicit disconnect events.
-
-**What it does:**
-- Runs as a FastAPI lifespan background task (asyncio loop, checks every 30s)
-- Iterates connected nodes; checks `last_heartbeat` timestamp
-- Marks nodes `stale` if no ping received in >90 seconds
-- On stale: marks all running instances for that node as `errored`/lost
-- Writes status changes to DB
-
-**Communicates with:** NodeRegistry, InstanceStore, Persistence layer
-
----
-
-### 10. OpenAI Whisper Client
-
-**Responsibility:** Single place that talks to OpenAI. Called only from the `POST /api/transcribe` endpoint.
-
-**What it does:**
-- Receives audio bytes from the REST handler
-- POSTs to `https://api.openai.com/v1/audio/transcriptions` with model `whisper-1`
-- Returns transcribed text string
-- Validates file size (<25 MB) before calling the API
-
-**Communicates with:** REST API Layer only. No other component is aware of it.
-
----
-
-## Data Flow
-
-### Flow 1: Node Connect and Register
-
-```
-Node                Node WS Gateway        NodeRegistry        InstanceStore       DB
- │                       │                      │                    │              │
- │──WSS upgrade──────────▶                      │                    │              │
- │                       │──validate token──────▶                    │              │
- │                       │◀─ok──────────────────│                    │              │
- │──node_register────────▶                      │                    │              │
- │                       │──upsert_node─────────▶                    │              │
- │                       │                      │──write node────────────────────────▶
- │                       │                      │──trigger reconcile─▶              │
- │                       │                      │                    │──resolve─────▶
+```typescript
+if (res.status === 401) {
+  const refreshed = await refreshAccessToken()
+  if (!refreshed) return  // refresh token gone — let auth guard redirect
+  const retryRes = await fetch('/api/auth/ws-ticket', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getAccessToken()}` },
+  })
+  if (!retryRes.ok) return
+  const { ticket } = await retryRes.json()
+  // continue with ticket...
+}
 ```
 
-### Flow 2: Execute Command (REST-triggered)
+**No backend changes.**
 
-```
-Browser          REST API         CommandBus      NodeRegistry     Node WS Gateway   Node
-   │                │                 │               │                  │             │
-   │──POST execute──▶                 │               │                  │             │
-   │                │──dispatch───────▶               │                  │             │
-   │                │                 │──get_conn─────▶                  │             │
-   │                │                 │◀─connection───│                  │             │
-   │                │                 │──send envelope─────────────────────▶           │
-   │                │                 │                                  │──execute────▶
-   │◀─202 Accepted──│                 │                                  │             │
-```
+---
 
-### Flow 3: Stream Event Fan-Out
+### Feature 3: Audit Page WebSocket on Direct Navigation (INT-02)
 
-```
-Node          Node WS Gateway    EventRouter    Frontend WS Gateway    Browser
- │                  │                │                 │                  │
- │──stream_event────▶                │                 │                  │
- │                  │──route_event───▶                 │                  │
- │                  │                │──push to queue──▶                  │
- │                  │                │                 │──write WS frame──▶
-```
+#### Current state
 
-### Flow 4: Voice Transcription and Dispatch
+`useWebSocket()` is called in `/dashboard/index.tsx` and `/dashboard/$nodeId.tsx` but NOT
+in `/dashboard/audit.tsx`. Navigating directly to `/dashboard/audit` (bookmark, deep link,
+or page refresh) means `wsStore.socket` is null for the entire session on that page. Node
+status updates do not arrive, and navigating away to a node detail page causes a reconnect
+delay.
 
-```
-Browser         REST API         Whisper Client      OpenAI API    CommandBus    Node
-   │                │                  │                  │              │         │
-   │──POST audio────▶                  │                  │              │         │
-   │                │──transcribe───────▶                 │              │         │
-   │                │                  │──POST audio──────▶              │         │
-   │                │                  │◀─transcribed text─│             │         │
-   │                │◀─text────────────│                  │              │         │
-   │                │──dispatch(text)──────────────────────────────────────▶       │
-   │                │                                     │              │──execute──▶
-   │◀─instance_id───│                                     │              │         │
+#### Integration point — modified file (1 line)
+
+**`frontend/src/routes/dashboard/route.tsx`** — add `useWebSocket()` to `DashboardLayout`:
+
+```typescript
+import { useWebSocket } from '@/hooks/useWebSocket'
+
+function DashboardLayout() {
+  useWebSocket()   // ADD: ensures WS is established for all dashboard children
+  return <Outlet />
+}
 ```
 
-### Flow 5: Node Reconnect + Reconciliation
+The hook already guards against duplicate connections
+(`wsRef.current.readyState === WebSocket.OPEN`), so the existing calls in `index.tsx` and
+`$nodeId.tsx` become redundant but harmless. They can be cleaned up later.
+
+**No backend changes. No changes to `audit.tsx`.**
+
+---
+
+### Feature 4: Node Onboarding Guide Page
+
+#### Current state
+
+TanStack Router uses file-based routing under `frontend/src/routes/`. Adding a page requires
+adding one file and one nav entry. The page is entirely static content — no new API endpoints,
+no new stores, no backend changes.
+
+Available shadcn components already scaffolded: `Dialog`, `Tooltip`, `Progress`, `Tabs` —
+any of these can be used on the guide page without new dependencies.
+
+#### Integration points
+
+**New file: `frontend/src/routes/dashboard/onboarding.tsx`**
+Route: `/dashboard/onboarding`. Content: step-by-step node setup guide with copyable commands.
+Copy-to-clipboard is native browser API (`navigator.clipboard.writeText`) — no library needed.
+The scaffolded `Tooltip` component can provide "Copied!" feedback.
+
+**Modified: `frontend/src/routes/__root.tsx`** — add one `<Link to="/dashboard/onboarding">` in
+the sidebar `<nav>` block alongside Dashboard and Audit Log.
+
+**No backend changes.**
+
+---
+
+### Feature 5: Simplified Execute Form
+
+#### Current state
+
+`ExecuteForm.tsx` exposes:
+- Project `<select>` — raw strings from `node.projects[]`
+- Prompt `<textarea>` — free text, placeholder "Enter prompt..."
+- Session ID `<Input>` — raw UUID input, label "Resume session ID (optional)"
+- Voice button
+
+Simplification targets (from v1.2 requirements): preset prompts, project picker improvements,
+plain-language labels. The API payload shape (`node_id`, `project`, `work_dir`, `prompt`,
+`session_id`) does not change.
+
+#### Integration point — modified file
+
+**`frontend/src/components/execute/ExecuteForm.tsx`** — local UI changes only:
+- Add a preset prompts `<select>` or `<datalist>` that populates the textarea on selection
+- Improve label copy (e.g. "Project" with a description tooltip rather than raw path)
+- Rename "Resume session ID" to "Continue previous session" with an optional show/hide toggle
+- The `Tabs` or `Dialog` components are already scaffolded if a two-panel UI is desired
+
+**No backend changes. No new stores. No API shape changes.**
+
+---
+
+## Component Map: New vs Modified
+
+| Component | File | Change Type | Notes |
+|-----------|------|-------------|-------|
+| Settings | `backend/app/config.py` | Modified | 1 line: 30 → 60 minutes |
+| Auth service | `backend/app/services/auth_service.py` | Modified | Add rotation to `refresh_access_token()` |
+| Auth router | `backend/app/routers/auth.py` | None | No changes needed |
+| RefreshToken model | `backend/app/models/refresh_token.py` | None | Schema already supports rotation |
+| Token lib | `frontend/src/lib/api.ts` | Modified | Export `refreshAccessToken` |
+| WS hook | `frontend/src/hooks/useWebSocket.ts` | Modified | Handle 401 with refresh retry |
+| Dashboard layout | `frontend/src/routes/dashboard/route.tsx` | Modified | Add `useWebSocket()` call |
+| Audit page | `frontend/src/routes/dashboard/audit.tsx` | None | WS inherited from layout |
+| Execute form | `frontend/src/components/execute/ExecuteForm.tsx` | Modified | Presets, label improvements |
+| Onboarding page | `frontend/src/routes/dashboard/onboarding.tsx` | **New** | Static guide content |
+| Root layout | `frontend/src/routes/__root.tsx` | Modified | Add onboarding nav link |
+
+**New files: 1. Modified files: 7. DB migrations: 0.**
+
+---
+
+## Data Flow Changes
+
+### Refresh Token Rotation (new behavior)
 
 ```
-Node          Node WS Gateway    NodeRegistry      InstanceStore       DB
- │                  │                │                   │              │
- │──WSS upgrade─────▶                │                   │              │
- │──node_register───▶                │                   │              │
- │  (running_instances=[A,B,C])      │                   │              │
- │                  │──reconnect─────▶                   │              │
- │                  │                │──reconcile─────────▶             │
- │                  │                │                   │  A,B: update │
- │                  │                │                   │  C: add new  │
- │                  │                │                   │  D: mark err │
- │                  │                │                   │──write DB────▶
+POST /api/auth/refresh { refresh_token: OLD_RT }
+    │
+    ▼ auth_service.refresh_access_token()
+    ├─ jwt.decode(OLD_RT) → user_id
+    ├─ SELECT refresh_tokens WHERE hash=sha256(OLD_RT) AND revoked=FALSE
+    ├─ validate: not expired
+    ├─ UPDATE refresh_tokens SET revoked=TRUE WHERE token_id=...
+    ├─ create_refresh_token(user_id) → NEW_RT
+    ├─ store_refresh_token(user_id, NEW_RT) → INSERT new row
+    └─ return { access_token: NEW_AT, refresh_token: NEW_RT }
+
+Client: setTokens(NEW_AT, NEW_RT) → localStorage.setItem('refresh_token', NEW_RT)
+```
+
+### WS Reconnect with Token Refresh (new path)
+
+```
+useWebSocket.connect()
+  ├─ fetch POST /api/auth/ws-ticket  →  401 (access token expired)
+  ├─ [NEW] refreshAccessToken()
+  │     └─ fetch POST /api/auth/refresh  →  200 { NEW_AT, NEW_RT }
+  │         └─ setTokens(NEW_AT, NEW_RT)
+  ├─ fetch POST /api/auth/ws-ticket (retry)  →  200 { ticket }
+  └─ new WebSocket(`/ws/frontend?ticket=${ticket}`)
+```
+
+### Audit Page WS Lifecycle (fixed)
+
+```
+Before (INT-02 present):
+  Navigate to /dashboard/audit
+  → DashboardLayout mounts (no WS hook)
+  → AuditPage mounts
+  → wsStore.socket === null for entire session
+
+After (INT-02 fixed):
+  Navigate to /dashboard/audit
+  → DashboardLayout mounts
+  → useWebSocket() called → ticket fetched → WS connected
+  → AuditPage mounts
+  → node_status_update events arrive → ['nodes'] query invalidated
 ```
 
 ---
 
-## Suggested Build Order
+## Architectural Patterns
 
-Dependencies determine order. Each step can be tested independently before the next builds on it.
+### Two-Stage WS Auth: Ticket Retry Must Happen Before Handshake
 
-### Step 1: Persistence Layer + Data Models
+The WS ticket pattern (REST auth → single-use UUID → WS URL param) is correct and must not
+change. The v1.2 fix adds a token-refresh retry loop before stage 1 (the ticket request).
+Never pass a refresh token to the WS handshake itself or as a WS message after connect.
 
-**Why first:** Every other component depends on it. Define PostgreSQL schema, SQLAlchemy models, async engine + connection pool, Alembic migrations. No business logic — just tables and queries.
+### Layout-Level Hook Mounting
 
-**Deliverables:** Schema migrations, SQLAlchemy async models, session factory, basic CRUD functions for each table.
+`useWebSocket` belongs at the highest shared layout boundary (`/dashboard/route.tsx`),
+not at individual page level. This guarantees WS is alive for any dashboard route regardless
+of navigation entry point. The hook's internal guard prevents duplicate connections.
 
-**Test:** Run migrations against a local Postgres container; verify all tables created.
+### Rotation with Revoke-Then-Insert in Same Session
 
----
-
-### Step 2: Node WebSocket Gateway (auth + registration only)
-
-**Why second:** This is the protocol boundary. Get the GSD wire protocol handling right before any business logic is layered on. Focus on: HTTP upgrade with Bearer token validation, first-frame enforcement, Envelope deserialization/serialization, ping/pong handling.
-
-**Deliverables:** `/ws/node` endpoint that authenticates a node, deserializes `node_register`, and stores the connection. No state reconciliation yet.
-
-**Test:** Connect a real GSD node (or mock); verify it registers and heartbeats are acknowledged.
-
----
-
-### Step 3: NodeRegistry + In-Memory Connection State
-
-**Why third:** Once nodes can connect, track them. Implement the `node_id → WebSocket` map, status transitions, and the upsert-to-DB path on register and disconnect.
-
-**Deliverables:** NodeRegistry class, connection upsert on register, status transitions, DB writes.
-
-**Test:** Register two nodes, disconnect one, verify status transitions and DB state.
-
----
-
-### Step 4: CommandBus + Command Dispatch
-
-**Why fourth:** Now that nodes are tracked, commands can be dispatched. Implement execute, kill, status_request dispatch through the connection registry.
-
-**Deliverables:** CommandBus, REST endpoints for execute and kill (without frontend push yet), command validation (node connected? project exists?).
-
-**Test:** Dispatch an execute to a real/mock node; verify ack received.
-
----
-
-### Step 5: InstanceStore + Lifecycle Events
-
-**Why fifth:** Command dispatch generates instance events. Implement instance creation, status transitions, reconciliation, and terminal event handling.
-
-**Deliverables:** InstanceStore, all inbound event handlers (`ack`, `instance_started`, `stream_event` store, `instance_finished`, `instance_error`), state reconciliation on reconnect.
-
-**Test:** Full execute → ack → instance_started → stream → finish lifecycle against a real node.
-
----
-
-### Step 6: Health Monitor
-
-**Why sixth:** Background health monitoring is independent of all user-facing flows. Build it once the core lifecycle is stable.
-
-**Deliverables:** Lifespan background task, stale-node detection, stale-instance cleanup.
-
-**Test:** Connect a node, block its heartbeats for 90+ seconds, verify it goes stale and instances are errored.
-
----
-
-### Step 7: JWT Auth + User/Team REST APIs
-
-**Why seventh:** Build the human-facing auth layer. JWT issue/validate, user registration, team management, node-to-team assignment.
-
-**Deliverables:** `POST /api/auth/login`, user CRUD, team CRUD, team-node association, JWT middleware on all protected routes.
-
-**Test:** Create user, login, get token, use token to list nodes.
-
----
-
-### Step 8: Frontend WebSocket Gateway + EventRouter
-
-**Why eighth:** The full real-time push path. Once the backend state machine works, expose it to browsers. Implement frontend WebSocket auth, subscription model, EventRouter fan-out with per-connection queues.
-
-**Deliverables:** `/ws/frontend` endpoint, EventRouter, subscription management, team-scoped event delivery.
-
-**Test:** Connect browser, subscribe to a node, execute a command, verify stream events arrive in browser.
-
----
-
-### Step 9: React Dashboard
-
-**Why ninth:** Build the UI once the full backend API is stable. SPA with node list, instance management, live output streaming, JWT login.
-
-**Deliverables:** React app, useWebSocket hook, node/instance views, live stream display, auth flow.
-
-**Test:** End-to-end: login, see nodes, dispatch execute via UI, see output stream in real time.
-
----
-
-### Step 10: Whisper Integration
-
-**Why tenth:** Voice transcription is a self-contained REST call. Build it last because it has no upstream dependencies — it's purely a translation layer (audio → text) that feeds the existing execute path.
-
-**Deliverables:** `POST /api/transcribe`, OpenAI Whisper client, frontend MediaRecorder integration.
-
-**Test:** Record audio in browser, transcribe, verify text arrives at node as prompt.
-
----
-
-### Step 11: Audit Trail + Hardening
-
-**Why last:** Cross-cutting concern. Log all command dispatches and events to `audit_log` table. Add rate limiting, command validation edge cases, token rotation support.
-
-**Deliverables:** Audit log writes on all command/event paths, rate limit middleware, final security review.
+Both the `revoked = True` update and the new `RefreshToken` insert must happen in the same
+SQLAlchemy session before commit. This prevents a window where both the old and new tokens
+are simultaneously valid. The existing `refresh_access_token()` function already holds a
+session passed from the router dependency — use it for both operations.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Blocking WebSocket Write in Event Router
+### Sending Refresh Token Through the WS Handshake
 
-**What goes wrong:** EventRouter calls `await websocket.send_text(...)` directly for each subscriber while processing a node event. A slow or buffered browser connection blocks delivery to all other subscribers.
+Do not add a `refresh_token` query parameter to `/ws/frontend`. Tickets exist specifically
+to avoid passing long-lived credentials in URLs. Fix token expiry in `connect()` before the
+ticket request, not during or after the WS handshake.
 
-**Why bad:** Stream events arrive at high frequency. One lagging frontend client freezes the entire event fan-out loop.
+### Per-Page useWebSocket Calls as the INT-02 Fix
 
-**Instead:** EventRouter puts events into each subscriber's `asyncio.Queue`. Each frontend connection has a dedicated writer coroutine draining its queue. Slow clients fall behind their own queue without affecting others.
+Adding `useWebSocket()` to `audit.tsx` fixes INT-02 but leaves any future dashboard pages
+vulnerable to the same bug. The correct fix is to move the call to the shared layout.
 
----
+### DB Migration for Token Expiry Duration
 
-### Anti-Pattern 2: Writing Stream Events to PostgreSQL
+The 1hr access token change is a config value only. Token expiry is embedded in the JWT
+payload (`exp` claim) — it is not stored in PostgreSQL. No migration is needed.
 
-**What goes wrong:** Every `stream_event` is persisted to the database. Claude CLI produces dozens of NDJSON lines per second per instance.
+### Deleting Old Refresh Token Records at Rotation
 
-**Why bad:** At even modest load (10 concurrent instances x 20 events/second = 200 DB writes/second), the PostgreSQL write load becomes the primary bottleneck. Stream events are ephemeral — they don't need durability.
-
-**Instead:** Forward stream events in memory (EventRouter → frontend queues). Store only terminal state in DB: instance created, started, finished/errored. If replay of output is required in future, that's a separate concern (Redis Streams, file log) scoped to a future phase.
-
----
-
-### Anti-Pattern 3: Per-Request Database Connections
-
-**What goes wrong:** A new asyncpg connection is opened for each WebSocket message or REST request.
-
-**Why bad:** Connection setup overhead is non-trivial. Under WebSocket load (continuous stream events hitting the DB), connection churn exhausts the PostgreSQL `max_connections` limit.
-
-**Instead:** Single SQLAlchemy async engine with a connection pool at application startup. All handlers share the pool. Pool size tuned at deployment time.
+Keep revoked records. They provide audit trail for session compromise detection. Only set
+`revoked = True`. Cleanup of old records can be a periodic job if storage becomes a concern,
+but is out of scope for v1.2.
 
 ---
 
-### Anti-Pattern 4: Mixing Sync and Async Database Calls
+## Build Order
 
-**What goes wrong:** SQLAlchemy sync ORM used alongside async route handlers (e.g., `session.query(...).all()` called from an `async def` handler).
+Auth changes must precede WS reconnect fix because the reconnect fix depends on the refresh
+endpoint returning a rotated token (confirming the full refresh cycle works correctly).
 
-**Why bad:** Sync DB calls block the asyncio event loop, negating all concurrency benefits. One 50ms DB query blocks ALL WebSocket message processing for that duration.
+```
+Step 1: Extended sessions + token rotation (backend only)
+  Files: config.py, auth_service.py
+  Dependency: none — self-contained
+  Test signal: POST /api/auth/refresh returns new refresh_token value each call
 
-**Instead:** SQLAlchemy 2 async ORM throughout (`AsyncSession`, `select()`, `await session.execute(...)`). asyncpg as the driver. Alembic migrations kept separately (Alembic's sync is acceptable for migrations — they don't run in the hot path).
+Step 2: WS token refresh on reconnect (frontend only)
+  Files: api.ts (export), useWebSocket.ts (retry block)
+  Dependency: Step 1 (rotation must be live before testing the full reconnect path)
+  Test signal: Manually expire access token, verify WS reconnects without page reload
 
----
+Step 3: Audit page WS fix (frontend layout)
+  Files: dashboard/route.tsx
+  Dependency: Step 2 (ensures reconnect is reliable for long-idle sessions)
+  Test signal: Direct navigate to /dashboard/audit, confirm WS connected in store
 
-### Anti-Pattern 5: Single WebSocket Endpoint for Nodes and Frontend
+Step 4: Onboarding guide page (frontend new route)
+  Files: onboarding.tsx (new), __root.tsx (nav link)
+  Dependency: none — fully independent, can be parallelized with steps 1-3
+  Test signal: /dashboard/onboarding renders, nav link active
 
-**What goes wrong:** Nodes and browser clients share a single `/ws` endpoint with type-based routing inside the handler.
+Step 5: Simplified execute form (frontend component)
+  Files: ExecuteForm.tsx
+  Dependency: none — independent UI change
+  Test signal: Preset selection populates textarea, form still submits correctly
+```
 
-**Why bad:** Completely different auth mechanisms (Bearer token vs JWT), different message schemas, different connection lifecycles. Mixing them creates fragile conditionals throughout the handler.
-
-**Instead:** Separate endpoints: `/ws/node` for GSD nodes, `/ws/frontend` for browser clients. Each has its own auth middleware and handler logic. They share only the Domain Core (NodeRegistry, InstanceStore) through dependency injection.
-
----
-
-### Anti-Pattern 6: Storing Node Connection Objects in the Database
-
-**What goes wrong:** WebSocket connection objects (or references to them) are stored in PostgreSQL rows or serialized to JSON.
-
-**Why bad:** WebSocket connections are in-process objects tied to the current event loop. They cannot survive process restart, serialization, or cross-process communication. Attempting to do so causes silent failures and memory leaks.
-
-**Instead:** In-memory dict `{node_id: WebSocket}` in NodeRegistry. PostgreSQL stores only serializable node metadata (status, timestamps, platform). When the process restarts, connections are rebuilt via node reconnection; DB reflects current truth.
-
----
-
-## Scalability Considerations
-
-The v1 architecture is intentionally single-process. All of the above applies to a single Uvicorn worker.
-
-| Concern | At v1 (single process) | If horizontal scaling needed later |
-|---------|----------------------|-------------------------------------|
-| WebSocket connection state | In-memory dict in NodeRegistry | Redis hash for node→connection metadata; sticky routing so each node stays on one server |
-| Event fan-out | In-process asyncio queues | Redis Pub/Sub per team or instance channel; each server subscribes and delivers to its local frontend clients |
-| Database | Single async pool | Read replicas for dashboard queries; write primary for lifecycle events |
-| Whisper | Synchronous HTTP call per request | Task queue (Celery/ARQ) if audio processing becomes a bottleneck |
-
-v1 constraint from PROJECT.md: "Horizontal server scaling — single-instance server for v1." The above patterns are not premature optimization warnings — they are documented so the build avoids anti-patterns that would make horizontal scaling impossible later (e.g., anti-pattern 6 above).
+Steps 4 and 5 are independent of steps 1-3 and of each other. Steps 1 → 2 → 3 must be
+sequential.
 
 ---
 
 ## Sources
 
-- [FastAPI WebSocket Advanced Usage — Official Docs](https://fastapi.tiangolo.com/advanced/websockets/) (HIGH confidence)
-- [Advanced WebSocket Architectures in FastAPI for High Performance Real-Time Systems](https://hexshift.medium.com/how-to-incorporate-advanced-websocket-architectures-in-fastapi-for-high-performance-real-time-b48ac992f401) (MEDIUM confidence — verified patterns against official docs)
-- [Developing a Real-time Dashboard with FastAPI, Postgres, and WebSockets — TestDriven.io](https://testdriven.io/blog/fastapi-postgres-websockets/) (MEDIUM confidence)
-- [Building High-Performance Async APIs with FastAPI, SQLAlchemy 2.0, and Asyncpg — Leapcell](https://leapcell.io/blog/building-high-performance-async-apis-with-fastapi-sqlalchemy-2-0-and-asyncpg) (MEDIUM confidence)
-- [WebSocket Notifications with FastAPI — Connection Management, Rooms, Reconnection](https://blog.greeden.me/en/2025/10/28/weaponizing-real-time-websocket-sse-notifications-with-fastapi-connection-management-rooms-reconnection-scale-out-and-observability/) (MEDIUM confidence)
-- [Scalable WebSocket Architecture — Hathora](https://blog.hathora.dev/scalable-websocket-architecture/) (MEDIUM confidence)
-- `server-spec.md` and `protocol-spec.md` in this repository (HIGH confidence — normative specs)
+- Source: `backend/app/services/auth_service.py` — rotation explicitly deferred with comment
+- Source: `backend/app/config.py` — `jwt_access_token_expire_minutes = 30` confirmed
+- Source: `backend/app/models/refresh_token.py` — `revoked` field confirmed, no migration needed
+- Source: `frontend/src/hooks/useWebSocket.ts` — `if (!res.ok) return` is INT-01 root cause
+- Source: `frontend/src/routes/dashboard/audit.tsx` — no `useWebSocket()` call confirms INT-02
+- Source: `frontend/src/lib/api.ts` — `refreshAccessToken` defined but not exported
+- Source: `frontend/src/routes/dashboard/route.tsx` — no WS hook in current layout
 
 ---
 
-## v1.1 Frontend Theme Architecture: Cyberpunk UI Integration
-
-**Domain:** Cyberpunk theme layer on existing React + shadcn/ui + Tailwind v4 frontend
-**Researched:** 2026-03-24
-**Confidence:** HIGH
-
-This section documents how the cyberpunk theme system integrates with the existing frontend architecture for the v1.1 milestone.
-
-### Theme Layer System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Theme Token Layer                           │
-│  src/index.css — single source of truth for all CSS variables   │
-│  :root/.dark { --cyber-* }    @theme inline { --color-cyber-* } │
-│  @layer utilities { .cyber-* } @keyframes { glow-pulse, etc }   │
-├─────────────────────────────────────────────────────────────────┤
-│                   Component Layer                               │
-│  ┌──────────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │  ui/ (CVA    │  │  nodes/  │  │ stream/  │  │ execute/ │    │
-│  │  cyber vars) │  │  cards   │  │  panels  │  │  forms   │    │
-│  └──────────────┘  └──────────┘  └──────────┘  └──────────┘    │
-├─────────────────────────────────────────────────────────────────┤
-│                    Layout / Route Layer                         │
-│  ┌────────────────────────────────────────────────────────┐     │
-│  │  __root.tsx (sidebar + nav) — primary cyberpunk canvas │     │
-│  └────────────────────────────────────────────────────────┘     │
-├─────────────────────────────────────────────────────────────────┤
-│                    State / Data Layer (unchanged)               │
-│  ┌──────────┐  ┌──────────────┐  ┌──────────────────────┐       │
-│  │ wsStore  │  │ TanStack     │  │ TanStack Router       │       │
-│  │ (zustand)│  │ Query        │  │ (file-based routes)   │       │
-│  └──────────┘  └──────────────┘  └──────────────────────┘       │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Files: Modify vs Leave Alone
-
-| File | Action | What Changes |
-|------|--------|--------------|
-| `src/index.css` | **MODIFY (primary)** | Add cyberpunk tokens to `.dark`, `@theme inline`, `@layer utilities`, `@keyframes` |
-| `routes/__root.tsx` | **MODIFY** | Sidebar: replace hardcoded `bg-gray-900`/`border-gray-800` with cyber tokens; gradient bg, glow nav active state |
-| `components/ui/button.tsx` | **MODIFY** | Add `cyber` variant to CVA; add `cyber-ghost` for nav |
-| `components/ui/badge.tsx` | **MODIFY** | Wire status colors through cyber token CSS vars |
-| `components/ui/card.tsx` | **MODIFY** | Add glow border treatment via `box-shadow` CSS var |
-| `components/ui/input.tsx` | **MODIFY** | Cyber focus ring (cyan glow vs default ring) |
-| `components/ui/skeleton.tsx` | **MODIFY** | Shimmer color → cyber surface colors |
-| `components/nodes/NodeCard.tsx` | **MODIFY** | Replace hardcoded `bg-gray-900`/`border-gray-800` with cyber tokens |
-| `components/nodes/NodeStatusBadge.tsx` | **MODIFY** | Replace inline `bg-green-600/20 text-green-400` etc. with cyber semantic tokens |
-| `components/nodes/NodeGrid.tsx` | **MODIFY** | Empty state styling |
-| `components/stream/StreamPanel.tsx` | **MODIFY** | Header gradient, scroll-to-bottom button cyber style |
-| `components/execute/ExecuteForm.tsx` | **MODIFY** | Replace raw `<textarea>`/`<select>` with proper shadcn Input/Select; apply cyber tokens |
-| `routes/dashboard/index.tsx` | **MODIFY** | Page header typography, spacing |
-| `routes/dashboard/$nodeId.tsx` | **MODIFY** | Panel borders, back button, metadata grid styling |
-| `routes/dashboard/audit.tsx` | **MODIFY** | Table header, filter styling |
-| `stores/wsStore.ts` | **NO CHANGE** | State logic unaffected by visual layer |
-| `hooks/useWebSocket.ts` | **NO CHANGE** | Network logic unaffected |
-| `hooks/useAutoScroll.ts` | **NO CHANGE** | Behavior unchanged |
-| `lib/api.ts` | **NO CHANGE** | Network layer unchanged |
-
-### New Files to Create
-
-| File | Reason |
-|------|--------|
-| `components/ui/icon.tsx` | Thin Lucide wrapper enforcing consistent `size` and `strokeWidth={1.5}` |
-| `components/ui/progress.tsx` | Add via `npx shadcn add progress` — needed for loading state polish |
-
-### Tailwind v4 Token Architecture
-
-The project already uses `@theme inline` in `index.css` to bridge CSS custom properties to Tailwind utilities. This is the correct v4 pattern. The cyberpunk migration extends this exact pattern:
-
-**Step 1 — Define runtime CSS vars in `.dark` block:**
-```css
-.dark {
-  --cyber-primary: oklch(0.72 0.25 200);          /* neon cyan */
-  --cyber-secondary: oklch(0.68 0.30 320);         /* neon magenta */
-  --cyber-accent: oklch(0.75 0.28 145);            /* neon green */
-  --cyber-danger: oklch(0.65 0.28 25);             /* neon red-orange */
-  --cyber-surface: oklch(0.12 0.02 250);           /* near-black blue-tinted */
-  --cyber-surface-elevated: oklch(0.16 0.02 250);
-  --cyber-border: oklch(0.72 0.25 200 / 25%);
-  --cyber-glow-primary: 0 0 12px oklch(0.72 0.25 200 / 60%);
-  --cyber-glow-secondary: 0 0 12px oklch(0.68 0.30 320 / 60%);
-}
-```
-
-**Step 2 — Wire into `@theme inline` to generate utility classes:**
-```css
-@theme inline {
-  /* ... existing mappings ... */
-  --color-cyber-primary: var(--cyber-primary);
-  --color-cyber-secondary: var(--cyber-secondary);
-  --color-cyber-accent: var(--cyber-accent);
-  --color-cyber-surface: var(--cyber-surface);
-  --color-cyber-surface-elevated: var(--cyber-surface-elevated);
-  --color-cyber-border: var(--cyber-border);
-}
-```
-
-**Step 3 — Add gradient utilities in `@layer utilities`:**
-```css
-@layer utilities {
-  .cyber-gradient-bg {
-    background: linear-gradient(
-      135deg,
-      oklch(0.12 0.02 250) 0%,
-      oklch(0.10 0.04 280) 100%
-    );
-  }
-  .cyber-scanlines {
-    background-image: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      oklch(0 0 0 / 4%) 2px,
-      oklch(0 0 0 / 4%) 4px
-    );
-  }
-}
-```
-
-**Step 4 — Animation keyframes in `@theme`:**
-```css
-@theme {
-  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
-  --animate-status-ping: status-ping 1.5s cubic-bezier(0,0,0.2,1) infinite;
-}
-
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 4px var(--cyber-primary); }
-  50%       { box-shadow: 0 0 16px var(--cyber-primary), 0 0 32px var(--cyber-primary); }
-}
-
-@keyframes status-ping {
-  75%, 100% { transform: scale(1.5); opacity: 0; }
-}
-```
-
-After these four steps, components use `bg-cyber-surface`, `text-cyber-primary`, `border-cyber-border`, `animate-glow-pulse` as standard Tailwind classes. No hardcoded oklch values in component files.
-
-### CVA Cyber Variant Pattern
-
-The button and badge already use class-variance-authority. Add a `cyber` variant alongside existing variants — do not replace `default`:
-
-```typescript
-// components/ui/button.tsx — add to buttonVariants
-cyber: [
-  "border border-cyber-primary/40",
-  "bg-cyber-primary/10 text-cyber-primary",
-  "hover:bg-cyber-primary/20 hover:border-cyber-primary/70",
-  "hover:shadow-[var(--cyber-glow-primary)]",
-  "transition-all duration-200",
-].join(" "),
-```
-
-The `cyber` variant is opt-in per callsite. Existing uses of `variant="default"` and `variant="ghost"` remain unchanged.
-
-### Icon Integration
-
-`lucide-react` v1 is already installed and partially used (`Monitor`, `Clock`, `ArrowLeft`, `ArrowDown`, `LogOut`). The existing usage is inconsistent — some icons use `h-4 w-4`, some `h-3 w-3`. A thin `Icon` wrapper at `components/ui/icon.tsx` enforces `strokeWidth={1.5}` (lighter than Lucide's default 2 — better for cyberpunk aesthetic) and a consistent size scale:
-
-```typescript
-interface IconProps {
-  icon: LucideIcon
-  size?: 'xs' | 'sm' | 'md' | 'lg'  // maps to size-3 / size-3.5 / size-4 / size-5
-  className?: string
-}
-```
-
-All new icon additions go through this wrapper. Existing usages can be migrated in the same pass.
-
-### Animation Layer
-
-Three animation layers stack without conflict:
-
-1. **tw-animate-css** (already imported): Handles entrance/exit — `animate-in fade-in slide-in-from-top-2` for panel transitions, toast notifications
-2. **Custom `@keyframes`** in `@theme`: Handles ambient persistent animations — `animate-glow-pulse` on connected node status indicators, `animate-status-ping` for live instance running state
-3. **Tailwind `transition-*` utilities**: Handles hover/focus micro-interactions — `transition-all duration-200` on card hover, button press
-
-No CSS animation state lives in React (no `useState` for animation triggers). All animations are CSS-driven.
-
-### No Theme State Required
-
-The app is dark-only — `__root.tsx` hardcodes `bg-gray-950` and `text-gray-100`. The existing `@custom-variant dark (&:is(.dark *))` activates all `.dark` block tokens when `class="dark"` is on `<html>`. `next-themes` is installed but not wired up, which is correct — do not add a `ThemeProvider` wrapper.
-
-Ensure `<html class="dark">` is present in `index.html` or set on document mount. All cyberpunk tokens activate automatically. Zero Zustand or React context is needed for theme state.
-
-### Build Order for v1.1 Implementation
-
-Dependencies between layers determine the correct sequence:
-
-```
-1. Token Foundation (src/index.css)
-   Cyberpunk CSS vars, @theme wiring, @layer utilities, @keyframes
-   — everything downstream depends on tokens existing first
-
-2. Base Component Variants (button, badge, card, input, skeleton, icon wrapper)
-   — route layouts compose these components
-
-3. Root Layout + Navigation (__root.tsx)
-   — pages inherit the sidebar/chrome
-
-4. Domain Components (NodeCard, NodeStatusBadge, StreamPanel, ExecuteForm)
-   — compose base components; can now apply cyber variants
-
-5. Loading States + Micro-interactions (skeleton, progress, animate-in classes)
-   — polish layer; safe to add after structure is correct
-
-6. Typography + Spacing Pass (all dashboard routes)
-   — final visual hierarchy sweep across all pages
-```
-
-### Frontend Theme Anti-Patterns
-
-**Do not hardcode oklch/hex values in component files.** Every color must go through a `--cyber-*` token defined in `index.css`. Use arbitrary values (`bg-[#0a0a1a]`) only for truly one-off values with no token equivalent — and there should be none in a properly tokenized theme.
-
-**Do not override `@theme inline` to change semantic shadcn tokens.** The `@theme inline` block inlines values at build time — it does not respond to dark/light context switching. Cyberpunk color overrides belong in the `:root` / `.dark` blocks (runtime variables), which is how `index.css` is already structured.
-
-**Do not re-run `shadcn add` with a different style.** `components.json` is locked to `base-nova` (`@base-ui/react` primitives). Running `shadcn add` with a conflicting style will break existing components. New components (e.g., `progress`, `dialog`) must be added as `base-nova` and then styled via CSS variable overrides.
-
-**Do not add animation CSS to individual component files.** All `@keyframes` belong in `index.css` under `@theme`. Component files only apply utility class names.
-
-### Sources
-
-- [Tailwind CSS v4 Theme Variables](https://tailwindcss.com/docs/theme) — `@theme inline` semantics, CSS custom property exposure — HIGH confidence
-- [shadcn/ui Tailwind v4 Guide](https://ui.shadcn.com/docs/tailwind-v4) — CSS variable structure, dark mode pattern — HIGH confidence
-- [tw-animate-css](https://github.com/Wombosvideo/tw-animate-css) — Tailwind v4 compatible animation library (already installed) — HIGH confidence
-- [Lucide React sizing guide](https://lucide.dev/guide/react/basics/sizing) — strokeWidth prop, size defaults — HIGH confidence
-- Codebase inspection: `frontend/src/index.css`, `__root.tsx`, `components/ui/button.tsx`, `NodeCard.tsx`, `StreamPanel.tsx`, `NodeStatusBadge.tsx`, `components.json` — HIGH confidence (direct source)
+*Architecture research for: GLSD Server v1.2 Ease of Access*
+*Researched: 2026-03-24*
