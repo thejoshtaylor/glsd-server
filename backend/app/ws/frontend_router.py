@@ -12,8 +12,10 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
 from app.database import get_session_maker
+from app.models.instance import Instance
 from app.services.auth_service import validate_ws_ticket
 from app.services.node_service import user_can_access_instance
+from app.ws.commands import dispatch_execute
 from app.ws.frontend_manager import FrontendConnection, frontend_manager
 from app.ws.manager import connection_manager
 
@@ -146,6 +148,70 @@ async def frontend_ws_endpoint(websocket: WebSocket, ticket: str) -> None:
                     logger.info(
                         "Frontend unsubscribed: user=%s instance=%s", user_id, instance_id
                     )
+
+            elif msg_type == "claim_prompt":
+                instance_id = msg.get("instance_id")
+                if not instance_id:
+                    continue
+                claimed = frontend_manager.claim_prompt(instance_id, conn)
+                if claimed:
+                    await frontend_manager.broadcast_prompt_claimed(instance_id, conn)
+                else:
+                    # Only notify the requesting connection — claim already taken
+                    try:
+                        conn.queue.put_nowait(
+                            {"type": "prompt_claimed", "instance_id": instance_id, "is_mine": False}
+                        )
+                    except asyncio.QueueFull:
+                        pass
+
+            elif msg_type == "submit_answer":
+                instance_id = msg.get("instance_id")
+                prompt = msg.get("prompt", "")
+                session_id = msg.get("session_id")
+                if not (instance_id and prompt and session_id):
+                    continue
+
+                # Validate the submitting connection holds the claim
+                claim = frontend_manager.get_prompt_claim(instance_id)
+                if claim is None or claim[1] is not conn:
+                    try:
+                        conn.queue.put_nowait(
+                            {"type": "error", "detail": "Not the prompt claimer"}
+                        )
+                    except asyncio.QueueFull:
+                        pass
+                    continue
+
+                # CRITICAL (STATE.md locked): broadcast prompt_answered to ALL connections
+                # BEFORE dispatching to the node — prevents multi-tab duplicate submission
+                await frontend_manager.broadcast_prompt_answered(instance_id)
+
+                # Fetch instance to get node_id and project
+                async with get_session_maker()() as session:
+                    instance = await session.get(Instance, instance_id)
+                    if not instance:
+                        logger.warning(
+                            "submit_answer: instance not found: %s", instance_id
+                        )
+                        continue
+                    node_id = instance.node_id
+                    project_name = instance.project
+
+                # Dispatch the answer as a session-resume execute
+                async with get_session_maker()() as db_session:
+                    try:
+                        await dispatch_execute(
+                            node_id=node_id,
+                            project=project_name,
+                            work_dir=".",
+                            prompt=prompt,
+                            user_id=user_id,
+                            db=db_session,
+                            session_id=session_id,
+                        )
+                    except (PermissionError, ValueError) as exc:
+                        logger.warning("submit_answer dispatch failed: %s", exc)
 
             else:
                 logger.debug(
