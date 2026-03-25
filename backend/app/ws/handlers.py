@@ -6,7 +6,9 @@ across WebSocket awaits.
 """
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
+
+from app.utils.time import utcnow
 
 from sqlalchemy import func, select, update
 
@@ -50,7 +52,7 @@ async def handle_node_register(payload: NodeRegisterPayload, conn: NodeConnectio
         # Register the new connection.
         connection_manager.register(conn)
 
-        now = datetime.now(timezone.utc)
+        now = utcnow()
 
         is_new = False
         async with get_session_maker()() as session:
@@ -116,7 +118,7 @@ async def reconcile_instances(
     server_instances = {inst.instance_id: inst for inst in result.scalars()}
     server_ids = set(server_instances.keys())
 
-    now = datetime.now(timezone.utc)
+    now = utcnow()
 
     # Lost instances — in server but NOT in node's list (e.g., node crashed).
     for lost_id in server_ids - node_ids:
@@ -191,7 +193,7 @@ async def handle_stream_event(payload: StreamEventPayload) -> None:
                     instance_id=payload.instance_id,
                     sequence_num=seq,
                     data=parsed_data,
-                    created_at=datetime.now(timezone.utc),
+                    created_at=utcnow(),
                 )
             )
             await session.commit()
@@ -213,7 +215,7 @@ async def handle_instance_started(payload: InstanceStartedPayload) -> None:
             instance = await session.get(Instance, payload.instance_id)
             if instance is not None:
                 instance.session_id = payload.session_id
-                instance.started_at = datetime.now(timezone.utc)
+                instance.started_at = utcnow()
                 # Set running in case ACK was missed (belt-and-suspenders).
                 instance.status = InstanceStatus.running
             await session.commit()
@@ -234,7 +236,7 @@ async def handle_instance_finished(payload: InstanceFinishedPayload) -> None:
                 node_id = instance.node_id
                 instance.status = InstanceStatus.finished
                 instance.exit_code = payload.exit_code
-                instance.finished_at = datetime.now(timezone.utc)
+                instance.finished_at = utcnow()
             await session.commit()
         except Exception:
             await session.rollback()
@@ -267,7 +269,7 @@ async def handle_instance_error(payload: InstanceErrorPayload) -> None:
                 # Must work from both pending (rate-limit case) and running.
                 instance.status = InstanceStatus.errored
                 instance.error = payload.error
-                instance.finished_at = datetime.now(timezone.utc)
+                instance.finished_at = utcnow()
             await session.commit()
         except Exception:
             await session.rollback()
@@ -292,7 +294,7 @@ async def handle_node_disconnect(payload: NodeDisconnectPayload, node_id: str) -
             node = await session.get(Node, node_id)
             if node is not None:
                 node.status = NodeStatus.disconnected
-                node.last_seen = datetime.now(timezone.utc)
+                node.last_seen = utcnow()
             await session.commit()
         except Exception:
             await session.rollback()
@@ -314,7 +316,7 @@ async def handle_unexpected_disconnect(node_id: str) -> None:
             node = await session.get(Node, node_id)
             if node is not None:
                 node.status = NodeStatus.disconnected
-                node.last_seen = datetime.now(timezone.utc)
+                node.last_seen = utcnow()
 
             # Bulk-error all running/pending instances in one statement.
             await session.execute(
@@ -326,7 +328,7 @@ async def handle_unexpected_disconnect(node_id: str) -> None:
                 .values(
                     status=InstanceStatus.errored,
                     error="node disconnected unexpectedly",
-                    finished_at=datetime.now(timezone.utc),
+                    finished_at=utcnow(),
                 )
             )
             await session.commit()

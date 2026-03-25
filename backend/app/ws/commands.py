@@ -5,7 +5,9 @@ and project availability before dispatching protocol-correct envelopes.
 """
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
+
+from app.utils.time import utcnow
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -92,7 +94,7 @@ async def dispatch_execute(
                 if instance:
                     instance.status = InstanceStatus.errored
                     instance.error = "Node disconnected before execute could be sent"
-                    instance.finished_at = datetime.now(timezone.utc)
+                    instance.finished_at = utcnow()
                 await session.commit()
             except Exception:
                 await session.rollback()
