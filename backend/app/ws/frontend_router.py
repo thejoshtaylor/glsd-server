@@ -7,6 +7,7 @@ JWT were captured from URL query params. Tickets are single-use, expire in
 import asyncio
 import json
 import logging
+import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
@@ -18,6 +19,7 @@ from app.services.node_service import user_can_access_instance
 from app.ws.commands import dispatch_execute
 from app.ws.frontend_manager import FrontendConnection, frontend_manager
 from app.ws.manager import connection_manager
+from app.ws.sequencer import ActiveSequence, run_sequence, sequence_registry
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +217,53 @@ async def frontend_ws_endpoint(websocket: WebSocket, ticket: str) -> None:
                         )
                     except (PermissionError, ValueError) as exc:
                         logger.warning("submit_answer dispatch failed: %s", exc)
+
+            elif msg_type == "start_sequence":
+                node_id = msg.get("node_id")
+                project = msg.get("project")
+                work_dir = msg.get("work_dir", ".")
+                steps = msg.get("steps", [])
+                auto_advance = msg.get("auto_advance", True)
+                if not (node_id and project and steps):
+                    continue
+                sequence_id = str(uuid.uuid4())
+                seq = ActiveSequence(
+                    sequence_id=sequence_id,
+                    node_id=node_id,
+                    user_id=user_id,
+                    steps=steps,
+                    auto_advance=auto_advance,
+                    project=project,
+                    work_dir=work_dir,
+                )
+                sequence_registry.start(seq)
+                task = asyncio.create_task(run_sequence(seq))
+                seq.task = task
+                try:
+                    conn.queue.put_nowait({"type": "sequence_started", "sequence_id": sequence_id})
+                except asyncio.QueueFull:
+                    pass
+
+            elif msg_type == "cancel_sequence":
+                sequence_id = msg.get("sequence_id")
+                if not sequence_id:
+                    continue
+                # Find and cancel — validate user ownership before cancelling
+                for key, seq in list(sequence_registry._active.items()):
+                    if seq.sequence_id == sequence_id and seq.user_id == user_id:
+                        if seq.task and not seq.task.done():
+                            seq.task.cancel()
+                        break
+
+            elif msg_type == "advance_sequence":
+                sequence_id = msg.get("sequence_id")
+                if not sequence_id:
+                    continue
+                for seq in sequence_registry._active.values():
+                    if seq.sequence_id == sequence_id and seq.user_id == user_id:
+                        if not seq.advance_event.is_set():
+                            seq.advance_event.set()
+                        break
 
             else:
                 logger.debug(

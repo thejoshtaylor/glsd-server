@@ -22,6 +22,7 @@ from app.services.audit_service import write_audit_log
 from app.ws.classifier import classify_stream_event
 from app.ws.frontend_manager import frontend_manager
 from app.ws.manager import NodeConnection, connection_manager
+from app.ws.sequencer import sequence_registry
 from app.ws.protocol import (
     AckPayload,
     InstanceErrorPayload,
@@ -272,6 +273,7 @@ async def handle_instance_finished(payload: InstanceFinishedPayload) -> None:
     connection_manager.clear_stream_events(payload.instance_id)
 
     await frontend_manager.broadcast_instance_status(payload.instance_id, "finished")
+    sequence_registry.signal_completion(payload.instance_id)
     await write_audit_log(
         event_type="instance_finished",
         node_id=node_id,
@@ -305,6 +307,7 @@ async def handle_instance_error(payload: InstanceErrorPayload) -> None:
     connection_manager.clear_stream_events(payload.instance_id)
 
     await frontend_manager.broadcast_instance_status(payload.instance_id, "errored")
+    sequence_registry.signal_completion(payload.instance_id)
     await write_audit_log(
         event_type="instance_error",
         node_id=node_id,
@@ -361,6 +364,15 @@ async def handle_unexpected_disconnect(node_id: str) -> None:
         except Exception:
             await session.rollback()
             raise
+
+    cancelled_ids = sequence_registry.cancel_all_for_node(node_id)
+    for seq_id in cancelled_ids:
+        await frontend_manager.broadcast_sequence_error(
+            sequence_id=seq_id,
+            node_id=node_id,
+            user_id="",
+            reason="node disconnected unexpectedly",
+        )
 
     connection_manager.deregister(node_id)
     await frontend_manager.broadcast_node_status(node_id, "disconnected")
