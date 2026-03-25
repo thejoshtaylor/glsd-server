@@ -28,6 +28,10 @@ export {
   // Notifications
   Bell,           // Notifications enabled
   BellOff,        // Notifications disabled
+  // Interactive response
+  MessageCircleQuestion,  // Question prompt header
+  Send,                   // Submit button
+  Check,                  // Multi-select checkmark
   // Alerts
   X,
   // Section headings
