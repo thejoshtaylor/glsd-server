@@ -52,7 +52,7 @@ Exceptions: Touch targets for copy buttons — minimum 44px height to meet WCAG 
 | Body | 14px | 400 | 1.5 | Geist Variable (font-sans) | Default prose, helper text, field descriptions |
 | Label | 14px | 600 | 1.4 | Geist Variable (font-sans) | Form field labels, nav items, badge text |
 | Heading | 20px | 600 | 1.2 | Orbitron Variable (font-heading) | Page section headings (matches `text-xl font-semibold font-heading` pattern in codebase) |
-| Display | 28px | 700 | 1.1 | Orbitron Variable (font-heading) | Onboarding page hero title only |
+| Display | 28px | 600 | 1.1 | Orbitron Variable (font-heading) | Onboarding page hero title only — size alone (28px vs 20px) provides sufficient visual differentiation |
 
 Source: body/label sizes from existing dashboard patterns (`text-sm` = 14px used throughout). Heading size from `text-xl font-semibold font-heading` in audit.tsx and $nodeId.tsx. Display size is discretion default for onboarding hero.
 
@@ -120,7 +120,7 @@ Route: `/dashboard/onboarding`
 
 ```
 [Page: /dashboard/onboarding]
-  DisplayHeading: "Getting Started"          ← Orbitron 28px/700
+  DisplayHeading: "Getting Started"          ← Orbitron 28px/600
   SubText: "Connect your first GSD node..."  ← Geist 14px/400 muted-foreground
 
   [StepCard 1]  ← Card component, border oklch(0.75 0.18 195 / 15%)
@@ -170,10 +170,10 @@ Component: `ExecuteForm.tsx`
   Label: "Advanced"
   [Field: Session ID]       ← existing field, moved inside disclosure
 
-[Submit Button]             ← existing, label: "Run"
+[Submit Button]             ← existing, label: "Run Task"
 ```
 
-Field labels use `text-sm font-semibold` (Geist 14px/600). Helper text uses `text-xs text-muted-foreground` (Geist 12px/400, line-height 1.4). Gap between label and input: 4px. Gap between fields: 16px.
+Field labels use `text-sm font-semibold` (Geist 14px/600). Helper text uses `text-sm text-muted-foreground` (Geist 14px/400, line-height 1.5). Gap between label and input: 4px. Gap between fields: 16px.
 
 ---
 
@@ -230,6 +230,7 @@ Same visual treatment as "Dashboard" and "Audit Log" nav items — no special hi
 | Preset field label | "Quick Start" |
 | Preset field helper | "Choose a task or write your own below" |
 | Advanced disclosure label | "Advanced" |
+| Primary CTA | "Run Task" |
 | Error state (project picker, no projects) | "This node has no projects listed. Start the node and reconnect." |
 | Error state (execute form submission) | Existing error display — no change in Phase 13 |
 | Destructive confirmation | None — no destructive actions in this phase |
