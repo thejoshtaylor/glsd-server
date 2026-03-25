@@ -81,7 +81,10 @@ Plans:
   3. User can click any palette command and it dispatches immediately to the selected node and project
   4. User can fill in parameter fields (phase number, task description) for parameterized commands before dispatch
   5. Each palette command shows a description and guidance on when to use it
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 15-01-PLAN.md — Backend: Stream event classifier module, handler/manager/replay enrichment with gsd field
+- [ ] 15-02-PLAN.md — Frontend: Protocol type extension, GSD command registry, CommandPalette component
 **UI hint**: yes
 
 ### Phase 16: Interactive Response and Notifications
@@ -128,10 +131,10 @@ Plans:
 | 12. WebSocket Reliability | v1.2 | 1/1 | Complete | 2026-03-25 |
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
-| 15. Stream Intelligence and Command Palette | v1.3 | 0/? | Not started | — |
+| 15. Stream Intelligence and Command Palette | v1.3 | 0/2 | Not started | — |
 | 16. Interactive Response and Notifications | v1.3 | 0/? | Not started | — |
 | 17. Auto Mode | v1.3 | 0/? | Not started | — |
 
 ---
 *Roadmap created: 2026-03-20*
-*Last updated: 2026-03-25 — Phase 14 planned (2 plans)*
+*Last updated: 2026-03-25 — Phase 15 planned (2 plans)*
