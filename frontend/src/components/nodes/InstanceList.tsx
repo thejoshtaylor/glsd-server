@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Activity, Clock, CheckCircle, AlertTriangle } from '@/lib/icons'
 import type { LucideIcon } from 'lucide-react'
 import type { InstanceResponse } from '@/types/api'
@@ -37,7 +38,17 @@ export function InstanceList({ nodeId, onSelectInstance, onResumeSession }: Inst
     queryFn: () => api<InstanceResponse[]>(`/api/instances?node_id=${nodeId}`),
   })
 
-  if (isLoading) return <div className="text-muted-foreground text-sm">Loading instances...</div>
+  if (isLoading) return (
+    <div className="space-y-2">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="p-3 bg-muted/50 rounded-md border border-border space-y-1.5">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-3 w-1/3" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+      ))}
+    </div>
+  )
   if (!instances?.length) return <div className="text-muted-foreground text-sm">No instances yet</div>
 
   return (
