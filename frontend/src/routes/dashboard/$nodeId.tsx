@@ -11,7 +11,7 @@ import { StaleWarning } from '@/components/alerts/StaleWarning'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import { useWsStore } from '@/stores/wsStore'
-import { ArrowLeft } from '@/lib/icons'
+import { ArrowLeft, Layers } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import type { NodeResponse, InstanceResponse } from '@/types/api'
 import type { WsOutgoingMessage } from '@/types/protocol'
@@ -108,7 +108,10 @@ function NodeDetailPage() {
               />
 
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-widest">Instances</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-widest inline-flex items-center gap-1.5">
+                  <Layers size={20} className="text-primary" />
+                  Instances
+                </h3>
                 <InstanceList
                   nodeId={nodeId}
                   onSelectInstance={handleSelectInstance}

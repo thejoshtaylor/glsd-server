@@ -42,7 +42,7 @@ export function StreamPanel({ instanceId, nodeId, instanceStatus }: StreamPanelP
       {userScrolledUp && (
         <button
           onClick={resetScroll}
-          className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full p-2 shadow-lg"
+          className="absolute bottom-4 right-4 bg-primary hover:bg-primary/80 text-primary-foreground rounded-full p-2 shadow-lg glow-cyan"
         >
           <ArrowDown className="h-4 w-4" />
         </button>

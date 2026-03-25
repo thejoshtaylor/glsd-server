@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import { AuditFilters } from '@/components/audit/AuditFilters'
 import { AuditTable } from '@/components/audit/AuditTable'
 import { Button } from '@/components/ui/button'
+import { Shield } from '@/lib/icons'
 import type { NodeResponse, AuditLogResponse } from '@/types/api'
 
 export const Route = createFileRoute('/dashboard/audit')({
@@ -64,7 +65,10 @@ function AuditPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h2 className="text-xl font-semibold font-heading text-foreground">Audit Log</h2>
+      <h2 className="text-xl font-semibold font-heading text-foreground inline-flex items-center gap-2">
+        <Shield size={20} className="text-primary" />
+        Audit Log
+      </h2>
 
       <AuditFilters
         nodes={nodes ?? []}

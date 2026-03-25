@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { useWsStore } from '@/stores/wsStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Terminal, Play } from '@/lib/icons'
 import type { NodeResponse } from '@/types/api'
 import type { WsOutgoingMessage } from '@/types/protocol'
 import { VoiceButton } from './VoiceButton'
@@ -86,7 +87,10 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
 
   return (
     <div className="space-y-3 p-4 bg-muted/50 rounded-lg border border-border">
-      <div className="text-sm font-medium text-muted-foreground uppercase tracking-widest">Execute Command</div>
+      <div className="text-sm font-medium text-muted-foreground uppercase tracking-widest inline-flex items-center gap-1.5">
+        <Terminal size={20} className="text-primary" />
+        Execute Command
+      </div>
 
       <div className="flex gap-2">
         <select
@@ -136,7 +140,7 @@ export function ExecuteForm({ node, onInstanceCreated, defaultSessionId }: Execu
           disabled={!canExecute || executeMutation.isPending || isAwaitingAck}
           className="flex-1"
         >
-          {executeMutation.isPending ? 'Dispatching...' : isAwaitingAck ? 'Awaiting ACK...' : 'Execute'}
+          {executeMutation.isPending ? 'Dispatching...' : isAwaitingAck ? 'Awaiting ACK...' : <><Play size={16} /> Execute</>}
         </Button>
         <VoiceButton
           onTranscript={handleTranscript}
