@@ -10,7 +10,7 @@ Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and s
 
 ## Current State
 
-Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,600 LOC Python backend.
+Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,600 LOC Python backend. Phase 11 (Extended Sessions) complete — 1hr access tokens, opaque refresh token rotation with reuse detection, singleton refresh guard.
 
 **Tech stack:** Python 3.12 FastAPI + SQLAlchemy 2 async + asyncpg + PostgreSQL 16 (backend), React 19 + TanStack Router + TanStack Query + Zustand + shadcn/ui + Tailwind v4 (frontend), Nginx (reverse proxy), Docker Compose (deployment).
 
@@ -62,7 +62,7 @@ Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,6
 
 - [ ] Node onboarding guide page
 - [ ] Simplified execute form with presets and project picker
-- [ ] Extended session duration (1hr access + 7-day refresh)
+- [x] Extended session duration (1hr access + 7-day refresh) — Phase 11
 - [ ] WebSocket token refresh on reconnect (INT-01)
 - [ ] Audit page WebSocket on direct navigation (INT-02)
 
@@ -106,7 +106,7 @@ Shipped v1.1 Cyberpunk Beautification with ~3,500 LOC TypeScript frontend + ~3,6
 | asyncpg + SQLAlchemy 2 async | Blocking DB calls in event loop cascade into node timeouts | ✓ Good — async-only from day one |
 | EventRouter asyncio queues | Per-connection queues with dedicated writer coroutines | ✓ Good — decouples routing from network I/O |
 | Stream events not persisted to DB | Only terminal state transitions in PostgreSQL | ⚠️ Revisit — frontend-side buffer only |
-| No refresh token rotation v1 | Simplicity; rotation is a v2 enhancement | ⚠️ Revisit for security hardening |
+| Opaque refresh token rotation | Atomic SQL rotation with family-based reuse detection | ✓ Good — implemented in Phase 11 |
 | OKLCH tokens in :root/.dark only | @theme inline bakes static values — dark mode bug #18296 | ✓ Good — v1.1 confirmed |
 | Pseudo-element glow, not box-shadow | Direct box-shadow animation causes repaints | ✓ Good — smooth animations |
 | Lucide via icons.ts barrel | Barrel import from lucide-react slows dev 5-8x | ✓ Good — centralized re-exports |
@@ -130,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-25 after v1.2 milestone start*
+*Last updated: 2026-03-24 after Phase 11 (Extended Sessions) completion*
