@@ -131,7 +131,7 @@ Plans:
 | 12. WebSocket Reliability | v1.2 | 1/1 | Complete | 2026-03-25 |
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
-| 15. Stream Intelligence and Command Palette | v1.3 | 2/2 | Complete   | 2026-03-25 |
+| 15. Stream Intelligence and Command Palette | v1.3 | 2/2 | Complete    | 2026-03-25 |
 | 16. Interactive Response and Notifications | v1.3 | 0/? | Not started | — |
 | 17. Auto Mode | v1.3 | 0/? | Not started | — |
 
