@@ -50,7 +50,7 @@
 ### v1.3 GSD Integration
 
 - [x] **Phase 14: Project Management** — Users can register and manage GSD projects on nodes (completed 2026-03-25)
-- [ ] **Phase 15: Stream Intelligence and Command Palette** — Server classifies GSD stream events; users dispatch GSD commands from a palette
+- [x] **Phase 15: Stream Intelligence and Command Palette** — Server classifies GSD stream events; users dispatch GSD commands from a palette (completed 2026-03-25)
 - [ ] **Phase 16: Interactive Response and Notifications** — Users answer GSD questions inline and receive alerts when attention is needed
 - [ ] **Phase 17: Auto Mode** — Users run sequential GSD command workflows that advance automatically
 
@@ -84,7 +84,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 15-01-PLAN.md — Backend: Stream event classifier module, handler/manager/replay enrichment with gsd field
-- [ ] 15-02-PLAN.md — Frontend: Protocol type extension, GSD command registry, CommandPalette component
+- [x] 15-02-PLAN.md — Frontend: Protocol type extension, GSD command registry, CommandPalette component
 **UI hint**: yes
 
 ### Phase 16: Interactive Response and Notifications
@@ -131,7 +131,7 @@ Plans:
 | 12. WebSocket Reliability | v1.2 | 1/1 | Complete | 2026-03-25 |
 | 13. UX Surface | v1.2 | 2/2 | Complete | 2026-03-25 |
 | 14. Project Management | v1.3 | 2/2 | Complete    | 2026-03-25 |
-| 15. Stream Intelligence and Command Palette | v1.3 | 1/2 | In Progress|  |
+| 15. Stream Intelligence and Command Palette | v1.3 | 2/2 | Complete   | 2026-03-25 |
 | 16. Interactive Response and Notifications | v1.3 | 0/? | Not started | — |
 | 17. Auto Mode | v1.3 | 0/? | Not started | — |
 
