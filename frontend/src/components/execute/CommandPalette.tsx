@@ -153,7 +153,6 @@ export function CommandPalette({ node, onInstanceCreated }: CommandPaletteProps)
           nodeId={node.node_id}
           project={currentProject}
           workDir={workDir}
-          onInstanceCreated={onInstanceCreated}
         />
       ) : (
       <>

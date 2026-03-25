@@ -83,8 +83,6 @@ export function SequenceProgress({ nodeId }: SequenceProgressProps) {
               ? true
               : i < seq.current_step
           const isActive = i === seq.current_step && seq.status === 'running'
-          const isPending = !isCompleted && !isActive
-
           return (
             <div
               key={i}
