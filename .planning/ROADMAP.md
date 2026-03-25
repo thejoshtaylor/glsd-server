@@ -67,8 +67,8 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 09-01-PLAN.md — CSS glow utilities, icons.ts barrel, shadcn scaffold, icon migration
-- [ ] 09-02-PLAN.md — Status badge OKLCH colors, section heading icons, action button icons, FAB fix
-- [ ] 09-03-PLAN.md — Skeleton loading states for NodeGrid, InstanceList, and $nodeId route
+- [x] 09-02-PLAN.md — Status badge OKLCH colors, section heading icons, action button icons, FAB fix
+- [x] 09-03-PLAN.md — Skeleton loading states for NodeGrid, InstanceList, and $nodeId route
 **UI hint**: yes
 
 ### Phase 10: Animations and Login Treatment

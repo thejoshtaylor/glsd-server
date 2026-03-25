@@ -18,10 +18,10 @@ Requirements for the Cyberpunk Beautification milestone. Each maps to roadmap ph
 
 ### Icons
 
-- [ ] **ICN-01**: All dashboard sections have meaningful Lucide icons in headings
-- [ ] **ICN-02**: All action buttons display relevant icons (execute, kill, voice, filter)
-- [ ] **ICN-03**: All status indicators pair icons with color (instance states, node states)
-- [ ] **ICN-04**: Icon imports use direct paths for tree-shaking via centralized icons module
+- [x] **ICN-01**: All dashboard sections have meaningful Lucide icons in headings
+- [x] **ICN-02**: All action buttons display relevant icons (execute, kill, voice, filter)
+- [x] **ICN-03**: All status indicators pair icons with color (instance states, node states)
+- [x] **ICN-04**: Icon imports use direct paths for tree-shaking via centralized icons module
 
 ### Typography
 
@@ -31,14 +31,14 @@ Requirements for the Cyberpunk Beautification milestone. Each maps to roadmap ph
 
 ### Component Polish
 
-- [ ] **CMP-01**: Node status badges use neon colors with subtle glow (cyan=connected, amber=stale, red=disconnected)
-- [ ] **CMP-02**: Audit event type badges use cyberpunk-themed colors
-- [ ] **CMP-03**: Loading states use skeleton components instead of plain text
-- [ ] **CMP-04**: Stream panel scroll FAB uses neon cyan with glow instead of generic blue
-- [ ] **CMP-05**: New shadcn dialog component available for confirmations
-- [ ] **CMP-06**: New shadcn tooltip component available for icon-only buttons
-- [ ] **CMP-07**: New shadcn progress component available for loading indicators
-- [ ] **CMP-08**: New shadcn tabs component available for view switching
+- [x] **CMP-01**: Node status badges use neon colors with subtle glow (cyan=connected, amber=stale, red=disconnected)
+- [x] **CMP-02**: Audit event type badges use cyberpunk-themed colors
+- [x] **CMP-03**: Loading states use skeleton components instead of plain text
+- [x] **CMP-04**: Stream panel scroll FAB uses neon cyan with glow instead of generic blue
+- [x] **CMP-05**: New shadcn dialog component available for confirmations
+- [x] **CMP-06**: New shadcn tooltip component available for icon-only buttons
+- [x] **CMP-07**: New shadcn progress component available for loading indicators
+- [x] **CMP-08**: New shadcn tabs component available for view switching
 
 ### Animations
 
@@ -93,21 +93,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLR-04 | Phase 8 | Complete |
 | CLR-05 | Phase 8 | Complete |
 | CLR-06 | Phase 8 | Complete |
-| ICN-01 | Phase 9 | Pending |
-| ICN-02 | Phase 9 | Pending |
-| ICN-03 | Phase 9 | Pending |
-| ICN-04 | Phase 9 | Pending |
+| ICN-01 | Phase 9 | Complete |
+| ICN-02 | Phase 9 | Complete |
+| ICN-03 | Phase 9 | Complete |
+| ICN-04 | Phase 9 | Complete |
 | TYP-01 | Phase 8 | Complete |
 | TYP-02 | Phase 8 | Complete |
 | TYP-03 | Phase 8 | Complete |
-| CMP-01 | Phase 9 | Pending |
-| CMP-02 | Phase 9 | Pending |
-| CMP-03 | Phase 9 | Pending |
-| CMP-04 | Phase 9 | Pending |
-| CMP-05 | Phase 9 | Pending |
-| CMP-06 | Phase 9 | Pending |
-| CMP-07 | Phase 9 | Pending |
-| CMP-08 | Phase 9 | Pending |
+| CMP-01 | Phase 9 | Complete |
+| CMP-02 | Phase 9 | Complete |
+| CMP-03 | Phase 9 | Complete |
+| CMP-04 | Phase 9 | Complete |
+| CMP-05 | Phase 9 | Complete |
+| CMP-06 | Phase 9 | Complete |
+| CMP-07 | Phase 9 | Complete |
+| CMP-08 | Phase 9 | Complete |
 | ANI-01 | Phase 10 | Pending |
 | ANI-02 | Phase 10 | Pending |
 | ANI-03 | Phase 10 | Pending |
