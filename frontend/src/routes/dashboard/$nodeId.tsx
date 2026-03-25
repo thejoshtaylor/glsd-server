@@ -9,7 +9,6 @@ import { StreamPanel } from '@/components/stream/StreamPanel'
 import { HistoryStreamPanel } from '@/components/stream/HistoryStreamPanel'
 import { StaleWarning } from '@/components/alerts/StaleWarning'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
-import { useWebSocket } from '@/hooks/useWebSocket'
 import { useWsStore } from '@/stores/wsStore'
 import { ArrowLeft, Layers } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
@@ -23,7 +22,6 @@ export const Route = createFileRoute('/dashboard/$nodeId')({
 
 function NodeDetailPage() {
   const { nodeId } = Route.useParams()
-  useWebSocket()
 
   const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null)
   const [activeInstanceStatus, setActiveInstanceStatus] = useState<string>('pending')
