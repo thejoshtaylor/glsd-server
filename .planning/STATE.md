@@ -4,12 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: unknown
 stopped_at: Completed 13-ux-surface-01-PLAN.md
-last_updated: "2026-03-25T05:33:04.731Z"
-progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+last_updated: "2026-03-25T05:48:26.084Z"
 ---
 
 # STATE: GLSD Server
@@ -78,6 +73,7 @@ Plan: Not started
 | 260324-jbe | Update root README, remove port exposures from docker-compose | 2026-03-24 | 86be4be | [260324-jbe-update-root-readme-remove-port-exposures](./quick/260324-jbe-update-root-readme-remove-port-exposures/) |
 | 260324-pu8 | Add env variables for initial admin bootstrap on startup | 2026-03-25 | 4a2ce06 | [260324-pu8-add-env-variables-for-establishing-an-in](./quick/260324-pu8-add-env-variables-for-establishing-an-in/) |
 | 260324-vml | Fix ExecuteForm TS null-safety errors for Docker build | 2026-03-25 | f39e628 | [260324-vml-fix-executeform-ts-null-safety-errors-fo](./quick/260324-vml-fix-executeform-ts-null-safety-errors-fo/) |
+| 260324-wyk | Fix node not visible in frontend; fix logout-on-refresh; increase stale threshold | 2026-03-25 | 0532a8d | [260324-wyk-fix-node-not-visible-in-frontend-fix-log](./quick/260324-wyk-fix-node-not-visible-in-frontend-fix-log/) |
 
 ---
 | Phase 11-extended-sessions P01 | 12 | 2 tasks | 5 files |
@@ -88,5 +84,5 @@ Plan: Not started
 
 ## Session Continuity
 
-**Last session:** 2026-03-25T05:16:32.485Z
-**Stopped at:** Completed 13-ux-surface-01-PLAN.md
+**Last session:** 2026-03-25T06:49:18Z
+**Stopped at:** Completed quick/260324-wyk
