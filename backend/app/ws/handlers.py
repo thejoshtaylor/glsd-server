@@ -77,16 +77,6 @@ async def handle_node_register(payload: NodeRegisterPayload, conn: NodeConnectio
                     )
                     session.add(node)
                     await session.flush()  # ensure Node row exists before FK insert
-                    first_team = (
-                        await session.execute(select(Team).limit(1))
-                    ).scalar_one_or_none()
-                    if first_team is not None:
-                        session.add(NodeTeam(node_id=payload.node_id, team_id=first_team.team_id))
-                        logger.info(
-                            "Auto-assigned new node %s to team %s",
-                            payload.node_id,
-                            first_team.name,
-                        )
                 else:
                     node.platform = payload.platform
                     node.version = payload.version
@@ -95,6 +85,25 @@ async def handle_node_register(payload: NodeRegisterPayload, conn: NodeConnectio
                     node.connected_at = now
                     node.last_heartbeat = now
                     node.last_seen = now
+
+                # Ensure node has at least one team assignment (handles reconnecting
+                # nodes and nodes created before auto-assignment was added).
+                existing_assignment = (
+                    await session.execute(
+                        select(NodeTeam).where(NodeTeam.node_id == payload.node_id).limit(1)
+                    )
+                ).scalar_one_or_none()
+                if existing_assignment is None:
+                    first_team = (
+                        await session.execute(select(Team).limit(1))
+                    ).scalar_one_or_none()
+                    if first_team is not None:
+                        session.add(NodeTeam(node_id=payload.node_id, team_id=first_team.team_id))
+                        logger.info(
+                            "Auto-assigned node %s to team %s",
+                            payload.node_id,
+                            first_team.name,
+                        )
 
                 await reconcile_instances(payload.node_id, payload.running_instances, session)
                 await session.commit()
