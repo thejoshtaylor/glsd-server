@@ -116,6 +116,17 @@ None - all data is wired to live API endpoints. ProjectManager calls `GET /api/n
 
 Task 3 is a `checkpoint:human-verify` gate. Automated work (Tasks 1 and 2) is complete. The user must manually verify the project management UI works end-to-end in the browser per the Task 3 checklist in the plan.
 
+## Self-Check: PASSED
+
+- FOUND: frontend/src/types/api.ts
+- FOUND: frontend/src/components/projects/ProjectManager.tsx
+- FOUND: frontend/src/components/projects/ConnectProjectDialog.tsx
+- FOUND: frontend/src/components/projects/CloneProjectDialog.tsx
+- FOUND: frontend/src/components/projects/BootstrapProjectDialog.tsx
+- FOUND: .planning/phases/14-project-management/14-02-SUMMARY.md
+- FOUND commit: 024bb81 (Task 1)
+- FOUND commit: e04402d (Task 2)
+
 ---
 *Phase: 14-project-management*
 *Completed: 2026-03-25*
