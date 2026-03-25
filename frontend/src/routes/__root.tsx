@@ -2,7 +2,7 @@ import { createRootRoute, Link, Outlet, useNavigate } from '@tanstack/react-rout
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '../lib/queryClient'
 import { getAccessToken, clearTokens } from '../lib/api'
-import { LogOut } from '@/lib/icons'
+import { LogOut, BookOpen } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -40,6 +40,13 @@ function RootLayout() {
                 className="block px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted hover:text-foreground [&.active]:bg-muted [&.active]:text-foreground"
               >
                 Audit Log
+              </Link>
+              <Link
+                to="/dashboard/onboarding"
+                className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted hover:text-foreground [&.active]:bg-muted [&.active]:text-foreground"
+              >
+                <BookOpen size={16} />
+                Getting Started
               </Link>
             </nav>
             <div className="p-3 border-t border-border">
