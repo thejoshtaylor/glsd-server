@@ -29,6 +29,7 @@ async def dispatch_execute(
     user_id: str,
     db: AsyncSession,
     session_id: str | None = None,
+    skip_project_check: bool = False,
 ) -> str:
     """Dispatch an execute command to a connected node.
 
@@ -39,6 +40,10 @@ async def dispatch_execute(
     Raises PermissionError if the user does not have team access to the node.
     Raises ValueError if the node is not connected, the project is not
     available on the node, or the node disconnects during dispatch.
+
+    skip_project_check: When True, bypass the conn.projects membership check.
+    Used by project setup endpoints (clone, bootstrap) that dispatch an execute
+    before the project is registered on the node's connection state.
     """
     # (a) Validate team ownership — user must belong to a team that owns this node
     if not await user_can_access_node(user_id, node_id, db):
@@ -49,8 +54,8 @@ async def dispatch_execute(
     if conn is None:
         raise ValueError(f"Node {node_id} is not connected")
 
-    # (c) Validate project exists on node (CMD-04)
-    if project not in conn.projects:
+    # (c) Validate project exists on node (CMD-04) — skipped for project setup commands
+    if not skip_project_check and project not in conn.projects:
         raise ValueError(
             f"Project {project!r} not found on node {node_id}. "
             f"Available: {conn.projects}"

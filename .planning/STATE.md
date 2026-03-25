@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: GSD Integration
-status: roadmap_defined
-stopped_at: Roadmap created — ready to plan Phase 14
-last_updated: "2026-03-25T12:00:00.000Z"
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+stopped_at: Completed 13-ux-surface-01-PLAN.md
+last_updated: "2026-03-25T06:55:00.000Z"
 ---
 
 # STATE: GLSD Server
@@ -18,23 +18,19 @@ last_updated: "2026-03-25T12:00:00.000Z"
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** Reliably connect to distributed GSD nodes, dispatch Claude CLI executions, and stream results back to users in real time
-**Current focus:** v1.3 GSD Integration — roadmap defined, ready to plan Phase 14
+**Current focus:** Phase 14 — Project Management
 
 ---
 
 ## Current Position
 
-Phase: 14 — Project Management (not started)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-25 — v1.3 roadmap created
-
-Progress bar: Phase 14 of 17 defined [ ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░ ]
+Phase: 14
+Plan: 2
 
 ## Performance Metrics
 
 **Plans executed:** 29 (v1.0: 21, v1.1: 8)
-**Phases completed:** 13 (v1.0: 7, v1.1: 3, v1.2: 3)
+**Phases completed:** 10 (v1.0: 7, v1.1: 3)
 **Timeline:** 6 days (2026-03-20 → 2026-03-25)
 
 ---
@@ -52,10 +48,9 @@ Progress bar: Phase 14 of 17 defined [ ▓▓▓▓▓▓▓▓▓▓▓▓▓�
 - **Naive UTC datetimes** — all DB columns use TIMESTAMP WITHOUT TIME ZONE; use `utcnow()` helper, never `datetime.now(timezone.utc)`
 - **No `motion` library** — all animations via `tw-animate-css` and CSS `@keyframes` only
 - **Admin bootstrap** — `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD` env vars seed admin on startup; flush User before Team (FK ordering)
-- **v1.3: Additive stream enrichment only** — classification added as `gsd` sibling field on WS message; existing `data` field shape NEVER mutated
-- **v1.3: AskUserQuestion via session-resume execute** — answer dispatch uses existing execute protocol with `session_id`; no new node-side protocol changes
-- **v1.3: Auto sequencer on server, not frontend** — `asyncio.Event` per `instance_id`; keyed on `(node_id, sequence_id)` to isolate concurrent users
-- **v1.3: Path validation on all project work_dir input** — `os.path.normpath` + reject `..`; never accept free-text path for dispatch
+- **skip_project_check=True** — bypass `conn.projects` check in `dispatch_execute` for project setup commands (clone/bootstrap) where project not yet registered on node
+- **connect endpoint no-dispatch** — POST /api/projects/connect writes DB row only, no execute; `instance_id=None` in response
+- **pg INSERT ON CONFLICT for project upsert** — re-registering same (node_id, name) pair updates work_dir; avoids UniqueConstraint error on reconnect
 
 ### Technical Pitfalls
 
@@ -69,14 +64,6 @@ Progress bar: Phase 14 of 17 defined [ ▓▓▓▓▓▓▓▓▓▓▓▓▓�
 - **v1.2 critical:** Add `refreshPromise` singleton guard in `api.ts` BEFORE Phase 12 WS reconnect fix
 - **v1.2 critical:** Always call `getAccessToken()` AFTER `await refreshAccessToken()` — never capture token in local var before async boundary
 - **v1.2 critical:** Move `useWebSocket()` to layout route (`route.tsx`) to fix INT-02 — do NOT add it to `audit.tsx`
-- **v1.3 critical:** Ship `InteractiveResponseUI` with status-aware teardown in the same PR — never ship prompt component without `instanceStatuses[instanceId]` nil-guard
-- **v1.3 critical:** Broadcast `prompt_answered` to all user connections BEFORE forwarding `node_input` to node — prevents multi-tab duplicate submission
-- **v1.3 critical:** Cancel all auto sequences for a node in `handle_unexpected_disconnect` — broadcast `sequence_error` to affected users
-
-### Research Flags (v1.3)
-
-- **Phase 15 (Stream Intelligence):** Freeform input wait — exact `system` event subtype for text-input blocking is MEDIUM confidence only. Capture raw NDJSON from a real `gsd discuss-phase` run before implementing the heuristic branch. Do not ship heuristic detection without this data.
-- **Phase 17 (Auto Mode):** `asyncio.Event` registry memory management under long-running server not stress-tested. Verify cleanup paths on sequence cancellation before shipping.
 
 ### Blockers
 
@@ -91,7 +78,6 @@ Progress bar: Phase 14 of 17 defined [ ▓▓▓▓▓▓▓▓▓▓▓▓▓�
 | 260324-vml | Fix ExecuteForm TS null-safety errors for Docker build | 2026-03-25 | f39e628 | [260324-vml-fix-executeform-ts-null-safety-errors-fo](./quick/260324-vml-fix-executeform-ts-null-safety-errors-fo/) |
 | 260324-wyk | Fix node not visible in frontend; fix logout-on-refresh; increase stale threshold | 2026-03-25 | 0532a8d | [260324-wyk-fix-node-not-visible-in-frontend-fix-log](./quick/260324-wyk-fix-node-not-visible-in-frontend-fix-log/) |
 | 260325-009 | Fix node visibility: move NodeTeam auto-assign to run unconditionally after node upsert | 2026-03-25 | 5165704 | [260325-009-fix-node-visibility-frontend-not-showing](./quick/260325-009-fix-node-visibility-frontend-not-showing/) |
-| 260325-0bc | Fix SelectRootContext missing error in ExecuteForm; audit all frontend components | 2026-03-25 | ab0ca9c | [260325-0bc-fix-selectrootcontext-missing-error-and-](./quick/260325-0bc-fix-selectrootcontext-missing-error-and-/) |
 
 ---
 | Phase 11-extended-sessions P01 | 12 | 2 tasks | 5 files |
@@ -99,10 +85,11 @@ Progress bar: Phase 14 of 17 defined [ ▓▓▓▓▓▓▓▓▓▓▓▓▓�
 | Phase 12-websocket-reliability P01 | 8 | 2 tasks | 6 files |
 | Phase 13-ux-surface P02 | 8 | 1 tasks | 1 files |
 | Phase 13-ux-surface P01 | 8 | 2 tasks | 5 files |
+| Phase 14-project-management P01 | 3min | 2 tasks | 8 files |
 
 ## Session Continuity
 
-**Last session:** 2026-03-25T12:00:00Z
-**Stopped at:** v1.3 roadmap created — ready to plan Phase 14
+**Last session:** 2026-03-25T08:32:10Z
+**Stopped at:** Completed 14-project-management-01-PLAN.md
 
-Last activity: 2026-03-25 - v1.3 GSD Integration roadmap defined (4 phases, 27 requirements mapped)
+Last activity: 2026-03-25 - Completed Phase 14 Plan 01: Backend project management layer (connect/clone/bootstrap endpoints, Project model, Alembic migration 0006, project_service, skip_project_check)

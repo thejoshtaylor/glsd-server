@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.database import get_engine
-from app.routers import audit, auth, health, nodes, teams, transcribe
+from app.routers import audit, auth, health, nodes, projects, teams, transcribe
 from app.services.admin_bootstrap import ensure_initial_admin
 from app.ws.frontend_router import router as frontend_ws_router
 from app.ws.health import stale_node_scanner
@@ -41,6 +41,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(teams.router)
 app.include_router(nodes.router)
+app.include_router(projects.router)
 app.include_router(audit.router)
 app.include_router(transcribe.router)
 app.include_router(ws_router)

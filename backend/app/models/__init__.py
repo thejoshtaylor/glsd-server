@@ -2,6 +2,7 @@ from app.models.audit import AuditLog
 from app.models.instance import Instance, InstanceStatus
 from app.models.node import Node, NodeStatus
 from app.models.node_team import NodeTeam
+from app.models.project import Project
 from app.models.refresh_token import RefreshToken
 from app.models.stream_event import StreamEvent
 from app.models.team import Team, TeamMember
@@ -21,4 +22,5 @@ __all__ = [
     "RefreshToken",
     "WsTicket",
     "NodeTeam",
+    "Project",
 ]
