@@ -17,8 +17,8 @@ Requirements for the Ease of Access milestone. Each maps to roadmap phases.
 
 ### WebSocket Reliability
 
-- [ ] **WSR-01**: WebSocket reconnect refreshes expired access token before requesting new ticket (INT-01 fix)
-- [ ] **WSR-02**: Audit page establishes WebSocket connection on direct navigation (INT-02 fix)
+- [x] **WSR-01**: WebSocket reconnect refreshes expired access token before requesting new ticket (INT-01 fix)
+- [x] **WSR-02**: Audit page establishes WebSocket connection on direct navigation (INT-02 fix)
 
 ### Onboarding
 
@@ -28,9 +28,9 @@ Requirements for the Ease of Access milestone. Each maps to roadmap phases.
 
 ### Simplified Controls
 
-- [ ] **CTL-01**: Execute form shows project picker dropdown populated from selected node's project list
-- [ ] **CTL-02**: Execute form offers preset prompt selector that populates the prompt textarea (editable)
-- [ ] **CTL-03**: Execute form uses plain-language field labels and contextual help text
+- [x] **CTL-01**: Execute form shows project picker dropdown populated from selected node's project list
+- [x] **CTL-02**: Execute form offers preset prompt selector that populates the prompt textarea (editable)
+- [x] **CTL-03**: Execute form uses plain-language field labels and contextual help text
 - [ ] **CTL-04**: Navigation includes link to onboarding guide page
 
 ## Future Requirements
@@ -70,14 +70,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SES-03 | Phase 11 | Complete |
 | SES-04 | Phase 11 | Complete |
 | SES-05 | Phase 11 | Complete |
-| WSR-01 | Phase 12 | Pending |
-| WSR-02 | Phase 12 | Pending |
+| WSR-01 | Phase 12 | Complete |
+| WSR-02 | Phase 12 | Complete |
 | ONB-01 | Phase 13 | Pending |
 | ONB-02 | Phase 13 | Pending |
 | ONB-03 | Phase 13 | Pending |
-| CTL-01 | Phase 13 | Pending |
-| CTL-02 | Phase 13 | Pending |
-| CTL-03 | Phase 13 | Pending |
+| CTL-01 | Phase 13 | Complete |
+| CTL-02 | Phase 13 | Complete |
+| CTL-03 | Phase 13 | Complete |
 | CTL-04 | Phase 13 | Pending |
 
 **Coverage:**

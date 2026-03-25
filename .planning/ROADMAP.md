@@ -84,7 +84,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [ ] 13-01-PLAN.md — Onboarding page, sidebar nav link, and empty-state CTA
-- [ ] 13-02-PLAN.md — Execute form project picker, preset prompts, labels, and advanced disclosure
+- [x] 13-02-PLAN.md — Execute form project picker, preset prompts, labels, and advanced disclosure
 
 ## Progress
 
@@ -102,7 +102,7 @@ Plans:
 | 10. Animations and Login Treatment | v1.1 | 2/2 | Complete | 2026-03-25 |
 | 11. Extended Sessions | v1.2 | 2/2 | Complete    | 2026-03-25 |
 | 12. WebSocket Reliability | v1.2 | 1/1 | Complete    | 2026-03-25 |
-| 13. UX Surface | v1.2 | 0/2 | Not started | - |
+| 13. UX Surface | v1.2 | 1/2 | In Progress|  |
 
 ---
 *Roadmap created: 2026-03-20*
