@@ -2,7 +2,7 @@ import { createRootRoute, Link, Outlet, useNavigate } from '@tanstack/react-rout
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '../lib/queryClient'
 import { getAccessToken, clearTokens } from '../lib/api'
-import { LogOut } from 'lucide-react'
+import { LogOut } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 

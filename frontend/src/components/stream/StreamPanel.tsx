@@ -3,7 +3,7 @@ import { useAutoScroll } from '@/hooks/useAutoScroll'
 import { StreamEventRenderer } from './StreamEventRenderer'
 import { KillButton } from '@/components/execute/KillButton'
 import type { NdjsonEvent } from '@/types/ndjson'
-import { ArrowDown } from 'lucide-react'
+import { ArrowDown } from '@/lib/icons'
 
 interface StreamPanelProps {
   instanceId: string

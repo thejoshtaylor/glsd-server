@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { NodeStatusBadge } from './NodeStatusBadge'
 import type { NodeResponse } from '@/types/api'
-import { Monitor, Clock } from 'lucide-react'
+import { Monitor, Clock } from '@/lib/icons'
 
 export function NodeCard({ node }: { node: NodeResponse }) {
   const projectCount = node.projects?.length ?? 0

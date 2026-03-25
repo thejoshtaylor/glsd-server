@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle } from '@/lib/icons'
 
 export function StaleWarning({ nodeId }: { nodeId: string }) {
   return (

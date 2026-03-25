@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ToolUseEvent } from '@/types/ndjson'
-import { ChevronRight, ChevronDown, Wrench } from 'lucide-react'
+import { ChevronRight, ChevronDown, Wrench } from '@/lib/icons'
 
 export function ToolUse({ event }: { event: ToolUseEvent }) {
   const [expanded, setExpanded] = useState(false)

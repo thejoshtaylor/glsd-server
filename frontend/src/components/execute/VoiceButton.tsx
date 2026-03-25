@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Mic, Square } from 'lucide-react'
+import { Mic, Square } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { useVoiceRecorder, type RecorderState } from '@/hooks/useVoiceRecorder'
 import { toast } from 'sonner'
