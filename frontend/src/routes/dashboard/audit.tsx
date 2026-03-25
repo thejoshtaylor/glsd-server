@@ -64,7 +64,7 @@ function AuditPage() {
   const hasNoNodes = !isLoadingNodes && (!nodes || nodes.length === 0)
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-4 animate-in fade-in duration-150 fill-mode-both">
       <h2 className="text-xl font-semibold font-heading text-foreground inline-flex items-center gap-2">
         <Shield size={20} className="text-primary" />
         Audit Log

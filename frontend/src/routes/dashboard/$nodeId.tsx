@@ -91,7 +91,7 @@ function NodeDetailPage() {
   if (error || !node) return <div className="p-6 text-red-400">Node not found</div>
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full animate-in fade-in duration-150 fill-mode-both">
       <div className="p-6 pb-4 space-y-4">
         <div className="flex items-center gap-4">
           <Link to="/dashboard">

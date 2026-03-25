@@ -54,7 +54,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center h-full bg-background">
+    <div className="flex items-center justify-center h-full bg-background animate-in fade-in duration-150 fill-mode-both">
       <Card className="w-full max-w-sm bg-card border-border">
         <CardHeader>
           <CardTitle className="text-center text-foreground font-heading">GLSD Server</CardTitle>
